@@ -16,7 +16,9 @@ Here is a finding from a run on a [test configuration](tests/runs_without_a_codi
 >
 > *Rule `unrestricted_filesystem` · setting `config-1:sandbox_mode` = `danger-full-access`*
 
-It runs on Unix with Python 3.11 or newer. No agent is needed:
+It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
+follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
+the commands below. No agent is needed:
 
 ```sh
 git clone --branch v0.2.2 https://github.com/chalkbadger/stay-safe.git
@@ -52,7 +54,11 @@ Paste this into Codex in the ChatGPT app or the CLI:
 
 ```text
 Download stay-safe at tag v0.2.2 from https://github.com/chalkbadger/stay-safe into
-a new temporary folder and run `python3 -m stay_safe` there. Show the report exactly
+a new temporary folder and run `python3 -m stay_safe` there. First identify where
+your execution tools run and which environment you will inspect. If my intended
+configuration is unavailable there, stop and explain. If Python is too old or missing,
+point me to https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup
+and let me install it myself. Show the report exactly
 as printed, with its exit status, then your notes under "Agent's own report". Don't
 open auth files or change files outside that folder. If the download fails, stop and
 tell me.
