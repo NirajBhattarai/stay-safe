@@ -8,15 +8,15 @@ Tests: [tests/test_folders_have_markers/](../tests/test_folders_have_markers/)
 - I restore the markers, and the complete check discovers my failing sentinel; correcting the sentinel makes the check pass. `test_check.py::test_restored_markers_run_the_failing_sentinel_then_allow_its_pass`
 - I leave markers out of folders with no matching tests in them or their descendants, and the complete check passes. `test_check.py::test_folders_without_matching_tests_do_not_need_markers`
 
-## [runs_without_a_coding_agent] I copy the README's first commands, with no coding agent, and they download a tagged release and run it; the README's sample finding is what it prints. If I run it the wrong way or with a Python that's too old, it either runs anyway or tells me the exact command to run.
+## [runs_without_a_coding_agent] I copy the README's first commands, with no coding agent, and they download a tagged release and run it; the README's sample finding is what it prints. If I run it the wrong way or with a Python that's too old, it either runs anyway or tells me how to continue.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
 Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent/)
 
 - I open the README and find its first three fenced commands are a clone of a `vX.Y.Z` tag, `cd stay-safe` and `python3 -m stay_safe`. `test_readme.py::test_first_commands_clone_a_release_tag_and_run_the_diagnostic_without_an_agent`
 - I run stay-safe on the test configuration the README's sample finding links, and it prints that finding as the README shows it, apart from the commit in its links. `test_readme.py::test_sample_finding_is_what_stay_safe_prints_for_its_test_configuration`
 - I run `python3 stay_safe` from the checkout, and I get the same report and exit status as with `-m`. `test_python_entry.py::test_running_the_folder_without_m_gives_the_same_report_and_exit_status`
-- On a Python older than 3.11 with a newer Python on my `PATH`, I see that Python's command and a feedback link, and the exit status is 2. `test_python_entry.py::test_too_old_python_names_the_newest_python_on_the_path_and_exits_2`
-- On a Python older than 3.11 with no newer Python found, I see instructions to install 3.11 or newer and a feedback link, and the exit status is 2. `test_python_entry.py::test_too_old_python_without_a_newer_one_says_to_install_it_and_exits_2`
+- On a Python older than 3.11 with a recognized 3.11-3.13 command on my `PATH`, I see that Python's command and a feedback link, and the exit status is 2. `test_python_entry.py::test_too_old_python_names_the_newest_python_on_the_path_and_exits_2`
+- On a Python older than 3.11 without a recognized newer command, I see the Python setup link and a feedback link, and the exit status is 2. `test_python_entry.py::test_too_old_python_without_a_recognized_command_links_setup_and_exits_2`
 - The version check runs before anything that needs 3.11 is imported, and stays parseable by Python 3.9. `test_python_entry.py::test_version_check_runs_before_any_module_needing_3_11_and_parses_as_python_3_9`
 
 ## [see_every_connection_and_setting] I can see what stay-safe found in my Codex files. The report tells me when it used a default or could not complete a check.
