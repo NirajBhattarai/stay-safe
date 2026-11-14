@@ -28,7 +28,7 @@ if sys.version_info < (3, 11):
     if NEWER:
         NEXT = "Run: %s -m stay_safe" % NEWER[0]
     else:
-        NEXT = "Install Python 3.11 or newer, then run: python3.11 -m stay_safe"
+        NEXT = "Select or install a supported Python: https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup"
     # Like the "Invalid arguments" message, this goes to stderr with exit status 2.
     sys.stderr.write("stay-safe needs Python 3.11 or newer; this is Python %s. %s\n" % (THIS, NEXT))
     sys.stderr.write(FEEDBACK)
