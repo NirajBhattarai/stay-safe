@@ -1,7 +1,7 @@
 """Run stay-safe on a real Python older than 3.11, both as `python -m stay_safe` and `python stay_safe` (issue #48).
 
 The CI job in .github/workflows/checks.yml runs this with Python 3.9, and on macOS also with Apple's /usr/bin/python3.
-Each run gets a PATH holding only a temporary folder: empty, so the message says to install Python 3.11 or newer, or
+Each run gets a PATH holding only a temporary folder: empty, so the message links to Python setup, or
 holding a runnable python3.12 (and a python3.13 that can't be run), so the message names python3.12. It checks the
 exit status 2, the exact message and feedback link on stderr, an empty stdout, and that the fake python3.12 was not started. On Python 3.11
 or newer nothing is checked, so it fails. Not a unittest module: the test suite runs on Python 3.11+.
@@ -30,7 +30,7 @@ def main():
         for name, mode in (("python3.12", 0o755), ("python3.13", 0o644)):
             (Path(newer) / name).write_text(FAKE, encoding="utf-8")
             (Path(newer) / name).chmod(mode)
-        cases = ((empty, start + "Install Python 3.11 or newer, then run: python3.11 -m stay_safe\n" + FEEDBACK),
+        cases = ((empty, start + "Select or install a supported Python: https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup\n" + FEEDBACK),
                  (newer, start + "Run: python3.12 -m stay_safe\n" + FEEDBACK))
         for path, expected in cases:
             for way in (["-m", "stay_safe"], ["stay_safe"]):

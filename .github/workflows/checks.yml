@@ -43,3 +43,65 @@ jobs:
           else
             echo "Skipped: /usr/bin/python3 is $(/usr/bin/python3 -V 2>&1), 3.11 or newer, so it can't show the old-Python message."
           fi
+  python-recovery:
+    name: Python 3.9 to 3.15 recovery
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the proposed source archive
+        env:
+          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha }}
+        run: |
+          work="$RUNNER_TEMP/stay-safe-recovery"
+          mkdir "$work"
+          curl --fail --location --max-time 60 "https://github.com/$SOURCE_REPOSITORY/archive/$SOURCE_REVISION.zip" --output "$work/source.zip"
+          ditto -x -k "$work/source.zip" "$work"
+          echo "SOURCE_DIR=$work/stay-safe-$SOURCE_REVISION" >> "$GITHUB_ENV"
+          test "$(cat "$work/stay-safe-$SOURCE_REVISION/stay_safe/release.txt")" = "$SOURCE_REVISION"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        id: old
+        with:
+          python-version: '3.9'
+      - name: Observe the old default stopping with setup guidance
+        env:
+          OLD_PYTHON: ${{ steps.old.outputs.python-path }}
+        run: |
+          cd "$SOURCE_DIR"
+          python3 --version
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 9)'
+          # Hide other preinstalled interpreters for this call, so it exercises the setup link.
+          set +e
+          PATH="$(dirname "$OLD_PYTHON")" "$OLD_PYTHON" -B -m stay_safe --config tests/runs_without_a_coding_agent/sample.toml --format markdown > "$RUNNER_TEMP/old.stdout" 2> "$RUNNER_TEMP/old.stderr"
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/old.stdout" "$RUNNER_TEMP/old.stderr"
+          echo "Old Python exit status: $status"
+          test "$status" = 2
+          test ! -s "$RUNNER_TEMP/old.stdout"
+          grep -F 'stay-safe needs Python 3.11 or newer; this is Python 3.9.' "$RUNNER_TEMP/old.stderr"
+          grep -F 'https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup' "$RUNNER_TEMP/old.stderr"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        id: supported
+        with:
+          python-version: '3.15'
+          update-environment: false
+      - name: Recover using the explicit newer interpreter
+        env:
+          SUPPORTED_PYTHON: ${{ steps.supported.outputs.python-path }}
+        run: |
+          cd "$SOURCE_DIR"
+          python3 --version
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 9)'
+          "$SUPPORTED_PYTHON" --version
+          "$SUPPORTED_PYTHON" -c 'import sys; assert sys.version_info[:2] == (3, 15)'
+          set +e
+          "$SUPPORTED_PYTHON" -B -m stay_safe --config tests/runs_without_a_coding_agent/sample.toml --format markdown > "$RUNNER_TEMP/new.stdout" 2> "$RUNNER_TEMP/new.stderr"
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/new.stdout" "$RUNNER_TEMP/new.stderr"
+          echo "Supported Python exit status: $status"
+          test "$status" = 0
+          test ! -s "$RUNNER_TEMP/new.stderr"
+          grep -Fx '# Codex configuration diagnostic' "$RUNNER_TEMP/new.stdout"
+          grep -Fx '1 finding, 0 things not checked.' "$RUNNER_TEMP/new.stdout"
