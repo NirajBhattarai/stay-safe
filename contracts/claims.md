@@ -4,12 +4,12 @@
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
 Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent/)
 
-- I run the README's sample and get its finding. `test_readme.py::test_sample_finding_is_what_stay_safe_prints_for_its_test_configuration`
+- I run the README's documented command and get the expected report. `test_readme.py::test_documented_clone_commands_run_the_diagnostic`
 - I use an older Python and see an available supported command. `test_python_entry.py::test_too_old_python_names_the_newest_python_on_the_path_and_exits_2`
 - I have no supported Python command and get setup guidance. `test_python_entry.py::test_too_old_python_without_a_recognized_command_links_setup_and_exits_2`
 - I run the installed package and get the checkout's report, with saving in my working directory. `test_package.py::test_wheel_and_sdist_keep_report_resources_revision_and_safe_current_directory_save`
 
-## [see_every_connection_and_setting] I see supported settings and saved approvals from my files, with defaults and incomplete checks identified.
+## [see_every_connection_and_setting] I see supported settings and saved approvals from my files, with defaults identified.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
 Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_and_setting/)
 
@@ -17,6 +17,12 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I inspect several files and each keeps its own settings and identities. `test_config.py::test_files_remain_independent_and_identity_preserves_dotted_name`
 - I have no default config file and see the assessed defaults and remaining gaps. `test_defaults.py::test_both_formats_report_cited_defaults_and_retained_gaps`
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
+
+## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
+Issue: https://github.com/chalkbadger/stay-safe/issues/97
+Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limits/)
+
+- I follow the report's scope link and see its limits on live connections, effective permissions and other unverified behavior. `test_scope.py::test_the_full_scope_holds_every_scope_line`
 - I supply an unreadable file beside a readable one and see the failure without losing valid findings. `test_selected_config_failures.py::test_each_failure_has_a_distinct_private_safe_reason_and_action_in_both_formats`
 - I get an incomplete report and an explanation of exit status 2. `test_status.py::test_reports_with_gaps_explain_exit_two_on_stderr_only`
 

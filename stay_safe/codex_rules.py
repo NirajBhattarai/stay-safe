@@ -10,8 +10,8 @@ from .codex import MAX_BYTES, Reader, open_input
 
 RECORD = re.compile(r'prefix_rule\(pattern=(\[.*\]), decision="allow"\)')
 # The only words of a saved approval the report may show, as its first word: the program list in
-# contracts/claims.md [lists_commands_codex_stops_asking_about]. Change it only by pull request, together
-# with that contract line.
+# harnesses/codex.md, under "Saved approval records". Change it only by pull request, together
+# with that documented list.
 PROGRAMS = ('git', 'gh', 'npm', 'npx', 'pnpm', 'yarn', 'node', 'python', 'python3', 'pip', 'pip3', 'uv', 'cargo',
             'go', 'make', 'docker', 'kubectl', 'curl', 'wget', 'ssh', 'bash', 'sh', 'rm', 'mv', 'cp', 'chmod')
 

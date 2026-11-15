@@ -2,7 +2,7 @@
 
 This is the single interpretation table for the Codex reader. Setting interpretations
 describe a selected configuration-file snapshot or the documented defaults assessed
-under the [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified). They do not
+under the [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified). They do not
 establish a session's effective policy, live access, or whether an incident will occur. CLI overrides,
 selected profiles, trusted project layers, managed policies and runtime state are
 uninspected. Missing approval or sandbox selectors are gaps; their defaults are not
@@ -132,7 +132,7 @@ list, shown as `program: <name>`:
 The list changes only by pull request. A one-word pattern is marked broad because
 it puts no limits on later arguments. This is stay-safe's inference, not a Codex score.
 Unreadable files and unsupported records leave the inspection incomplete;
-supported records remain listed. The [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified)
+supported records remain listed. The [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified)
 and [privacy contract](../contracts/claims.md#share_without_exposing_secrets-my-report-withholds-commands-addresses-tokens-and-environment-values-names-need-checking-before-sharing)
 state the user promises.
 [Decision ordering][saved-decisions], [matching precedence][saved-precedence]
