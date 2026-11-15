@@ -699,14 +699,6 @@ def parts(name):
     return [json.loads(p) if p.startswith('"') else p for p in re.findall(r'"(?:[^"\\]|\\.)*"|[^."]+', name)]
 
 
-def name_text(value):
-    """A configuration name as code text. A backtick or line break would end code text early, so a name with one
-    is written with character references instead, which Markdown shows as written."""
-    if "`" in value or "\n" in value:
-        return re.sub(r"[^A-Za-z0-9 ]", lambda found: f"&#{ord(found[0])};", value)
-    return f"`{value}`"
-
-
 SUBJECTS = {("mcp_servers", 2): "your {0} MCP server", ("mcp_servers", 4): "the {1} tool of your {0} MCP server",
             ("apps", 2): "your {0} app", ("apps", 4): "the {1} tool of your {0} app",
             ("hooks", 2): "your {0} hooks", ("notify", 1): "your `notify` setting"}
@@ -716,7 +708,7 @@ def finding(risk, files=None, contexts=None):
     """The plain lead, incident summary and What to do of a finding; None where its rule or entry has no wording."""
     keys = parts(risk["entry"].split(":", 1)[1])
     shape = (keys[0], len(keys))
-    subject = SUBJECTS.get(shape, "").format(*[name_text(key) for key in keys[1::2]])
+    subject = SUBJECTS.get(shape, "").format(*[f"`{key}`" for key in keys[1::2]])
     plain = FINDINGS.get(risk["rule"])
     if plain is None:
         return None
@@ -948,12 +940,19 @@ def introduction(report, files, read):
     risks, gaps = report["risks"], report["inspection_gaps"]
     paragraphs = []
     if read:
-        names = [f"{READ[source.split('-')[0]]} (`{files.get(source, source)}`)" for source in read]
+        names = []
+        for kind, description in READ.items():
+            labels = [f"`{files.get(source, source)}`" for source in read if source.startswith(kind + "-")]
+            if labels:
+                joined = ", ".join(labels[:-1]) + (" and " if labels[:-1] else "") + labels[-1]
+                names.append(f"{description} ({joined})")
         number = NUMBERS[len(read) - 1] if len(read) <= len(NUMBERS) else str(len(read))
         paragraphs.append(
             f"stay-safe read {number} {'file' if len(read) == 1 else 'files'}: "
             f"{', '.join(names[:-1])}{' and ' if names[:-1] else ''}{names[-1]}. This report describes what "
             f"{'that file says' if len(read) == 1 else 'those files say'}, without running any tests in Codex.")
+    else:
+        paragraphs.append("stay-safe could not read any configuration files. See Not checked for the reason.")
     if risks:
         sentences = [f"stay-safe found {count(len(risks), 'risky setting', 'risky settings')}."]
         for group, (_, (one, several), _) in enumerate(GROUPS):
@@ -963,9 +962,10 @@ def introduction(report, files, read):
         paragraphs.append(" ".join(sentences))
     if gaps:
         one, those = len(gaps) == 1, "that file" if len(read) == 1 else "those files"
+        reason = (f" because {'it is' if one else 'they are'} missing from {those} or outside what stay-safe covers"
+                  if read else "")
         paragraphs.append(
-            f"{count(len(gaps), 'part', 'parts')} of your setup could not be verified because "
-            f"{'it is' if one else 'they are'} missing from {those} or outside what stay-safe covers. "
+            f"{count(len(gaps), 'part', 'parts')} of your setup could not be verified{reason}. "
             f"stay-safe flagged {'it' if one else 'them'} for you to review.")
     if risks:
         paragraphs.append(LEAD_IN)
@@ -982,8 +982,10 @@ def findings_list(report, risks, titles, labelled):
             paragraphs += [f"**{GROUPS[group][0]}**", ""]
         label = f" (`{risk['entry'].partition(':')[0]}`)" if labelled else ""
         paragraphs[-1] += ("\n" if paragraphs[-1] else "") + f"{number}. [{title}](#{anchor(TARGET.format(number))}){label}"
-    return paragraphs + [f"{count(len(report['inspection_gaps']), 'thing', 'things')} not checked: "
-                         "see [Not checked](#not-checked)."]
+    if report["inspection_gaps"]:
+        paragraphs.append(f"{count(len(report['inspection_gaps']), 'thing', 'things')} not checked: "
+                          "see [Not checked](#not-checked).")
+    return paragraphs
 
 
 def markdown(report, files=None):

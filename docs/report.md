@@ -9,10 +9,13 @@ The report opens with a count of findings and of things stay-safe could not chec
 An introduction follows: the files stay-safe read, the number of findings in each
 group, and the number of parts it could not verify. Then a numbered list gives every
 finding's title under its group's heading, in [the order of findings](#the-order-of-findings),
-and one line gives the count of things not checked. When stay-safe read more than
-one file, each list line ends with its file label, such as `config-2`. In Markdown and on
-the saved page, a list line links to its detailed finding; in the terminal, look for
-the same number, such as `Finding 3`.
+and, when checks are incomplete, one line gives the count of things not checked. When stay-safe read more than
+one file, each list line ends with its file label, such as `config-2`. In a Markdown file rendered with heading anchors and on
+the saved page, a list line links to its detailed finding. GitHub issue and PR comments
+may omit heading anchors, so pasted reports use the matching finding numbers there.
+In the terminal, look for the same number, such as `Finding 3`.
+When stay-safe cannot read any configuration files, the introduction says so and
+points to Not checked for the reason. Multiple config labels share one description.
 The detailed findings come next, in the list's order. Each finding says what it means for you, how it has gone wrong in reported incidents
 and what to do, then ends with one line giving its rule ID, entry ID and configured
 values. What to do gives a lower-friction option where the

@@ -87,11 +87,11 @@ class PythonEntryTests(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in [*Path(first).iterdir(), *Path(second).iterdir()]
                                     if p.name.startswith("started-")), [])
 
-    def test_too_old_python_without_a_newer_one_says_to_install_it_and_exits_2(self):
-        install = "Install Python 3.11 or newer, then run: python3.11 -m stay_safe\n" + FEEDBACK
+    def test_too_old_python_without_a_recognized_command_links_setup_and_exits_2(self):
+        install = "Select or install a supported Python: https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup\n" + FEEDBACK
         with tempfile.TemporaryDirectory() as folder:
             # A PATH entry too long to look up is skipped rather than ending in a traceback.
-            path = commands(folder, ["python3", "python3.9", "python3.10", "python3.14"]) + ":/" + "a" * 5000
+            path = commands(folder, ["python3", "python3.9", "python3.10", "python3.14", "python3.15"]) + ":/" + "a" * 5000
             for way in ("module", "folder"):
                 with self.subTest(way=way):
                     result = old_python(way, path)

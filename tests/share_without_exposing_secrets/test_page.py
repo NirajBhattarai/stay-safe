@@ -18,12 +18,13 @@ class SavedPageNameTests(ConfigCase):
         # show any name as text, so this sets entry names directly on a report.
         report = inspect([self.config(AFTER)])
         names = ["<script>alert(1)</script>", "a&amp;b <img src=x onerror=alert(1)>", "it's \"quoted\"",
-                 "[x](javascript:alert(1))", "[y](data:text/html,<b>z</b>)", "*x*"]
+                 "[x](javascript:alert(1))", "[y](data:text/html,<b>z</b>)", "*x*", "[x](#other)"]
         report["catalog"] += [{"id": f"config-1:{name}", "source": "config-1", "name": name, "kind": "MCP server",
                                "observations": [name]} for name in names]
         report["risks"][1]["entry"] = "config-1:mcp_servers.<b>"
         markdown, page = render(report, "markdown"), render(report, "html")
         parsed = Page(page)
+        self.assertNotIn("#other", parsed.links)
         self.assertEqual(parsed.view(), markdown_view(markdown))
         self.assertEqual([tag for tag, _ in parsed.tags if tag in {"script", "img", "b"}], [])
         # The only other links are the findings list's links to the page's own findings and Not checked section

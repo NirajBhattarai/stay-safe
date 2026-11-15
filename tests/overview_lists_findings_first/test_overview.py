@@ -242,7 +242,7 @@ class OverviewTests(ConfigCase):
         # Saved page: each link's target is one element's id, and the finding that follows it is that file's.
         page = Targets(render(report, "html"))
         self.assertEqual([link for link in page.links if link.startswith("#")],
-                         ["#finding-1", "#finding-2", "#not-checked"])
+                         ["#finding-1", "#finding-2"])
         for target in ("finding-1", "finding-2", "not-checked"):
             self.assertEqual(page.ids.count(target), 1)
         self.assertLess(page.ids.index("finding-1"), page.ids.index("finding-2"))
@@ -314,11 +314,35 @@ class OverviewTests(ConfigCase):
             "2 parts of your setup could not be verified because they are missing from that file or outside what "
             "stay-safe covers. stay-safe flagged them for you to review."])
 
+    def test_no_files_read_is_explicit_and_has_no_reference_to_those_files(self):
+        for path in (self.root / "missing.toml", self.config("[broken", "invalid.toml")):
+            with self.subTest(path=path.name):
+                report = inspect([path])
+                self.assertEqual(overview(render(report, "markdown")), [
+                    "0 findings, 1 thing not checked.",
+                    "stay-safe could not read any configuration files. See Not checked for the reason.",
+                    "1 part of your setup could not be verified. stay-safe flagged it for you to review."])
+
+    def test_findings_without_gaps_omit_both_gap_explanations(self):
+        report = self.report(SANDBOX_ONLY)
+        self.assertEqual(report["inspection_gaps"], [])
+        self.assertEqual(overview(render(report, "markdown")), [
+            "1 finding, 0 things not checked.",
+            "stay-safe read one file: your Codex settings (`config-1`). This report describes what that file says, "
+            "without running any tests in Codex.",
+            "stay-safe found 1 risky setting. 1 lets commands reach your whole computer unchecked.",
+            LEAD_IN, GROUP_1, f"1. [{SANDBOX_OFF}](#finding-1)"])
+
+    def test_multiple_config_labels_share_one_description(self):
+        report = self.report(SANDBOX_ONLY, SANDBOX_ONLY)
+        self.assertEqual(overview(render(report, "markdown"))[1],
+                         "stay-safe read two files: your Codex settings (`config-1` and `config-2`). "
+                         "This report describes what those files say, without running any tests in Codex.")
+
     def test_names_with_markdown_or_html_characters_are_escaped_in_the_list_and_links_stay_https_or_own(self):
         # Codex's own names cannot hold these characters today (stay_safe/codex.py NAME), so this sets entry
         # names on a report, as tests/share_without_exposing_secrets/test_page.py does.
-        names = ["<b>bold</b>", "*x*", "[x](javascript:alert(1))", "a](https://example.com/)[b", "<script>alert(1)</script>",
-                 "tick`[y](https://example.com/)"]
+        names = ["<b>bold</b>", "*x*", "[x](javascript:alert(1))", "a](https://example.com/)[b", "<script>alert(1)</script>"]
         report = self.report(QUIET + "".join(f'[mcp_servers.s{index}]\ncommand = "seed-command"\n'
                                              for index in range(len(names))))
         programs = [risk for risk in report["risks"] if risk["rule"] == "configured_program"]
@@ -326,10 +350,8 @@ class OverviewTests(ConfigCase):
         for risk, name in zip(programs, names):
             risk["entry"] = f"config-1:mcp_servers.{json.dumps(name)}"
         markdown, plain, html = (render(report, name) for name in ("markdown", "plain", "html"))
-        # A name is code text inside its line's one link. A backtick would end code text early, so a name with
-        # one is written with character references instead.
-        written = [f"`{name}`" for name in names[:5]] + [
-            "tick&#96;&#91;y&#93;&#40;https&#58;&#47;&#47;example&#46;com&#47;&#41;"]
+        # Names remain code text inside each line's link. Backticks and newlines are outside Codex's NAME.
+        written = [f"`{name}`" for name in names]
         lines = [(number, text) for heading, number, text in listed(markdown) if heading == GROUP_3]
         self.assertCountEqual([re.sub(r"\(#finding-(\d+)\)$", "", text) for _, text in lines],
                               [f"[Your {name} MCP server can start a program on your computer.]" for name in written])
@@ -341,7 +363,7 @@ class OverviewTests(ConfigCase):
             self.assertIn(sentence, "".join(page.words))
             self.assertRegex(plain, r"\n\d+\. " + re.escape(sentence) + r"\n")
         self.assertEqual([tag for tag in page.tags if tag in {"script", "b", "img"}], [])
-        own = [f"#finding-{number}" for number in range(1, len(report["risks"]) + 1)] + ["#not-checked"]
+        own = [f"#finding-{number}" for number in range(1, len(report["risks"]) + 1)]
         # The list and the line after it hold exactly the links to the page's own findings and Not checked section.
         self.assertEqual(page.overview_links, own)
         self.assertEqual([link for link in page.links if not link.startswith("https://")], own)

@@ -3,6 +3,44 @@
 The [README](../README.md) has the three commands that download a release and run it, and
 the prompt that asks Codex to run it for you. This page covers the rest.
 
+## Python setup
+
+Stay Safe needs Python 3.11 or newer. In a terminal, check the Python you will use:
+
+```sh
+python3 --version
+```
+
+If it reports 3.11 or newer, continue with the README's run command. If the command
+is missing or the version is older, use a supported Python already installed, or
+install one yourself:
+
+- **macOS:** follow [Python's official macOS installation guide](https://docs.python.org/3/using/mac.html).
+  Choose a currently supported release from [python.org](https://www.python.org/downloads/macos/).
+- **Linux:** follow [Python's official Unix guidance](https://docs.python.org/3/using/unix.html#getting-and-installing-the-latest-version-of-python)
+  and your distribution's instructions for installing a supported Python alongside
+  its system Python.
+
+Keep the operating system's Python. After installation, open a new terminal and
+verify the command for the version you installed. For example, if you installed
+Python 3.15:
+
+```sh
+python3.15 --version
+python3.15 -m stay_safe
+```
+
+Run the second command from the extracted Stay Safe folder (the folder containing
+`stay_safe`). Replace `python3.15` with your installed version's command, or its
+quoted absolute executable path. Use that same interpreter wherever these
+instructions say `python3`. Installing a newer version does not necessarily change
+what `python3` launches. No pip install or uv is needed for the clone/ZIP flow.
+
+The older-Python error may suggest an existing 3.11–3.13 command. If another
+supported version is installed, verify and use its command as above. Releases
+before this guidance may say to install Python and run `python3.11`; use the version
+you actually installed instead.
+
 ## Options
 
 There are no third-party dependencies. From this checkout:
@@ -68,16 +106,23 @@ for what accompanies a report with gaps.
 
 ## If Codex can't download
 
-Some sandboxes block Codex's download. Remove any `stay-safe-0.2.2*` file (any case)
-from the project Codex is working in, then download
-https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.2.zip into it, so it is
-the only such file. Then paste this into Codex:
+Some sandboxes block Codex's download. Download the
+[v0.2.4 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.4.zip)
+yourself on the computer the agent can access. Copy the archive's full path:
+in macOS Finder, select it and press Option-Command-C; on Linux, use your file
+manager's copy-location action. Replace `ARCHIVE_PATH` below with that actual
+absolute path, keeping the quotes, then paste the prompt into Codex:
 
 ```text
-Unzip stay-safe-0.2.2.zip from this project into a new temporary folder and run
-`python3 -m stay_safe` from the `stay-safe-0.2.2` folder inside. Show the report exactly
-as printed, with its exit status, then your notes under "Agent's own report". Don't
-open auth files or change files outside the new temporary folder.
+Extract the Stay Safe ZIP at "ARCHIVE_PATH" into a new temporary folder. Enter
+its stay-safe-0.2.4 folder and run `python3 -m stay_safe` with an available
+Python 3.11+ interpreter. First identify where your execution tools run and which
+environment you will inspect. If my intended configuration or the archive is
+unavailable there, stop and explain. If Python is too old or missing, point me to
+https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup
+and let me install it myself. Show the report exactly as printed, with its exit
+status, then your notes under "Agent's own report". Don't open auth files or change
+files outside the new temporary folder.
 ```
 
 The report then marks its commit "(release archive)"; see

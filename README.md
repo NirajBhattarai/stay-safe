@@ -16,18 +16,20 @@ Here is a finding from a run on a [test configuration](tests/runs_without_a_codi
 >
 > *Rule `unrestricted_filesystem` · setting `config-1:sandbox_mode` = `danger-full-access`*
 
-It runs on Unix with Python 3.11 or newer. No agent is needed:
+It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
+follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
+the commands below. No agent is needed:
 
 ```sh
-git clone --branch v0.2.2 https://github.com/chalkbadger/stay-safe.git
+git clone --branch v0.2.4 https://github.com/chalkbadger/stay-safe.git
 cd stay-safe
 python3 -m stay_safe
 ```
 
-Without Git, [download the v0.2.2 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.2.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.2.2` folder, then run:
+Without Git, [download the v0.2.4 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.4.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.2.4` folder, then run:
 
 ```sh
-cd stay-safe-0.2.2
+cd stay-safe-0.2.4
 python3 -m stay_safe
 ```
 
@@ -51,8 +53,12 @@ The clone and ZIP routes above do not require uv.
 Paste this into Codex in the ChatGPT app or the CLI:
 
 ```text
-Download stay-safe at tag v0.2.2 from https://github.com/chalkbadger/stay-safe into
-a new temporary folder and run `python3 -m stay_safe` there. Show the report exactly
+Download stay-safe at tag v0.2.4 from https://github.com/chalkbadger/stay-safe into
+a new temporary folder and run `python3 -m stay_safe` there. First identify where
+your execution tools run and which environment you will inspect. If my intended
+configuration is unavailable there, stop and explain. If Python is too old or missing,
+point me to https://github.com/chalkbadger/stay-safe/blob/main/docs/usage.md#python-setup
+and let me install it myself. Show the report exactly
 as printed, with its exit status, then your notes under "Agent's own report". Don't
 open auth files or change files outside that folder. If the download fails, stop and
 tell me.
