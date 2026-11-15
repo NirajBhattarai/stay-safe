@@ -107,7 +107,7 @@ for what accompanies a report with gaps.
 ## If Codex can't download
 
 Some sandboxes block Codex's download. Download the
-[v0.2.2 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.2.zip)
+[v0.2.4 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.4.zip)
 yourself on the computer the agent can access. Copy the archive's full path:
 in macOS Finder, select it and press Option-Command-C; on Linux, use your file
 manager's copy-location action. Replace `ARCHIVE_PATH` below with that actual
@@ -115,7 +115,7 @@ absolute path, keeping the quotes, then paste the prompt into Codex:
 
 ```text
 Extract the Stay Safe ZIP at "ARCHIVE_PATH" into a new temporary folder. Enter
-its stay-safe-0.2.2 folder and run `python3 -m stay_safe` with an available
+its stay-safe-0.2.4 folder and run `python3 -m stay_safe` with an available
 Python 3.11+ interpreter. First identify where your execution tools run and which
 environment you will inspect. If my intended configuration or the archive is
 unavailable there, stop and explain. If Python is too old or missing, point me to
