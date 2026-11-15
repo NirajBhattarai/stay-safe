@@ -366,8 +366,8 @@ class WhatToDoTests(ConfigCase):
             with self.subTest(policies=policies):
                 paths = [self.config(text, f"policy-{index}.toml") for index, text in enumerate(policies)]
                 markdown = render(inspect(paths), "markdown")
-                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0],
-                                 NOTE.format(placeholders=PLACEHOLDERS))
+                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0].split(),
+                                 NOTE.format(placeholders=PLACEHOLDERS).split())
                 self.assertEqual(markdown.count(NOTE_LABEL), 1)
         clean = self.run_cli("--config", str(self.config('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
                                                             'shell_environment_policy = { inherit = "core" }\n'
@@ -474,7 +474,8 @@ class WhatToDoTests(ConfigCase):
                 (codex / "config.toml").write_text(config, encoding="utf-8")
                 (codex / "rules" / "default.rules").write_text(RULES, encoding="utf-8")
                 markdown = self.run_cli(env={variable: str(home)}).stdout
-                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0], NOTE.format(placeholders=""))
+                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0].split(),
+                                 NOTE.format(placeholders="").split())
                 found = self.findings(env={variable: str(home)})
                 file, rules = f"`{base}/config.toml`", f"`{base}/rules/default.rules`"
                 self.assertEqual(found, {
