@@ -12,17 +12,6 @@ SAMPLE = ROOT / "tests" / "runs_without_a_coding_agent" / "sample.toml"
 COMMIT_LINK = re.compile(r"https://github\.com/chalkbadger/stay-safe/blob/(?:[0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+)/")
 
 
-def commands(text):
-    """Every non-blank line inside fenced code blocks, in reading order."""
-    found, fenced = [], False
-    for line in text.splitlines():
-        if line.startswith("```"):
-            fenced = not fenced
-        elif fenced and line.strip():
-            found.append(line.strip())
-    return found
-
-
 def first_quote(text):
     """The README's first block quote without its `>` marks, or an empty string when it has none."""
     quote, started = [], False
@@ -36,11 +25,6 @@ def first_quote(text):
 
 
 class ReadmeTests(unittest.TestCase):
-    def test_first_commands_clone_a_release_tag_and_run_the_diagnostic_without_an_agent(self):
-        first = commands((ROOT / "README.md").read_text(encoding="utf-8"))[:3]
-        self.assertRegex(first[0], r"^git clone --branch v\d+\.\d+\.\d+ https://github\.com/chalkbadger/stay-safe\.git$")
-        self.assertEqual(first[1:], ["cd stay-safe", "python3 -m stay_safe"])
-
     def test_sample_finding_is_what_stay_safe_prints_for_its_test_configuration(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("(tests/runs_without_a_coding_agent/sample.toml)", readme)

@@ -71,7 +71,7 @@ be determined, is an inspection gap and no defaults are assessed.
 When automatic discovery finds no default configuration file, the report identifies
 its absence and assesses documented defaults (shell environment, the ChatGPT Apps connection). Approval and sandbox
 settings remain unknown, so this assessment still exits `2`. See the
-[no-config-file contract](../contracts/claims.md#works_without_a_config_file-with-no-config-file-the-report-looks-where-codex-looks-and-tells-me-which-codex-defaults-apply) for the behavior and checks.
+[inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified) for the behavior and checks.
 
 ## Save the report as a page: `--save`
 
@@ -101,7 +101,7 @@ Python 3.11 and the latest 3.x; Windows is untested.
 
 Exit status `0` means the supported fields in the selected files were inspected;
 it is not a safety score. Status `2` means the report names inspection gaps (listed under Not checked), or the arguments were invalid and no report was produced.
-See [the incomplete-inspection explanation contract](../contracts/claims.md#explains_incomplete_inspection-when-my-report-has-gaps-i-see-why-the-run-exits-2)
+See [the inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified)
 for what accompanies a report with gaps.
 
 ## If Codex can't download

@@ -2,7 +2,7 @@
 
 This is the single interpretation table for the Codex reader. Setting interpretations
 describe a selected configuration-file snapshot or the documented defaults assessed
-under the [no-config-file contract](../contracts/claims.md#works_without_a_config_file-with-no-config-file-the-report-looks-where-codex-looks-and-tells-me-which-codex-defaults-apply). They do not
+under the [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified). They do not
 establish a session's effective policy, live access, or whether an incident will occur. CLI overrides,
 selected profiles, trusted project layers, managed policies and runtime state are
 uninspected. Missing approval or sandbox selectors are gaps; their defaults are not
@@ -12,7 +12,7 @@ not uninspected runtime layers or actual tool annotations. An open tool catalog 
 retain a parent policy risk; a closed allowlist loses it when every allowed tool is
 denied or has its own approval override. A tool without its own approval mode inherits
 its server's or app's mode, and `apps._default` is a policy template for named apps;
-[each_risk_shows_its_cause](../contracts/claims.md#each_risk_shows_its_cause-for-each-risk-i-see-which-of-my-settings-causes-it-and-real-incidents-where-that-setting-went-wrong)
+[each_risk_shows_its_cause](../contracts/claims.md#each_risk_shows_its_cause-each-warning-identifies-the-setting-and-evidence-behind-it)
 says which entry carries each resulting risk. An approval mode alone does not determine a live call’s outcome.
 Tool overrides belong to named apps. Tool allow and deny lists (`enabled_tools`,
 `disabled_tools`) apply only to MCP servers: Codex's [app settings][app-config] have neither.
@@ -124,13 +124,17 @@ It inventories matching lines, not the structure of a Starlark program. A record
 first words equal its pattern ([matching][saved-match]), so a pattern with more words covers
 fewer commands.
 
-A record's words are withheld, except a first word on the program list in the
-[saved-approval contract](../contracts/claims.md#lists_commands_codex_stops_asking_about-the-report-lists-the-commands-i-told-codex-to-stop-asking-about-and-tells-me-when-it-couldnt-read-or-check-a-rules-file), which is shown as
-`program: <name>`. The list changes only by pull request.
+A record's words are withheld, except an exact first-word match from this fixed
+list, shown as `program: <name>`:
 
-The [saved-approval contract](../contracts/claims.md#lists_commands_codex_stops_asking_about-the-report-lists-the-commands-i-told-codex-to-stop-asking-about-and-tells-me-when-it-couldnt-read-or-check-a-rules-file) defines how the
-report treats records inside and outside coverage; [share_without_exposing_secrets](../contracts/claims.md#share_without_exposing_secrets-i-can-share-the-report-without-exposing-my-commands-addresses-tokens-or-environment-values-names-appear-as-i-wrote-them-and-the-report-reminds-me-to-check-them-first)
-covers disclosure. The broad label is stay-safe's inference, not a Codex score.
+`git gh npm npx pnpm yarn node python python3 pip pip3 uv cargo go make docker kubectl curl wget ssh bash sh rm mv cp chmod`
+
+The list changes only by pull request. A one-word pattern is marked broad because
+it puts no limits on later arguments. This is stay-safe's inference, not a Codex score.
+Unreadable files and unsupported records leave the inspection incomplete;
+supported records remain listed. The [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-and-incomplete-checks-identified)
+and [privacy contract](../contracts/claims.md#share_without_exposing_secrets-my-report-withholds-commands-addresses-tokens-and-environment-values-names-need-checking-before-sharing)
+state the user promises.
 [Decision ordering][saved-decisions], [matching precedence][saved-precedence]
 and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 

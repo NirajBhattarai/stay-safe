@@ -8,7 +8,7 @@ import json
 
 from stay_safe.report import inspect, render
 from tests.nothing_in_my_setup_changes.test_page import Page, markdown_view
-from tests.see_every_connection_and_setting.test_report_order import AFTER
+from tests.overview_lists_findings_first.test_report_layout import AFTER
 from tests.support import ConfigCase
 
 

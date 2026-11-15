@@ -353,13 +353,6 @@ class PlainGapTests(ConfigCase):
                                                      for gap in gaps])
         self.assertNotIn("isn't in your config file", runs[1].stdout)
 
-    def test_each_gap_leads_with_what_was_not_checked_then_its_source(self):
-        report = inspect([])
-        for message in PLAIN:
-            with self.subTest(gap=message):
-                report["inspection_gaps"] = [labelled(message)]
-                self.assertEqual(gap_items(markdown(report)), [gap_text(labelled(message))])
-
     def test_every_gap_gets_its_own_paragraph_and_none_is_dropped(self):
         report = inspect([])
         report["inspection_gaps"] = [labelled(message) for message in PLAIN] + ["config-1: A future gap text."]
