@@ -1,6 +1,6 @@
 # Reading the report
 
-The [default terminal view](../contracts/claims.md#overview_lists_findings_first-i-can-scan-the-report-and-reach-each-findings-details) uses plain text.
+The default terminal view uses plain text.
 Use `--format markdown` for Markdown or `--save` for a formatted HTML page.
 
 ## The parts of a report
@@ -70,10 +70,9 @@ Review them before sharing the report.
 
 ## Where the claims come from
 
-[stay-safe's claims](../contracts/claims.md) state, one by one, what you notice when using
-stay-safe; under each claim, each line names the test that proves it. The
-[Codex meanings table](../harnesses/codex.md) gives each interpreted setting, its source and
-status. Each risk rule in `stay_safe/rules.py` cites [reported incidents](../incidents.md).
+Follow the [claims](../contracts/claims.md) to their tests, the
+[Codex meanings table](../harnesses/codex.md) to its sources and evidence status,
+and the [incident reports](../incidents.md) for the cases behind risk rules.
 
 ## Full scope
 
