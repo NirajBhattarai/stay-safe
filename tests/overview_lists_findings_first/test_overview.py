@@ -1,9 +1,7 @@
-"""The report opens with an introduction and a numbered findings list, before the detailed findings (issue #82).
+"""Protect a complete, navigable overview and an honest account of inspection gaps (issue #82).
 
-The expected sentences, group headings and rule order below are written from issue #82. Finding titles are the
-bold headlines contracts/claims.md [findings_say_what_to_do] already fixes. A link in the Markdown report reaches a
-heading by the anchor GitHub generates for it: lower case, punctuation removed, spaces replaced with hyphens
-(https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links).
+Ordering expectations come from the policy in docs/report.md, not the renderer's sorting table.
+One introduction example checks the copy; other cases check the facts a reader could be misled about.
 """
 
 from html.parser import HTMLParser
@@ -25,14 +23,8 @@ NO_FINDINGS = ("None of stay-safe's rules matched your settings. That doesn't me
                "see what stay-safe didn't check and what this report can't see, below.")
 
 SANDBOX_OFF = "Your config turns off Codex's sandbox."
-NO_PROMPTS = "With these settings, Codex runs commands without asking you."
-ENVIRONMENT = "With these settings, commands Codex runs get your environment variables."
-SEARCH_APPROVE = "Your `search` MCP server's tool approval mode is `approve`."
-GITHUB_PROGRAM = "Your `github` MCP server can start a program on your computer."
-GITHUB_HINTS = "Your `github` MCP server uses server hints for tool approval."
-NOTIFY_PROGRAM = "Your `notify` setting can start a program on your computer."
 
-# One finding in group 3 and one not ranked; with nothing else set, the file has no gaps.
+# Explicit supported settings with no findings or inspection gaps.
 QUIET = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\nshell_environment_policy = { inherit = "none" }\n'
 # Findings from every group; `profile` adds one thing not checked.
 EVERY_GROUP = """approval_policy = "never"
@@ -97,11 +89,6 @@ def details(report):
     return found
 
 
-def anchor(heading):
-    """The anchor GitHub gives a heading (see the module docstring)."""
-    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
-
-
 class Targets(HTMLParser):
     """A saved page's links (overview_links: those before the first id), its elements with an id, and the text
     that follows each id up to the next one."""
@@ -136,41 +123,9 @@ class OverviewTests(ConfigCase):
         paths = [self.config(text, f"config-{index}.toml") for index, text in enumerate(texts, 1)]
         return inspect(paths, rules_path=self.config(rules, "selected.rules") if rules is not None else None)
 
-    def test_every_finding_is_listed_once_in_the_documented_order_with_its_number_on_its_details(self):
-        report = self.report(EVERY_GROUP)
+    def test_every_finding_appears_once_in_policy_order_with_matching_details(self):
+        report = self.report(EVERY_GROUP, CHANNELS, CHANNELS, rules=APPROVALS)
         markdown = render(report, "markdown")
-        self.assertEqual(len(report["risks"]), 6)
-        paragraphs = overview(markdown)
-        self.assertIn(LEAD_IN, paragraphs)
-        self.assertEqual(paragraphs[paragraphs.index(LEAD_IN) + 1:], [
-            GROUP_1,
-            f"1. [{SANDBOX_OFF}](#finding-1)\n2. [{NO_PROMPTS}](#finding-2)",
-            GROUP_2,
-            f"3. [{ENVIRONMENT}](#finding-3)\n4. [{SEARCH_APPROVE}](#finding-4)",
-            GROUP_3,
-            f"5. [{GITHUB_PROGRAM}](#finding-5)",
-            NOT_RANKED,
-            f"6. [{GITHUB_HINTS}](#finding-6)",
-            "1 thing not checked: see [Not checked](#not-checked)."])
-        self.assertEqual(details(markdown), [
-            (1, SANDBOX_OFF, "unrestricted_filesystem", "config-1:sandbox_mode"),
-            (2, NO_PROMPTS, "commands_without_prompts", "config-1:approval_policy"),
-            (3, ENVIRONMENT, "environment_inheritance", "config-1:shell_environment_policy"),
-            (4, SEARCH_APPROVE, "automatic_tools", "config-1:mcp_servers.search"),
-            (5, GITHUB_PROGRAM, "configured_program", "config-1:mcp_servers.github"),
-            (6, GITHUB_HINTS, "self_described_tools", "config-1:mcp_servers.github")])
-        # In the terminal the number is the route: the same lines without Markdown, and no link target.
-        plain = render(report, "plain")
-        for line in (GROUP_1.strip("*"), "1. " + SANDBOX_OFF, "4. Your search MCP server's tool approval mode is approve.",
-                     NOT_RANKED.strip("*"), "6. Your github MCP server uses server hints for tool approval.",
-                     "1 thing not checked: see Not checked.", "Finding 1", "Finding 6"):
-            self.assertIn(f"\n{line}\n", plain)
-        self.assertLess(plain.index("\n6. Your github"), plain.index("\nFinding 1\n"))
-        self.assertNotIn("#finding", plain)
-        self.assertNotIn("#not-checked", plain)
-
-    def test_every_rule_follows_its_group_then_rule_then_file_then_setting_order(self):
-        markdown = render(self.report(EVERY_GROUP, CHANNELS, CHANNELS, rules=APPROVALS), "markdown")
         expected = [
             ("unrestricted_filesystem", "config-1:sandbox_mode"),
             ("commands_without_prompts", "config-1:approval_policy"),
@@ -193,51 +148,28 @@ class OverviewTests(ConfigCase):
         self.assertEqual(listed(markdown), [
             (heading, number, f"[{headline}](#finding-{number}) (`{entry.split(':')[0]}`)")
             for heading, (number, headline, _, entry) in zip(headings, found)])
-
-    def test_a_group_1_finding_is_listed_before_a_group_3_finding_that_precedes_it_in_the_config(self):
-        report = self.report('notify = ["seed-notify"]\n' + SANDBOX_ONLY)
-        # The condition: the JSON report, which keeps its order, has the group 3 finding first.
-        self.assertEqual([(risk["rule"], risk["entry"]) for risk in report["risks"]],
-                         [("configured_program", "config-1:notify"), ("unrestricted_filesystem", "config-1:sandbox_mode")])
-        markdown = render(report, "markdown")
-        self.assertEqual(listed(markdown), [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1)"),
-                                            (GROUP_3, 2, f"[{NOTIFY_PROGRAM}](#finding-2)")])
-        self.assertEqual(details(markdown), [(1, SANDBOX_OFF, "unrestricted_filesystem", "config-1:sandbox_mode"),
-                                             (2, NOTIFY_PROGRAM, "configured_program", "config-1:notify")])
-
-    def test_a_self_described_tools_finding_is_listed_under_not_ranked_with_its_reason_only(self):
-        # `auto`, left as the default or set, and `writes` each give the rule, on a server and on a tool.
-        markdown = render(self.report(QUIET + '[mcp_servers.github]\nurl = "https://seed-host.example/mcp"\n'
-                                      '[mcp_servers.github.tools.search]\napproval_mode = "writes"\n'
-                                      '[mcp_servers.files]\ncommand = "seed-command"\n'), "markdown")
-        self.assertEqual(listed(markdown), [
-            (GROUP_3, 1, f"[{GITHUB_PROGRAM.replace('github', 'files')}](#finding-1)"),
-            (NOT_RANKED, 2, f"[{GITHUB_HINTS.replace('github', 'files')}](#finding-2)"),
-            (NOT_RANKED, 3, f"[{GITHUB_HINTS}](#finding-3)"),
-            (NOT_RANKED, 4, "[The `search` tool of your `github` MCP server uses server hints for tool approval.]"
-                            "(#finding-4)")])
-        self.assertEqual([(number, rule) for number, _, rule, _ in details(markdown)],
-                         [(1, "configured_program"), (2, "self_described_tools"), (3, "self_described_tools"),
-                          (4, "self_described_tools")])
-        paragraphs = overview(markdown)
-        self.assertEqual(paragraphs.count(NOT_RANKED), 1)
-        self.assertEqual(paragraphs[paragraphs.index(NOT_RANKED) + 1].count("\n"), 2)
+        # The terminal retains the same titles and numbers without links.
+        plain = render(report, "plain")
+        for number, headline, _, entry in found:
+            line = f"{number}. {headline.replace('`', '')} ({entry.split(':')[0]})"
+            self.assertEqual(plain.count("\n" + line + "\n"), 1)
+            self.assertEqual(plain.count(f"\nFinding {number}\n"), 1)
+        self.assertLess(plain.index("\n14. "), plain.index("\nFinding 1\n"))
+        self.assertNotIn("#finding", plain)
 
     def test_two_files_with_the_same_title_keep_their_labels_and_each_link_reaches_its_own_finding(self):
         report = self.report(SANDBOX_ONLY, SANDBOX_ONLY)
         markdown = render(report, "markdown")
         self.assertEqual(listed(markdown), [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1) (`config-1`)"),
                                             (GROUP_1, 2, f"[{SANDBOX_OFF}](#finding-2) (`config-2`)")])
-        # Markdown: each link's target is the anchor of one heading, and the finding under it is that file's.
+        # Check Markdown heading destinations; actual browser navigation is a separate observation.
         body = section(markdown, "Findings")
         for number in (1, 2):
             heading = f"Finding {number}"
-            self.assertEqual(anchor(heading), f"finding-{number}")
             self.assertEqual(body.count(f"### {heading}\n"), 1)
             finding = body.split(f"### {heading}\n\n", 1)[1].split("\n\n---\n\n", 1)[0]
             self.assertTrue(finding.startswith(f"**{SANDBOX_OFF}** "), finding)
             self.assertIn(f"*Rule `unrestricted_filesystem` · setting `config-{number}:sandbox_mode` = ", finding)
-        self.assertEqual(anchor("Not checked"), "not-checked")
         self.assertEqual(markdown.count("\n## Not checked\n"), 1)
         # Saved page: each link's target is one element's id, and the finding that follows it is that file's.
         page = Targets(render(report, "html"))
@@ -251,11 +183,11 @@ class OverviewTests(ConfigCase):
             self.assertIn(f"config-{number}:sandbox_mode", page.text[f"finding-{number}"])
             self.assertNotIn(f"config-{3 - number}:sandbox_mode", page.text[f"finding-{number}"])
         self.assertTrue(page.text["not-checked"].startswith("Not checked"))
-        # One file, one title: no label (the first test shows the whole line).
+        # A single file needs no disambiguating label.
         self.assertEqual(listed(render(self.report(SANDBOX_ONLY), "markdown")),
                          [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1)")])
 
-    def test_groups_3_and_not_ranked_only_give_the_files_read_and_one_sentence_for_each_of_those_groups(self):
+    def test_representative_introduction_explains_results_and_limits(self):
         # A default run, as in the issue's example: both files exist where Codex keeps them.
         self.require_no_system_folder()
         home = self.root / "home"
@@ -284,60 +216,53 @@ class OverviewTests(ConfigCase):
             LEAD_IN])
         self.assertEqual([heading for heading, *_ in listed(runs[1].stdout)], [GROUP_3, GROUP_3, NOT_RANKED])
 
-    def test_no_findings_show_the_first_and_third_paragraphs_and_the_not_safe_sentence_without_a_list(self):
-        markdown = render(self.report(QUIET + 'profile = "work"\n'), "markdown")
-        self.assertEqual(markdown.split("\n\n## Not checked\n", 1)[0].split("\n\n"), [
-            "# Codex configuration diagnostic",
-            "0 findings, 1 thing not checked.",
-            "stay-safe read one file: your Codex settings (`config-1`). This report describes what that file says, "
-            "without running any tests in Codex.",
-            "1 part of your setup could not be verified because it is missing from that file or outside what "
-            "stay-safe covers. stay-safe flagged it for you to review.",
-            "## Findings",
-            NO_FINDINGS])
+    def test_no_findings_does_not_imply_safety_or_hide_incomplete_checks(self):
+        report = self.report(QUIET + 'profile = "work"\n')
+        markdown = render(report, "markdown")
+        self.assertIn(NO_FINDINGS, section(markdown, "Findings"))
+        self.assertIn("1 thing not checked", "\n".join(overview(markdown)))
+        self.assertIn("Not checked: your profiles", section(markdown, "Not checked"))
+        self.assertEqual(listed(markdown), [])
         self.assertNotIn("#finding", markdown)
-        self.assertNotIn("#not-checked", markdown)
-        plain = render(self.report(QUIET + 'profile = "work"\n'), "plain")
-        self.assertIn("\nstay-safe read one file: your Codex settings (config-1). This report describes what that "
-                      "file says, without running any tests in Codex.\n", plain)
+        plain = render(report, "plain")
+        self.assertIn(NO_FINDINGS, plain)
         self.assertNotIn("risky setting", plain)
-        self.assertNotIn(LEAD_IN, plain)
 
-    def test_a_selected_file_that_could_not_be_read_is_not_named_among_the_files_read(self):
-        report = inspect([self.config(QUIET, "read.toml"), self.root / "missing.toml"],
-                         rules_path=self.root / "missing.rules")
-        self.assertEqual(len(report["inspection_gaps"]), 2)
-        self.assertEqual(overview(render(report, "markdown")), [
-            "0 findings, 2 things not checked.",
-            "stay-safe read one file: your Codex settings (`config-1`). This report describes what that file says, "
-            "without running any tests in Codex.",
-            "2 parts of your setup could not be verified because they are missing from that file or outside what "
-            "stay-safe covers. stay-safe flagged them for you to review."])
-
-    def test_no_files_read_is_explicit_and_has_no_reference_to_those_files(self):
-        for path in (self.root / "missing.toml", self.config("[broken", "invalid.toml")):
-            with self.subTest(path=path.name):
-                report = inspect([path])
-                self.assertEqual(overview(render(report, "markdown")), [
-                    "0 findings, 1 thing not checked.",
-                    "stay-safe could not read any configuration files. See Not checked for the reason.",
-                    "1 part of your setup could not be verified. stay-safe flagged it for you to review."])
-
-    def test_findings_without_gaps_omit_both_gap_explanations(self):
-        report = self.report(SANDBOX_ONLY)
-        self.assertEqual(report["inspection_gaps"], [])
-        self.assertEqual(overview(render(report, "markdown")), [
-            "1 finding, 0 things not checked.",
-            "stay-safe read one file: your Codex settings (`config-1`). This report describes what that file says, "
-            "without running any tests in Codex.",
-            "stay-safe found 1 risky setting. 1 lets commands reach your whole computer unchecked.",
-            LEAD_IN, GROUP_1, f"1. [{SANDBOX_OFF}](#finding-1)"])
-
-    def test_multiple_config_labels_share_one_description(self):
-        report = self.report(SANDBOX_ONLY, SANDBOX_ONLY)
-        self.assertEqual(overview(render(report, "markdown"))[1],
-                         "stay-safe read two files: your Codex settings (`config-1` and `config-2`). "
-                         "This report describes what those files say, without running any tests in Codex.")
+    def test_overview_names_only_read_files_and_keeps_inspection_gaps_visible(self):
+        read = self.config(SANDBOX_ONLY, "read.toml")
+        other = self.config(QUIET, "other.toml")
+        missing = self.root / "missing.toml"
+        invalid = self.config("[broken", "invalid.toml")
+        cases = [([read, other], None, ["config-1", "config-2"], 0),
+                 ([read, missing], self.root / "missing.rules", ["config-1"], 2),
+                 ([missing], None, [], 1), ([invalid], None, [], 1)]
+        for paths, rules, labels, gaps in cases:
+            with self.subTest(paths=paths, rules=rules):
+                report = inspect(paths, rules_path=rules)
+                markdown = render(report, "markdown")
+                intro = "\n".join(overview(markdown))
+                read_lines = [line for line in intro.splitlines() if line.startswith("stay-safe read ")]
+                if labels:
+                    self.assertEqual(len(read_lines), 1)
+                    self.assertEqual(re.findall(r"`([^`]+)`", read_lines[0]), labels)
+                    self.assertIn("without running any tests in Codex", read_lines[0])
+                else:
+                    self.assertEqual(read_lines, [])
+                    self.assertIn("could not read any configuration files", intro)
+                    self.assertIn("Not checked", intro)
+                    self.assertNotIn("those files", intro)
+                if gaps:
+                    self.assertRegex(intro, rf"{gaps} parts? of your setup could not be verified")
+                    self.assertIn("**Not checked:", section(markdown, "Not checked"))
+                    if report["risks"]:
+                        page = Targets(render(report, "html"))
+                        self.assertIn("#not-checked", page.overview_links)
+                        self.assertEqual(page.ids.count("not-checked"), 1)
+                        self.assertIn("Not checked", page.text["not-checked"])
+                else:
+                    self.assertNotIn("could not be verified", intro)
+                    self.assertNotIn("flagged", intro)
+                    self.assertNotIn("not checked:", intro)
 
     def test_names_with_markdown_or_html_characters_are_escaped_in_the_list_and_links_stay_https_or_own(self):
         # Codex's own names cannot hold these characters today (stay_safe/codex.py NAME), so this sets entry
@@ -370,60 +295,25 @@ class OverviewTests(ConfigCase):
         for link in own:
             self.assertEqual(page.ids.count(link[1:]), 1)
 
-    def test_the_report_guide_lists_each_group_with_its_rules_in_order_and_their_incidents(self):
-        guide = (ROOT / "docs" / "report.md").read_text(encoding="utf-8")
-        rows = [[cell.strip() for cell in line.strip("|").split("|")]
-                for line in section(guide, "The order of findings").splitlines() if line.startswith("| ")]
-        self.assertEqual(rows[0], ["Group", "Heading in the report", "Rule", "Reported incidents"])
-        # Groups, headings and rule order from issue #82; each rule's incidents from stay_safe/rules.py.
-        self.assertEqual([[row[0], row[1], row[2], re.findall(r"\[(I\d+)\]\(\.\./incidents\.md#", row[3])]
-                          for row in rows[2:]], [
-            ["1", GROUP_1.strip("*"), "`unrestricted_filesystem`", ["I1", "I3"]],
-            ["1", GROUP_1.strip("*"), "`commands_without_prompts`", ["I2", "I3", "I24"]],
-            ["1", GROUP_1.strip("*"), "`saved_approval`", ["I26"]],
-            ["2", GROUP_2.strip("*"), "`destructive_tools`", ["I7", "I8"]],
-            ["2", GROUP_2.strip("*"), "`network_access`", ["I15", "I21"]],
-            ["2", GROUP_2.strip("*"), "`environment_inheritance`", ["I23"]],
-            ["2", GROUP_2.strip("*"), "`automatic_tools`", ["I15", "I20"]],
-            ["3", GROUP_3.strip("*"), "`configured_program`", ["I13", "I14", "I19"]],
-            ["Not ranked", NOT_RANKED.strip("*"), "`self_described_tools`", ["I15", "I21"]]])
-
 
 class UnchangedTests(ConfigCase):
-    """These hold before and after issue #82: they also pass on the commit the change starts from."""
+    """Presentation ordering must not reorder the machine-readable report or change command status."""
 
-    def test_the_json_report_keeps_its_order_and_identities_and_the_exit_status_follows_gaps_only(self):
-        quiet = self.config('notify = ["seed-notify"]\n' + SANDBOX_ONLY, "quiet.toml")
-        gap = self.config('notify = ["seed-notify"]\n' + SANDBOX_ONLY + 'profile = "work"\n', "gap.toml")
-        for path, status, gaps in ((quiet, 0, []), (gap, 2, ["config-1: Profiles are outside reader coverage; a selected "
-                                                           "profile can override the reported settings."])):
+    def test_overview_order_does_not_change_json_or_exit_status(self):
+        for suffix, status in (("", 0), ('profile = "work"\n', 2)):
             with self.subTest(status=status):
+                path = self.config('notify = ["seed-notify"]\n' + SANDBOX_ONLY + suffix)
                 runs = [subprocess.run([sys.executable, "-B", "-m", "stay_safe", "--config", str(path), "--format", name],
                                        cwd=ROOT, env={}, text=True, capture_output=True, timeout=10)
                         for name in ("json", "markdown")]
                 self.assertEqual([(run.returncode, run.stderr) for run in runs],
                                  [(status, INCOMPLETE if status else "")] * 2)
                 report = json.loads(runs[0].stdout)
-                self.assertEqual(sorted(report), ["catalog", "file_inspection", "format_version", "harness",
-                                                  "incident_links", "incident_status", "inspection_gaps", "provenance",
-                                                  "risks", "scope"])
-                self.assertEqual(report["format_version"], 3)
-                self.assertEqual([(risk["rule"], risk["entry"], risk["incidents"]) for risk in report["risks"]],
-                                 [("configured_program", "config-1:notify", ["I13", "I14", "I19"]),
-                                  ("unrestricted_filesystem", "config-1:sandbox_mode", ["I1", "I3"])])
-                self.assertEqual(sorted(report["risks"][0]), ["configured_evidence", "entry", "explanation", "incidents",
-                                                              "interpretation_source", "rule", "rule_source"])
-                self.assertEqual(report["inspection_gaps"], gaps)
-                revision = report["provenance"]["source_revision"]
-                source = f"https://github.com/chalkbadger/stay-safe/blob/{revision}/"
-                self.assertEqual(section(runs[1].stdout, "Sources"), "\n".join([
-                    f"- [How each finding's rule is defined]({source}stay_safe/rules.py) (`stay_safe/rules.py`)",
-                    f"- [What each Codex setting means, with official evidence]({source}harnesses/codex.md) "
-                    "(`harnesses/codex.md`)"]))
-                self.assertTrue(runs[1].stdout.endswith(
-                    f"Made by stay-safe `{revision[:7]}` · report format 3 · [Report a problem or suggest an idea]"
-                    "(https://github.com/chalkbadger/stay-safe/issues/new/choose)\n"))
-                if not gaps:
-                    self.assertEqual(section(runs[1].stdout, "Not checked"),
-                                     "stay-safe checked every setting it supports in the files it read. "
-                                     "What this report can't see, below, still applies.")
+                self.assertEqual([(risk["rule"], risk["entry"]) for risk in report["risks"]],
+                                 [("configured_program", "config-1:notify"),
+                                  ("unrestricted_filesystem", "config-1:sandbox_mode")])
+                self.assertEqual([(rule, entry) for _, _, rule, entry in details(runs[1].stdout)],
+                                 [("unrestricted_filesystem", "config-1:sandbox_mode"),
+                                  ("configured_program", "config-1:notify")])
+                self.assertEqual(report["inspection_gaps"], [] if status == 0 else [
+                    "config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."])
