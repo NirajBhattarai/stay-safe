@@ -28,7 +28,7 @@ def first_quote(text):
 class ReadmeTests(unittest.TestCase):
     def test_documented_clone_commands_run_the_diagnostic(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        blocks = re.findall(r"^```(?:sh|bash|shell)?\n(.*?)^```", readme, re.MULTILINE | re.DOTALL)
+        blocks = re.findall(r"^```[^\n]*\n(.*?)^```[ \t]*$", readme, re.MULTILINE | re.DOTALL)
         clone = [block for block in blocks if re.search(r"^git clone ", block, re.MULTILINE)]
         self.assertEqual(len(clone), 1, "The README needs one clone-and-run example")
         commands = [line.strip() for line in clone[0].splitlines() if line.strip() and not line.lstrip().startswith("#")]
