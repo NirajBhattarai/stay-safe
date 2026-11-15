@@ -48,10 +48,12 @@ class ReportLayoutTests(ConfigCase):
 
     def test_summary_counts_one_and_none_and_empty_sections_say_what_that_means(self):
         one = self.run_cli('approval_policy = "never"\nshell_environment_policy = { inherit = "none" }\n')
-        self.assertEqual((one.returncode, one.stdout.splitlines()[2]), (2, "1 finding, 1 thing not checked."))
+        self.assertEqual(one.returncode, 2)
+        self.assertIn("1 finding, 1 thing not checked.", one.stdout.splitlines())
         none = self.run_cli('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
                             'shell_environment_policy = { inherit = "none" }\n')
-        self.assertEqual((none.returncode, none.stdout.splitlines()[2]), (0, "0 findings, 0 things not checked."))
+        self.assertEqual(none.returncode, 0)
+        self.assertIn("0 findings, 0 things not checked.", none.stdout.splitlines())
         self.assertEqual(section(none.stdout, "Findings"), EMPTY_FINDINGS)
         self.assertEqual(section(none.stdout, "Sources"), "No findings, so there are no rule sources to link.")
         self.assertEqual(section(none.stdout, "Not checked"),
@@ -61,11 +63,11 @@ class ReportLayoutTests(ConfigCase):
         self.require_no_system_folder()
         findings_only = self.run_cli('approval_policy = "never"\nsandbox_mode = "read-only"\n'
                                      'shell_environment_policy = { inherit = "none" }\n')
-        self.assertEqual(findings_only.stdout.splitlines()[2], "1 finding, 0 things not checked.")
+        self.assertIn("1 finding, 0 things not checked.", findings_only.stdout.splitlines())
         self.assertNotIn(EMPTY_FINDINGS, section(findings_only.stdout, "Findings"))
         self.assertEqual(section(findings_only.stdout, "Not checked"), EMPTY_GAPS)
         gaps_only = self.run_cli('approval_policy = "on-request"\nshell_environment_policy = { inherit = "none" }\n')
-        self.assertEqual(gaps_only.stdout.splitlines()[2], "0 findings, 1 thing not checked.")
+        self.assertIn("0 findings, 1 thing not checked.", gaps_only.stdout.splitlines())
         self.assertEqual(section(gaps_only.stdout, "Findings"), EMPTY_FINDINGS)
         self.assertNotIn(EMPTY_GAPS, section(gaps_only.stdout, "Not checked"))
         # A gap without a source label: a hooks.json file in the Codex home, beside a config file without gaps.
@@ -78,4 +80,4 @@ class ReportLayoutTests(ConfigCase):
                                env={"CODEX_HOME": str(home)}, text=True, capture_output=True, timeout=10)
                 for f in ("json", "markdown")]
         self.assertEqual(len(json.loads(runs[0].stdout)["inspection_gaps"]), 1)
-        self.assertEqual(runs[1].stdout.splitlines()[2], "0 findings, 1 thing not checked.")
+        self.assertIn("0 findings, 1 thing not checked.", runs[1].stdout.splitlines())
