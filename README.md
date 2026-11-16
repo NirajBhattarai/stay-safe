@@ -81,7 +81,12 @@ Use the [challenge form](https://github.com/chalkbadger/stay-safe/issues/new?tem
 
 ## Why stay-safe exists
 
-stay-safe is part of [chalkbadger](https://github.com/chalkbadger), which works on AI safety through adversarial peer review: every claim a tool makes should be open to challenge, with the evidence to check it. Each finding names the rule and the reported incidents behind it, each claim in [`contracts/claims.md`](contracts/claims.md) links to tests that check it, and anyone can [challenge a finding](#challenge-a-finding). stay-safe is built with [Wirth](https://github.com/chalkbadger/wirth), which keeps those claims and their tests together and reviews every change against them.
+stay-safe is part of [chalkbadger](https://github.com/chalkbadger), which works on AI safety through adversarial peer review.
+
+Explore the claims through [Understanding configuration findings](contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) or
+[Using and trusting the tool](contracts/claims.md#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old); each claim links to its tests.
+
+[Wirth](https://github.com/chalkbadger/wirth) guides development and review. Anyone can [challenge a finding](#challenge-a-finding).
 
 ## Develop
 

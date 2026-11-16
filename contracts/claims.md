@@ -1,13 +1,10 @@
 # stay-safe claims
 
-## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
-Issue: https://github.com/chalkbadger/stay-safe/issues/3
-Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent/)
+These claims link Stay Safe's promises to tests of its behavior.
 
-- I run the README's documented command and get the expected report. `test_readme.py::test_documented_clone_commands_run_the_diagnostic`
-- I use an older Python and see an available supported command. `test_python_entry.py::test_too_old_python_names_the_newest_python_on_the_path_and_exits_2`
-- I have no supported Python command and get setup guidance. `test_python_entry.py::test_too_old_python_without_a_recognized_command_links_setup_and_exits_2`
-- I run the installed package and get the checkout's report, with saving in my working directory. `test_package.py::test_wheel_and_sdist_keep_report_resources_revision_and_safe_current_directory_save`
+Choose [Understanding configuration findings](#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) or [Using and trusting the tool](#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old) to start reading.
+
+Passing those tests does not prove your setup safe: the [Codex meanings](../harnesses/codex.md) and [reported incidents](../incidents.md) support the warnings, within the [inspection limits](../docs/report.md#full-scope).
 
 ## [see_every_connection_and_setting] I see supported settings and saved approvals from my files, with defaults identified.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
@@ -41,6 +38,15 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I get advice for each finding, including the setting to change and stricter options where supported. `test_what_to_do.py::test_each_finding_gives_lower_friction_then_stricter_option_then_how_to_change_it`
 - I inspect different sandbox settings and the advice never suggests a weaker sandbox. `test_what_to_do.py::test_commands_advice_never_loosens_the_configured_sandbox`
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
+
+## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
+Issue: https://github.com/chalkbadger/stay-safe/issues/3
+Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent/)
+
+- I run the README's documented command and get the expected report. `test_readme.py::test_documented_clone_commands_run_the_diagnostic`
+- I use an older Python and see an available supported command. `test_python_entry.py::test_too_old_python_names_the_newest_python_on_the_path_and_exits_2`
+- I have no supported Python command and get setup guidance. `test_python_entry.py::test_too_old_python_without_a_recognized_command_links_setup_and_exits_2`
+- I run the installed package and get the checkout's report, with saving in my working directory. `test_package.py::test_wheel_and_sdist_keep_report_resources_revision_and_safe_current_directory_save`
 
 ## [overview_lists_findings_first] I can scan the report and reach each finding's details.
 Issue: https://github.com/chalkbadger/stay-safe/issues/82
