@@ -32,7 +32,7 @@ GAP = 'Codex home: hooks.json exists and was not inspected.'
 
 class HooksJsonTests(ConfigCase):
     def home(self, name, config=True):
-        # As in tests/works_without_a_config_file/test_home.py: a home directory holding .codex/.
+        # As in tests/see_every_connection_and_setting/test_home.py: a home directory holding .codex/.
         home = self.root / name / '.codex'
         home.mkdir(parents=True)
         if config:

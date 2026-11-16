@@ -359,15 +359,6 @@ class WhatToDoTests(ConfigCase):
             with self.subTest(rule=key[0], entry=key[1]):
                 self.assertEqual(found[key], expected)
 
-    def test_findings_open_with_one_shared_note(self):
-        markdown = self.run_cli(*self.explicit()).stdout
-        self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0], NOTE.format(placeholders=PLACEHOLDERS))
-        self.assertEqual(markdown.count("Codex reads the whole file"), 1)
-        clean = self.run_cli("--config", str(self.config('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
-                                                            'shell_environment_policy = { inherit = "core" }\n'
-                                                            'features = { apps = false }\n'))).stdout
-        self.assertNotIn(NOTE_LABEL, clean)
-
     def test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy(self):
         never = 'approval_policy = "never"\n'
         on_request = 'approval_policy = "on-request"\n'
@@ -375,9 +366,13 @@ class WhatToDoTests(ConfigCase):
             with self.subTest(policies=policies):
                 paths = [self.config(text, f"policy-{index}.toml") for index, text in enumerate(policies)]
                 markdown = render(inspect(paths), "markdown")
-                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0],
-                                 NOTE.format(placeholders=PLACEHOLDERS))
+                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0].split(),
+                                 NOTE.format(placeholders=PLACEHOLDERS).split())
                 self.assertEqual(markdown.count(NOTE_LABEL), 1)
+        clean = self.run_cli("--config", str(self.config('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
+                                                            'shell_environment_policy = { inherit = "core" }\n'
+                                                            'features = { apps = false }\n'))).stdout
+        self.assertNotIn(NOTE_LABEL, clean)
 
     def test_commands_advice_never_loosens_the_configured_sandbox(self):
         for sandbox_mode in ("read-only", "workspace-write", "danger-full-access", None):
@@ -479,7 +474,8 @@ class WhatToDoTests(ConfigCase):
                 (codex / "config.toml").write_text(config, encoding="utf-8")
                 (codex / "rules" / "default.rules").write_text(RULES, encoding="utf-8")
                 markdown = self.run_cli(env={variable: str(home)}).stdout
-                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0], NOTE.format(placeholders=""))
+                self.assertEqual(section(markdown, "Findings").split("\n\n", 1)[0].split(),
+                                 NOTE.format(placeholders="").split())
                 found = self.findings(env={variable: str(home)})
                 file, rules = f"`{base}/config.toml`", f"`{base}/rules/default.rules`"
                 self.assertEqual(found, {

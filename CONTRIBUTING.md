@@ -41,6 +41,9 @@ Run the [development tests](README.md#develop) and
 [`wirth validate`](https://github.com/chalkbadger/wirth/blob/main/docs/usage.md#local-contract-validation)
 from the repository root.
 
+Contributor test-runner checks live in `tests/test_development_check.py`, outside
+the product-claim folders.
+
 For stay-safe's own PRs, a passing [check](.github/workflows/checks.yml) on the PR's
 latest push replaces the
 [verification procedure](https://github.com/chalkbadger/wirth/blob/main/docs/workflow.md#record-execution-results);

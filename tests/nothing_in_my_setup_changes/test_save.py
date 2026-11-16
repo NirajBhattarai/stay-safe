@@ -16,7 +16,7 @@ import sys
 from unittest.mock import patch
 
 from stay_safe.cli import main
-from tests.see_every_connection_and_setting.test_report_order import AFTER
+from tests.overview_lists_findings_first.test_report_layout import AFTER
 from tests.support import FEEDBACK, INCOMPLETE
 from tests.support import ConfigCase, REPORT, copy_checkout, run_checkout, tree_state
 

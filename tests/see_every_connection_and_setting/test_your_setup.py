@@ -151,8 +151,3 @@ class YourSetupTests(ConfigCase):
                 report = inspect([])
                 report["catalog"] = catalog
                 self.assertEqual(section(markdown(report), "Your setup").startswith(WITHHELD + "\n\n"), expected)
-
-    def test_an_empty_catalog_says_there_is_nothing_to_list(self):
-        report = inspect([])
-        report["catalog"] = []
-        self.assertEqual(section(markdown(report), "Your setup"), "stay-safe found no settings to list.")

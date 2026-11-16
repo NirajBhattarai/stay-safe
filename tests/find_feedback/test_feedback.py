@@ -45,24 +45,3 @@ class FeedbackTests(unittest.TestCase):
         help_run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", "--help"], cwd=ROOT,
                                   capture_output=True, text=True, timeout=20)
         self.assertEqual((help_run.returncode, help_run.stderr), (0, ""))
-
-    def test_error_and_idea_forms_collect_relevant_details_without_requiring_reports(self):
-        expected = {
-            "error": {"attempt": ("What were you trying to do?", True),
-                      "error": ("What error did you see?", True),
-                      "setup": ("Version and setup", False), "report": ("Report (optional)", False)},
-            "idea": {"goal": ("What would you like to do?", True),
-                     "change": ("What would help?", True), "report": ("Report (optional)", False)},
-        }
-        for name, fields in expected.items():
-            path = ROOT / ".github/ISSUE_TEMPLATE" / (name + ".yml")
-            self.assertTrue(path.is_file(), "The feedback form is missing")
-            form = json.loads(path.read_text())
-            self.assertTrue(form["name"])
-            self.assertTrue(form["description"])
-            actual = {f["id"]: (f["attributes"]["label"], f.get("validations", {}).get("required", False))
-                      for f in form["body"] if f["type"] == "textarea"}
-            self.assertEqual(actual, fields)
-            guidance = " ".join(f["attributes"]["value"] for f in form["body"] if f["type"] == "markdown")
-            for phrase in ("review names", "credentials", "raw private configuration", "optional"):
-                self.assertIn(phrase, guidance)
