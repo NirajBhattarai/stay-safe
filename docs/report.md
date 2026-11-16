@@ -71,9 +71,10 @@ Review them before sharing the report.
 ## Where the claims come from
 
 Read the claims through [Understanding configuration findings](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) or
-[Using and trusting the tool](../contracts/claims.md#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old); each claim links to its tests.
-The [Codex meanings table](../harnesses/codex.md) gives sources and evidence status;
+[Using and trusting the tool](../contracts/claims.md#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old); each claim links to tests of Stay Safe's behavior.
+For evidence behind a warning, the [Codex meanings table](../harnesses/codex.md) gives sources and evidence status;
 [incident reports](../incidents.md) describe the cases behind risk rules.
+Passing software tests does not prove your live setup safe. See [Full scope](#full-scope) for the inspection limits.
 
 ## Full scope
 

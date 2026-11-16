@@ -1,11 +1,5 @@
 # stay-safe claims
 
-These claims link Stay Safe's promises to tests of its behavior.
-
-Choose [Understanding configuration findings](#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) or [Using and trusting the tool](#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old) to start reading.
-
-Passing those tests does not prove your setup safe: the [Codex meanings](../harnesses/codex.md) and [reported incidents](../incidents.md) support the warnings, within the [inspection limits](../docs/report.md#full-scope).
-
 ## [see_every_connection_and_setting] I see supported settings and saved approvals from my files, with defaults identified.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
 Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_and_setting/)
