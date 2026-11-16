@@ -70,11 +70,26 @@ Review them before sharing the report.
 
 ## Where the claims come from
 
-Read the claims through [Understanding configuration findings](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) or
-[Using and trusting the tool](../contracts/claims.md#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old); each claim links to tests of Stay Safe's behavior.
+Each claim links to tests of Stay Safe's behavior. Choose a topic below.
 For evidence behind a warning, the [Codex meanings table](../harnesses/codex.md) gives sources and evidence status;
 [incident reports](../incidents.md) describe the cases behind risk rules.
 Passing software tests does not prove your live setup safe. See [Full scope](#full-scope) for the inspection limits.
+
+### Understanding configuration findings
+
+- [Settings and saved approvals](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified)
+- [Inspection limits](../contracts/claims.md#understand_inspection_limits-i-can-tell-what-the-report-establishes-and-what-needs-further-checking)
+- [Evidence behind warnings](../contracts/claims.md#each_risk_shows_its_cause-each-warning-identifies-the-setting-and-evidence-behind-it)
+- [Advice for findings](../contracts/claims.md#findings_say_what_to_do-each-finding-explains-what-is-wrong-and-what-i-can-do)
+
+### Using and trusting the tool
+
+- [Running with supported Python](../contracts/claims.md#runs_without_a_coding_agent-i-can-run-stay-safe-without-an-agent-and-get-guidance-if-my-python-is-too-old)
+- [Reading the report](../contracts/claims.md#overview_lists_findings_first-i-can-scan-the-report-and-reach-each-findings-details)
+- [Privacy when sharing](../contracts/claims.md#share_without_exposing_secrets-my-report-withholds-commands-addresses-tokens-and-environment-values-names-need-checking-before-sharing)
+- [Leaving your setup unchanged](../contracts/claims.md#nothing_in_my_setup_changes-running-stay-safe-leaves-my-setup-unchanged-saving-writes-only-the-report)
+- [Reproducing a report](../contracts/claims.md#anyone_can_recheck_a_report-i-can-identify-the-code-that-made-a-report-and-reproduce-it-from-the-same-files)
+- [Feedback and challenges](../contracts/claims.md#find_feedback-i-can-report-a-problem-suggest-an-idea-or-challenge-a-finding-without-sharing-private-files)
 
 ## Full scope
 
