@@ -1,11 +1,10 @@
 # Publish the package
 
-Version 0.2.3 is published on [PyPI](https://pypi.org/project/stay-safe/0.2.3/).
-Its public installation and report were verified in [PR #77](https://github.com/chalkbadger/stay-safe/pull/77).
-Version 0.2.4 is the next release, prepared in [#95](https://github.com/chalkbadger/stay-safe/issues/95).
-The commands below target 0.2.4; publication is complete only after public retrieval
-has been verified. Version 0.2.3 cannot be uploaded again. For later releases,
-choose a new version and update `pyproject.toml` and these commands before building.
+Version 0.2.4 is published on [PyPI](https://pypi.org/project/stay-safe/0.2.4/).
+Its public installation and report were verified for [#95](https://github.com/chalkbadger/stay-safe/issues/95).
+The commands below document that release. Published versions cannot be uploaded
+again. For the next release, choose a new version and update `pyproject.toml` and
+these commands before building.
 
 From a clean checkout of the accepted release commit, in a development environment:
 
