@@ -38,10 +38,10 @@ By default it reads `~/.codex/config.toml` (`$CODEX_HOME/config.toml` when `CODE
 ## Run with uv
 
 If you already use [uv](https://docs.astral.sh/uv/), run the
-[published 0.2.3 package](https://pypi.org/project/stay-safe/0.2.3/):
+[published 0.2.4 package](https://pypi.org/project/stay-safe/0.2.4/):
 
 ```sh
-uvx --python 3.11 stay-safe@0.2.3
+uvx --python 3.11 stay-safe@0.2.4
 ```
 
 The command asks uv for Python 3.11, downloading it if needed; your system Python
