@@ -1,3 +1,4 @@
+from tests.support import without_rule_links
 """Expected policy comes from OpenAI's pinned source, not the reader:
 https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/config_types.rs#L205-L272
 https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/shell_environment_policy.rs#L133-L169
@@ -144,7 +145,7 @@ class EnvironmentInheritanceTests(ConfigCase):
                     else:
                         self.assertIn(MARKDOWN_LEAD + '\n\n*How it has gone wrong:* ', run.stdout)
                         self.assertIn('\n\n*Rule `environment_inheritance` · setting `config-1:shell_environment_policy` = '
-                                      + '`' + '; '.join(DEFAULTS) + '`*\n', run.stdout)
+                                      + '`' + '; '.join(DEFAULTS) + '`*\n', without_rule_links(run.stdout))
                         self.assertIn('(reported, not verified)', run.stdout)
                         self.assertRegex(run.stdout, r'\[I23\]\(https://github.com/chalkbadger/stay-safe/blob/[0-9a-f]{40}/incidents.md#i23-')
                         self.assertIn('/harnesses/codex.md)', run.stdout)
