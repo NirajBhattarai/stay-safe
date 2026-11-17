@@ -16,6 +16,7 @@ class RuleIndexTests(ConfigCase):
     def test_index_matches_rules_incidents_and_resolvable_links(self):
         index = ROOT / 'docs/rules.md'
         self.assertTrue(index.is_file(), 'The rule index is missing')
+        self.assertTrue((ROOT / '.github/ISSUE_TEMPLATE/challenge.yml').is_file(), 'Challenge form is missing')
         parts = re.split(r'^## (.+)\n', index.read_text(), flags=re.M)
         ids = parts[1::2]
         self.assertCountEqual(ids, [rule.id for rule in RULES])
@@ -25,6 +26,7 @@ class RuleIndexTests(ConfigCase):
                 section = sections[rule.id]
                 self.assertCountEqual(re.findall(r'\[(I\d+)\]\(', section), rule.incidents)
                 links = re.findall(r'\[[^\]\n]+\]\(([^)\n]+)\)', section)
+                self.assertEqual(len(links), section.count(']('), 'Malformed link in ' + rule.id)
                 self.assertTrue(any(link.startswith('../harnesses/codex.md') for link in links))
                 external = []
                 for link in links:
