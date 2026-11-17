@@ -1,4 +1,3 @@
-from tests.support import without_rule_links
 """Expected policy comes from OpenAI's pinned source, not the reader:
 https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/config_types.rs#L205-L272
 https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/shell_environment_policy.rs#L133-L169
@@ -14,6 +13,7 @@ import sys
 from unittest.mock import patch
 
 from stay_safe.report import inspect, render
+from tests.support import without_rule_links
 from tests.support import INCOMPLETE
 from tests.support import ConfigCase, ROOT
 

@@ -17,14 +17,27 @@ class RuleIndexTests(ConfigCase):
         index = ROOT / 'docs/rules.md'
         self.assertTrue(index.is_file(), 'The rule index is missing')
         self.assertTrue((ROOT / '.github/ISSUE_TEMPLATE/challenge.yml').is_file(), 'Challenge form is missing')
+        form = json.loads((ROOT / '.github/ISSUE_TEMPLATE/challenge.yml').read_text())
+        self.assertEqual(form.get('labels'), ['challenge'])
+        finding = [field for field in form['body'] if field.get('id') == 'finding']
+        self.assertEqual(len(finding), 1, 'The index prefills the finding field')
+        self.assertEqual((finding[0]['type'], finding[0]['validations']['required']), ('textarea', True))
         parts = re.split(r'^## (.+)\n', index.read_text(), flags=re.M)
         ids = parts[1::2]
         self.assertCountEqual(ids, [rule.id for rule in RULES])
         sections = dict(zip(ids, parts[2::2]))
+        meanings = (ROOT / 'harnesses/codex.md').read_text().splitlines()
         for rule in RULES:
             with self.subTest(rule=rule.id):
                 section = sections[rule.id]
                 self.assertCountEqual(re.findall(r'\[(I\d+)\]\(', section), rule.incidents)
+                if rule.id != 'saved_approval':
+                    settings = next(line for line in section.splitlines() if line.startswith('- Settings:'))
+                    rows = {line.split('|')[1].strip(' `') for line in meanings
+                            if line.startswith('| `') and 'Rules:' in line
+                            and f'`{rule.id}`' in line.split('Rules:')[1].split('Gap:')[0]}
+                    self.assertEqual(set(re.findall(r'`([^`]+)`', settings)), rows)
+
                 links = re.findall(r'\[[^\]\n]+\]\(([^)\n]+)\)', section)
                 self.assertEqual(len(links), section.count(']('), 'Malformed link in ' + rule.id)
                 self.assertTrue(any(link.startswith('../harnesses/codex.md') for link in links))
@@ -44,7 +57,7 @@ class RuleIndexTests(ConfigCase):
                         self.assertIn(target.fragment, anchors, link)
                 self.assertCountEqual(external, [
                     ('/chalkbadger/stay-safe/issues', {'q': [
-                        f'is:issue is:open label:challenge {rule.id} in:title,body']}),
+                        f'is:issue label:challenge {rule.id} in:title,body']}),
                     ('/chalkbadger/stay-safe/issues/new', {
                         'template': ['challenge.yml'], 'finding': ['Rule ' + rule.id]}),
                 ])

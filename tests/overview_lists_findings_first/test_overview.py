@@ -1,4 +1,3 @@
-from tests.support import without_rule_links
 """Protect a complete, navigable overview and an honest account of inspection gaps (issue #82).
 
 Ordering expectations come from the policy in docs/report.md, not the renderer's sorting table.
@@ -12,6 +11,7 @@ import subprocess
 import sys
 
 from stay_safe.report import inspect, render
+from tests.support import without_rule_links
 from tests.support import INCOMPLETE, ROOT, ConfigCase, section
 
 GROUP_1 = "**Nothing stands between a mistaken or injected instruction and your computer**"
