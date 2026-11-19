@@ -18,20 +18,30 @@ class StatusTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         keys = ("credential_export", "auth_refresh")
         for selected in (False, True):
-            for settings in ((), keys[:1], keys[1:], keys):
-                with self.subTest(selected=selected, settings=settings):
+            for settings, empty in (((), False), (keys[:1], False), (keys[1:], False), (keys, False), (keys, True)):
+                with self.subTest(selected=selected, settings=settings, empty=empty):
                     text = COMPLETE + ('model_provider="amazon-bedrock"\n' if selected else "")
                     text += '[model_providers.amazon-bedrock.aws]\nregion="us-west-2"\n'
                     for key in settings:
-                        command = "aws" if key == "auth_refresh" else "private-export"
-                        text += f'[model_providers.amazon-bedrock.aws.{key}]\ncommand="{command}"\nargs=["private-arg"]\n'
+                        text += f'[model_providers.amazon-bedrock.aws.{key}]\n'
+                        if not empty:
+                            text += f'command="private-{key}"\nargs=["private-arg"]\n'
                     run = run_checkout(checkout, "--config", str(self.config(text)), cwd=self.root)
                     self.assertEqual(run.returncode, 2 if settings or selected else 0)
                     gaps = section(run.stdout, "Not checked")
+                    machine = run_checkout(checkout, "--config", str(self.config(text)), "--format", "json", cwd=self.root)
+                    self.assertEqual(machine.returncode, run.returncode)
+                    named = [gap for gap in json.loads(machine.stdout)["inspection_gaps"] if "aws." in gap]
+                    self.assertCountEqual(named, [f"config-1: Model-provider setting aws.{key} was not checked for a "
+                                                  "credential command." for key in settings])
                     for key in keys:
-                        self.assertEqual(f"aws.{key}" in gaps, key in settings)
-                    self.assertNotIn("private-arg", run.stdout)
-                    self.assertNotIn("private-export", run.stdout)
+                        if key in settings:
+                            self.assertIn(f"**Not checked: `aws.{key}`.** Stay-safe did not check this setting for a "
+                                          "credential command.", gaps)
+                        else:
+                            self.assertNotIn(f"aws.{key}", gaps)
+                    for private in ("private-arg", "private-auth_refresh", "private-credential_export"):
+                        self.assertNotIn(private, run.stdout + machine.stdout)
         auth = self.config(COMPLETE + '[model_providers.corp.auth]\ncommand="private-export"\n')
         control = run_checkout(checkout, "--config", str(auth), cwd=self.root)
         self.assertEqual(control.returncode, 2)
