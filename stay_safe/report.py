@@ -190,8 +190,8 @@ COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file selects a "
-                "`default_permissions` profile. Review it before changing the sandbox.",
+        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file sets "
+                "`default_permissions`. Check its value and any profile it names before changing the sandbox.",
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "read-only": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
@@ -738,7 +738,7 @@ def gap(text, absent, files, contexts=None):
         lead, step = lookup(GAPS, message), lookup(STEPS, message)
     if (message == "sandbox_mode is absent; the reader does not infer its effective value."
             and contexts and contexts.get(source, {}).get("profile")):
-        step = "Review the permission profile selected by `default_permissions` in your inspected files."
+        step = "Review `default_permissions` in your inspected files and check any profile it names."
     if lead is None or step is None:
         lead, step = UNKNOWN_GAP[0].format(cell(message)), UNKNOWN_GAP[1]
     # Each part is its own paragraph: single newlines would join them when the Markdown is rendered.

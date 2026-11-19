@@ -330,7 +330,7 @@ def gap_text(gap, absent=False, file=None, profile=False):
         lead, step = ((ABSENT[message], ABSENT_STEPS[message]) if absent and message in ABSENT
                       else (PLAIN[message], STEPS[message]))
         if profile and message == "sandbox_mode is absent; the reader does not infer its effective value.":
-            step = "Review the permission profile selected by `default_permissions` in your inspected files."
+            step = "Review `default_permissions` in your inspected files and check any profile it names."
         return f"{lead}\n\n*What to do:* {step}\n\n*File `{file or source}`*"
     return f"{PLAIN[gap]}\n\n*What to do:* {STEPS[gap]}"
 
