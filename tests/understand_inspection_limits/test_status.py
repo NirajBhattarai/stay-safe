@@ -51,15 +51,17 @@ class StatusTests(ConfigCase):
         self.assertEqual(control.returncode, 2)
         self.assertIn("a model provider's sign-in command", section(control.stdout, "Not checked"))
 
-        # A malformed AWS group and a valid command in a different file remain distinct.
+        # The two providers in the second file each contribute a gap.
         malformed = self.config(quiet + '[model_providers.corp]\naws=false\n', "bad.toml")
-        other = self.config(quiet + '[model_providers.first]\n[model_providers.second.aws.auth_refresh]\n')
+        other = self.config(quiet + '[model_providers.first.aws.credential_export]\n'
+                            '[model_providers.second.aws.auth_refresh]\n')
         args = ("--config", str(malformed), "--config", str(other))
         report = run_checkout(checkout, *args, "--format", "json", cwd=self.root)
         self.assertEqual(report.returncode, 2)
         self.assertCountEqual(json.loads(report.stdout)["inspection_gaps"], [
             "config-1: aws must be a table.",
-            "config-2: Model-provider setting aws.auth_refresh was not checked for a credential command."])
+            "config-2: Model-provider setting aws.auth_refresh was not checked for a credential command.",
+            "config-2: Model-provider setting aws.credential_export was not checked for a credential command."])
         output = section(run_checkout(checkout, *args, cwd=self.root).stdout, "Not checked")
         self.assertIn("**Not checked: your `aws` settings.**", output)
 
