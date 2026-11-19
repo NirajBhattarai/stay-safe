@@ -419,5 +419,11 @@
     "value": "omitted",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"",
     "entry": "features.apps"
+  },
+  {
+    "setting": "features.apps",
+    "value": "false",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\nfeatures.apps=false\n[apps.calendar]",
+    "entry": "apps.calendar"
   }
 ]

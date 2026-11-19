@@ -240,7 +240,7 @@ class Reader:
                 self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True)
         return observations, facts
 
-    def apps(self, data):
+    def apps(self, data, apps_enabled):
         apps = self.table(data.get("apps", {}), "apps")
         default = apps.get("_default", {})
         if not isinstance(default, dict):
@@ -249,6 +249,9 @@ class Reader:
             # A template that is not a table leaves every setting an app takes from it unknown.
             default = dict.fromkeys(("default_tools_approval_mode", "destructive_enabled"), UNKNOWN)
         for name, app in self.named(apps, "apps"):
+            if apps_enabled is False and name != "_default":
+                self.add(["apps", name], "app policy", ["disabled by features.apps = false"])
+                continue
             before = set(self.gaps)
             # What the app takes from apps._default; the code below reads only this and the app's own fields.
             # Not enabled: apps._default.enabled disables no named app (harnesses/codex.md [app-enabled]).
@@ -316,7 +319,6 @@ class Reader:
         self.sandbox(data)
         self.shell_environment(data)
         self.mcp(data)
-        self.apps(data)
         if "model_providers" in data:
             for name, provider in self.named(self.table(data["model_providers"], "model_providers"), "model_providers"):
                 self.add(["model_providers", name], "model provider", ["configured; endpoint and credentials withheld"])
@@ -352,9 +354,11 @@ class Reader:
         features = self.table(data.get("features", {}), "features")
         self.unknown(features, {"apps"}, "features")
         # Codex adds the ChatGPT Apps connection at ChatGPT sign-in unless this is false: harnesses/codex.md [apps-feature].
-        if self.boolean(features, "apps", True, "features.apps"):
+        apps_enabled = self.boolean(features, "apps", True, "features.apps")
+        if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
                      "which is not checked", "features.apps = false turns it off"])
+        self.apps(data, apps_enabled)
         if "web_search" in data:
             value = data["web_search"]
             if isinstance(value, str) and value in {"disabled", "cached", "indexed", "live"}:

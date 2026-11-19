@@ -8,8 +8,6 @@ from tests.see_every_connection_and_setting.test_plain_gaps import gap_text
 BASE = '''approval_policy="on-request"
 sandbox_mode="read-only"
 notify=["private-program"]
-[features]
-apps=false
 [shell_environment_policy]
 inherit="none"
 '''

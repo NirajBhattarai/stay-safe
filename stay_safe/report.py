@@ -776,6 +776,7 @@ SETUP_WORDS = {
     "ChatGPT Apps": "an MCP connection to ChatGPT",
     "exists only if Codex is signed in with ChatGPT, which is not checked":
         "only when Codex is signed in with ChatGPT (stay-safe doesn't check sign-in)",
+    "disabled by features.apps = false": "off (`features.apps = false`)",
     "features.apps = false turns it off": "`features.apps = false` turns it off",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
