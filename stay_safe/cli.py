@@ -119,6 +119,8 @@ def main(argv=None):
     rules = Path(args.rules[0]) if args.rules else None
     defaults = not args.config and not args.rules
     gaps, files = [], {}
+    if args.rules:
+        files["rules-1"] = None  # Explicit selection has a source label, but no shareable path.
     if defaults:
         home, gap = codex_home()
         if home is None:

@@ -48,6 +48,7 @@ Tests: [tests/overview_lists_findings_first/](../tests/overview_lists_findings_f
 
 - I see every finding once in the documented order, with matching details. `test_overview.py::test_every_finding_appears_once_in_policy_order_with_matching_details`
 - I follow identical titles from different files and reach the correct details. `test_overview.py::test_two_files_with_the_same_title_keep_their_labels_and_each_link_reaches_its_own_finding`
+- I clear my saved approvals and the introduction confirms that the rules file was read and contains none. `test_overview.py::test_selected_rules_file_is_named_when_it_has_no_saved_approvals`
 - I get no findings and still see the incomplete checks and warning against assuming safety. `test_overview.py::test_no_findings_does_not_imply_safety_or_hide_incomplete_checks`
 - I read the terminal report without Markdown markers, with source links available. `test_terminal.py::test_terminal_default_is_plain_with_links_and_private_values_withheld`
 
