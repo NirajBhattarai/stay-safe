@@ -172,10 +172,11 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     keep = f"Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
     approval_only = f"`approval_policy` {TOP}"
     if profile:
+        mode = f"This file sets `sandbox_mode` to `{sandbox}`. " if sandbox else ""
         return block(
-            "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file sets "
-            "`default_permissions`. Check its value and any profile it names before changing the sandbox.",
-            approval_only, keep, check)
+            'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
+            f"For read-only access, check that any profile you use blocks writes. Even then, {SAVED_STILL}",
+            approval_only, keep, f"{mode}Review `default_permissions` in {profile} and any profile it names.")
     if sandbox == "read-only":
         return block(
             "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to ask "
@@ -329,23 +330,27 @@ class WhatToDoTests(ConfigCase):
         # openai/codex 086ccc8 core/src/config/mod.rs L2711–2723: a later sandbox_mode replaces a profile.
         profile = 'default_permissions=":read-only"\napproval_policy="on-request"\n'
         never = 'approval_policy="never"\n'
-        cases = [(1, (never, profile), True), (2, (profile, never), True),
-                 (1, (never, 'default_permissions=false\n'), True),
-                 (1, (never, '[permissions.dev]\n'), False)]
-        for index, texts, sets_selector in cases:
+        cases = [(1, (never, profile), "`config-2`"), (2, (profile, never), "`config-1`"),
+                 (1, (never, profile + 'sandbox_mode="read-only"\n'), "`config-2`"),
+                 (1, (never, 'default_permissions=false\n'), "`config-2`"),
+                 (2, (profile, never, profile), "`config-1`, `config-3`"),
+                 (1, (never, '[permissions.dev]\n'), None)]
+        for index, texts, selector_files in cases:
             with self.subTest(files=texts):
                 report = self.run_cli(*self.files(*texts)).stdout
                 finding = next(item for item in finding_items(report) if "Rule `commands_without_prompts`" in item)
                 advice = what_to_do(finding)
                 file = passed(f"config-{index}")
-                self.assertEqual(advice, commands(file=file, where=file, profile=sets_selector))
+                self.assertEqual(advice, commands(file=file, where=file, profile=selector_files))
                 gap = next(item for item in section(report, "Not checked").split("\n\n---\n\n")
                            if "**Not checked: your sandbox setting.**" in item and f"*File `config-{index}`*" in item)
                 step = gap.split("*What to do:* ")[1].split("\n\n")[0]
-                expected = ("Review `default_permissions` in your inspected files and check any profile it names." if sets_selector else
+                expected = (f"Review `default_permissions` in {selector_files} and any profile it names." if selector_files else
                             "Check the sandbox setting wherever you run Codex (the app or the command line). "
                             'To set it in a file, add `sandbox_mode = "workspace-write"` or `"read-only"` to your config file.')
                 self.assertEqual(step, expected)
+                self.assertIn("**Not checked: your permission profiles.** Stay-safe doesn't check permission profiles "
+                              "or what commands they allow.", report)
 
     def run_cli(self, *args, env=None):
         run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=ROOT, env=env or {},
@@ -428,10 +433,14 @@ class WhatToDoTests(ConfigCase):
             # Three files: `read-only` in the third counts, even after a `workspace-write` in the second (F17).
             ((never, USER_WORKSPACE, USER_READ_ONLY),
              {commands_1: commands(file=first, where=first, other=("read-only", "config-3"))}),
-            # A file that selects a profile and also sets `read-only` counts too: in a later layer, an added
-            # `sandbox_mode` would replace that profile (openai/codex 086ccc8 core/src/config/mod.rs L2717-L2719; F18).
-            ((never, 'default_permissions = "dev"\nsandbox_mode = "read-only"\n[permissions.dev]\n'),
-             {commands_1: commands(file=first, where=first, profile=True)}),
+            # A selector in another file leaves the configured mode visible. Only change approval.
+            (('default_permissions=":read-only"\n', never + 'sandbox_mode="workspace-write"\n'),
+             {COMMANDS_KEY: commands("workspace-write", second, second, profile="`config-1`")}),
+            # For the unrestricted-filesystem finding, the other file's read-only mode still counts
+            # even when that file also selects a profile (openai/codex 086ccc8, config/mod.rs L2717–2722).
+            ((never + 'sandbox_mode="danger-full-access"\n', 'default_permissions="dev"\nsandbox_mode="read-only"\n'),
+             {commands_1: commands("danger-full-access", first, first, profile="`config-2`"),
+              ("unrestricted_filesystem", "config-1:sandbox_mode"): sandbox(first, other="config-2")}),
         ]
         for texts, expected in cases:
             with self.subTest(files=texts):
@@ -440,12 +449,14 @@ class WhatToDoTests(ConfigCase):
                     self.assertEqual(found[key], text, key)
 
     def test_a_selected_permission_profile_gets_no_sandbox_mode_advice(self):
-        for extra in ("", 'sandbox_mode = "read-only"\n', 'sandbox_mode = "danger-full-access"\n'):
-            with self.subTest(sandbox_mode=extra.strip()):
-                text = 'approval_policy = "never"\ndefault_permissions = "work"\n' + extra
+        for mode in (None, "read-only", "danger-full-access"):
+            with self.subTest(sandbox_mode=mode):
+                text = 'approval_policy = "never"\ndefault_permissions = "work"\n'
+                if mode:
+                    text += f'sandbox_mode="{mode}"\n'
                 found = self.findings("--config", str(self.config(text)))
                 self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")],
-                                 commands(profile=True))
+                                 commands(mode, profile="`config-1`"))
         # Unselected `[permissions.*]` definitions don't replace `sandbox_mode` (meanings row `permissions`).
         found = self.findings("--config", str(self.config('approval_policy = "never"\nsandbox_mode = "read-only"\n'
                                                           '[permissions.work]\n', "definitions.toml")))

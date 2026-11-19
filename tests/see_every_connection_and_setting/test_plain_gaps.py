@@ -51,9 +51,8 @@ PLAIN = {
         "**Not checked: your sandbox setting.** Your `sandbox_mode` value isn't one stay-safe supports, so it "
         f"can't tell what commands Codex runs are allowed to do. {WITHHELD}",
     "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.":
-        "**Not checked: your permission profiles.** Your config file has named permission profiles, which "
-        "stay-safe doesn't read. They can change what commands are allowed to do, so your sandbox settings may "
-        "not show what commands can really do.",
+        "**Not checked: your permission profiles.** Stay-safe doesn't check permission profiles or what commands "
+        "they allow.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
@@ -330,7 +329,7 @@ def gap_text(gap, absent=False, file=None, profile=False):
         lead, step = ((ABSENT[message], ABSENT_STEPS[message]) if absent and message in ABSENT
                       else (PLAIN[message], STEPS[message]))
         if profile and message == "sandbox_mode is absent; the reader does not infer its effective value.":
-            step = "Review `default_permissions` in your inspected files and check any profile it names."
+            step = "Review `default_permissions` in `config-2` and any profile it names."
         return f"{lead}\n\n*What to do:* {step}\n\n*File `{file or source}`*"
     return f"{PLAIN[gap]}\n\n*What to do:* {STEPS[gap]}"
 
@@ -367,11 +366,12 @@ class PlainGapTests(ConfigCase):
         config = self.config("""profile = "work"
 future_setting = 1
 approval_policy = "untrusted"
-default_permissions = "team"
 sandbox_mode = "everything"
 notify = []
 web_search = "sometimes"
 shell_environment_policy = { inherit = "some", ignore_default_excludes = "no" }
+
+[permissions.team]
 
 [sandbox_workspace_write]
 network_access = "yes"
@@ -426,6 +426,6 @@ future_feature = 1
         gaps = json.loads(runs[0].stdout)["inspection_gaps"]
         self.assertGreaterEqual(len(gaps), 25)
         self.assertIn("config-3: approval_policy is absent; the reader does not infer its effective value.", gaps)
-        self.assertEqual(gap_items(runs[1].stdout), [gap_text(gap, profile=True) for gap in gaps])
+        self.assertEqual(gap_items(runs[1].stdout), [gap_text(gap) for gap in gaps])
         self.assertNotIn("seed-", runs[1].stdout)
 
