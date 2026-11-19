@@ -241,7 +241,7 @@ class Reader:
                           off_reason)
         return observations, facts
 
-    def apps(self, data, apps_enabled):
+    def apps(self, data, apps_off):
         apps = self.table(data.get("apps", {}), "apps")
         default = apps.get("_default", {})
         if not isinstance(default, dict):
@@ -255,7 +255,7 @@ class Reader:
             # Not enabled: apps._default.enabled disables no named app (harnesses/codex.md [app-enabled]).
             settings = {**{k: v for k, v in default.items() if k != "enabled"}, **app}
             template = name == "_default"
-            off_reason = "disabled by features.apps = false" if apps_enabled is False and not template else None
+            off_reason = "disabled by features.apps = false" if apps_off and not template else None
             allowed = {"enabled", "destructive_enabled", "open_world_enabled", "default_tools_approval_mode", "approvals_reviewer"}
             if not template:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
@@ -358,7 +358,8 @@ class Reader:
         if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
                      "which is not checked", "features.apps = false turns it off"])
-        self.apps(data, apps_enabled)
+        # The legacy connectors key can turn Apps back on (harnesses/codex.md, features.apps).
+        self.apps(data, apps_enabled is False and features.get("connectors", False) is False)
         if "web_search" in data:
             value = data["web_search"]
             if isinstance(value, str) and value in {"disabled", "cached", "indexed", "live"}:
