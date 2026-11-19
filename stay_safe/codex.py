@@ -160,10 +160,10 @@ class Reader:
             self.gap(f"A {label} approval mode is unsupported or invalid; its value was withheld.")
         return [], {}
 
-    def tool(self, parts, name, config, mode, available, destructive):
+    def tool(self, parts, name, config, mode, available, destructive, off_reason=None):
         # A tool without its own mode takes its connection's; that risk stays on the connection.
         own = "approval_mode" in config
-        obs = ["configured enabled" if available else "disabled or enablement unknown"]
+        obs = [off_reason or ("configured enabled" if available else "disabled or enablement unknown")]
         if destructive:
             obs.append("enabled even if destructive")
         approval, facts = self.tool_approval(config.get("approval_mode", "auto" if mode is None else mode), own and available, "per-tool", report_invalid=own)
@@ -227,7 +227,7 @@ class Reader:
             facts["configured_program"] = enabled is True and valid and (valid_command or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
-    def app_tools(self, app, name, enabled, mode, tools_enabled):
+    def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason):
         # Without default_tools_enabled = true, only tools enabled by name take the app's mode.
         applies = tools_enabled is True or any("approval_mode" not in config and config.get("enabled") is True
                                                for config in tool_tables(app).values())
@@ -237,7 +237,8 @@ class Reader:
                 self.unknown(config, {"approval_mode", "enabled"}, "tools")
                 tool_enabled = self.boolean(config, "enabled", tools_enabled, "tools") if "enabled" in config else tools_enabled
                 available = tool_enabled is True and enabled is True
-                self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True)
+                self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True,
+                          off_reason)
         return observations, facts
 
     def apps(self, data, apps_enabled):
@@ -249,24 +250,23 @@ class Reader:
             # A template that is not a table leaves every setting an app takes from it unknown.
             default = dict.fromkeys(("default_tools_approval_mode", "destructive_enabled"), UNKNOWN)
         for name, app in self.named(apps, "apps"):
-            if apps_enabled is False and name != "_default":
-                self.add(["apps", name], "app policy", ["disabled by features.apps = false"])
-                continue
             before = set(self.gaps)
             # What the app takes from apps._default; the code below reads only this and the app's own fields.
             # Not enabled: apps._default.enabled disables no named app (harnesses/codex.md [app-enabled]).
             settings = {**{k: v for k, v in default.items() if k != "enabled"}, **app}
             template = name == "_default"
+            off_reason = "disabled by features.apps = false" if apps_enabled is False and not template else None
             allowed = {"enabled", "destructive_enabled", "open_world_enabled", "default_tools_approval_mode", "approvals_reviewer"}
             if not template:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
-            enabled = self.boolean(settings, "enabled", True, "apps")
+            enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
             tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
-            obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
+            obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")
-            policy, facts = self.app_tools(app, name, enabled, settings.get("default_tools_approval_mode"), tools_enabled)
+            policy, facts = self.app_tools(app, name, enabled, settings.get("default_tools_approval_mode"),
+                                           tools_enabled, off_reason)
             # Codex decides by default_tools_enabled, then destructive_enabled: harnesses/codex.md [app-tool-policy].
             source = ("destructive_enabled" if "destructive_enabled" in app
                       else "apps._default.destructive_enabled" if "destructive_enabled" in settings else "Codex default")
