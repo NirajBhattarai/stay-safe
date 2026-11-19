@@ -325,7 +325,7 @@ class Reader:
                 aws = self.table(provider.get("aws", {}), "model_providers.aws")
                 for key in ("credential_export", "auth_refresh"):
                     if key in aws:
-                        self.gap(f"Model-provider aws.{key} command was not checked.")
+                        self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
         if "notify" in data:
             notify = data["notify"]
             # The first element is the program; later arguments may be empty.
