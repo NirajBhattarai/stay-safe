@@ -19,8 +19,13 @@ class CatalogTests(ConfigCase):
         for tool in ("", override):
             with self.subTest(tool=bool(tool)):
                 off = self.config('features.apps=false\n' + apps + tool, "off.toml")
-                on = self.config(apps + tool, "on.toml")
-                report = inspect([off, on])
+                # Both spellings map to Apps. Codex applies the sorted keys, so connectors wins in either order:
+                # openai/codex 086ccc8 features/src/legacy.rs L11–15 and features/src/lib.rs L695–745.
+                active = ("", "features.apps=false\nfeatures.connectors=true\n",
+                          "features.connectors=true\nfeatures.apps=false\n")
+                on = [self.config(flags + apps + tool, f"on-{n}.toml") for n, flags in enumerate(active)]
+                also_off = self.config("features.apps=false\nfeatures.connectors=false\n" + apps + tool, "also-off.toml")
+                report = inspect([off, *on, also_off])
                 output = markdown(report)
                 setup = section(output, "Your setup").split("config-2")[0]
                 for app in ("calendar", "drive"):
@@ -39,7 +44,7 @@ class CatalogTests(ConfigCase):
                     expected += [("automatic_tools", "apps.calendar.tools.delete"),
                                  ("destructive_tools", "apps.calendar.tools.delete")]
                 self.assertCountEqual([(r["rule"], r["entry"]) for r in report["risks"] if ":apps." in r["entry"]],
-                                      [(rule, "config-2:" + setting) for rule, setting in expected])
+                                      [(rule, f"config-{n}:{setting}") for n in (2, 3, 4) for rule, setting in expected])
                 self.assertNotIn("config-1:apps.", section(output, "Findings"))
 
     def test_standalone_tool_filters_keep_names_and_report_withheld_names(self):
