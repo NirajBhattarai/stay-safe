@@ -322,7 +322,7 @@ class Reader:
                 self.add(["model_providers", name], "model provider", ["configured; endpoint and credentials withheld"])
                 if "auth" in provider:
                     self.gap("Model-provider command-backed authentication is outside reader coverage.")
-                aws = self.table(provider.get("aws", {}), "model_providers.aws")
+                aws = self.table(provider.get("aws", {}), "aws")
                 for key in ("credential_export", "auth_refresh"):
                     if key in aws:
                         self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
