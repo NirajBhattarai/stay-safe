@@ -276,16 +276,19 @@ approval_mode="prompt"
             ("self_described_tools", "config-1:mcp_servers.remote"),
             ("environment_inheritance", "config-1:shell_environment_policy"),
         ])
-        base = 'approval_policy="on-request"\nsandbox_mode="read-only"\n'
-        for extra, gaps in [
-            ('[sandbox_workspace_write]\nfuture_field=1', ["config-1: sandbox_workspace_write contains fields outside reader coverage; their values were withheld."]),
-            ('[apps.calendar.tools.create_event]\nfuture_field=1', ["config-1: tools contains fields outside reader coverage; their values were withheld."]),
-            ('[hooks]\nfuture_field=1', ["config-1: Hook execution policy is outside reader coverage.",
-                                         "config-1: hooks contains fields outside reader coverage; their values were withheld."]),
-            ('model_reasoning_effort="high"', []),
+        for sandbox_mode, extra, gaps in [
+            ("workspace-write", '[sandbox_workspace_write]\nnetwork_access=false\nfuture_field=true',
+             ["config-1: sandbox_workspace_write contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", '[apps.calendar]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false\n'
+                          '[apps.calendar.tools.create_event]\napproval_mode="prompt"\nfuture_field=true',
+             ["config-1: tools contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", '[hooks]\nfuture_field=1', ["config-1: Hook execution policy is outside reader coverage.",
+                                                      "config-1: hooks contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", 'model_reasoning_effort="high"', []),
         ]:
             with self.subTest(extra=extra):
-                self.assertEqual(inspect([self.config(base + extra)])["inspection_gaps"], gaps)
+                config = f'approval_policy="on-request"\nsandbox_mode="{sandbox_mode}"\n{extra}\n[shell_environment_policy]\ninherit="none"'
+                self.assertEqual(inspect([self.config(config)])["inspection_gaps"], gaps)
         malformed = inspect([self.config('approval_policy="never"\nsandbox_mode=["secret"]\n[mcp_servers.a]\ncommand="echo"\nurl="https://example.com"\nhttp_headers_helper=true')])
         self.assertEqual([r["rule"] for r in malformed["risks"]], ["commands_without_prompts", "environment_inheritance"])
         self.assertEqual(malformed["inspection_gaps"], [
