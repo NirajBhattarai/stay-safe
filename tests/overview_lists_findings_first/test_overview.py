@@ -119,6 +119,35 @@ class Targets(HTMLParser):
 
 
 class OverviewTests(ConfigCase):
+    def test_selected_rules_file_is_named_when_it_has_no_saved_approvals(self):
+        # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7009857808
+        rules = self.root / "selected.rules"
+        config = self.config(QUIET)
+        for content, mixed, status, is_empty in (
+            ("", False, 0, True), ("  # removed\n\n", False, 0, True), ("", True, 0, True),
+            ('prefix_rule(pattern=["git"], decision="allow")\n', False, 0, False),
+            ("unsupported_rule()\n", False, 2, False), (None, False, 2, False),
+        ):
+            with self.subTest(content=content, mixed=mixed):
+                if content is None:
+                    rules.unlink()
+                else:
+                    rules.write_text(content, encoding="utf-8")
+                args = ["--config", str(config)] if mixed else []
+                run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args, "--rules", str(rules)],
+                                     cwd=ROOT, capture_output=True, text=True, timeout=10)
+                self.assertEqual(run.returncode, status)
+                intro = "\n".join(overview(run.stdout))
+                self.assertEqual("your saved approvals (`rules-1`)" in intro, content is not None)
+                self.assertEqual("your Codex settings (`config-1`)" in intro, mixed)
+                self.assertEqual("no saved approvals" in intro.lower(), is_empty)
+                if content is None:
+                    self.assertIn("doesn't exist", section(run.stdout, "Not checked"))
+                elif is_empty:
+                    self.assertIn("0 things not checked", intro)
+                elif status == 0:
+                    self.assertIn("rules-1:prefix_rule.1", section(run.stdout, "Findings"))
+
     def report(self, *texts, rules=None):
         paths = [self.config(text, f"config-{index}.toml") for index, text in enumerate(texts, 1)]
         return inspect(paths, rules_path=self.config(rules, "selected.rules") if rules is not None else None)
