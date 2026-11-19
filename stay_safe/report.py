@@ -190,8 +190,8 @@ COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). Your `default_permissions` "
-                "profile, not `sandbox_mode`, decides what commands can write; review it.",
+        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file selects a "
+                "`default_permissions` profile. Review it before changing the sandbox.",
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "read-only": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
@@ -308,8 +308,7 @@ STRICTNESS = ("read-only", "workspace-write")
 
 
 def sandbox_context(report):
-    """For each inspected config file: the sandbox it sets, whether `default_permissions` selects a permission
-    profile instead, and the first other inspected file that sets the stricter `read-only`, with its label.
+    """Collect each file's sandbox mode, any selected profile, and any other read-only sandbox.
 
     The reader reports a selected profile as the conflict gap (with `sandbox_mode`), or as the named-profile gap without
     the absent-`sandbox_mode` gap and without a `sandbox_mode` entry (stay_safe/codex.py, Reader.sandbox); unselected
@@ -322,22 +321,21 @@ def sandbox_context(report):
     sources |= {source for source in gaps if source.startswith("config-")}
     own = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
            if entry["name"] == "sandbox_mode" and entry["observations"]}
+    profile_selected = any(
+        "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
+        or ("Named permission profiles are outside reader coverage; sandbox settings are not "
+            "effective-permission evidence." in messages
+            and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
+            and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
+            and source not in own)
+        for source, messages in gaps.items()
+    )
     context = {}
     for source in sources:
-        messages = gaps.get(source, set())
-        profile = ("default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
-                   or ("Named permission profiles are outside reader coverage; sandbox settings are not "
-                       "effective-permission evidence." in messages
-                       and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
-                       and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
-                       and source not in own))
-        context[source] = {"sandbox": own.get(source), "profile": profile, "other": None}
-    for source in context:
-        # A file that selects a profile still counts: in a later layer, an added `sandbox_mode` would replace that
-        # profile (openai/codex 086ccc8, core/src/config/mod.rs L2717-L2719).
         others = sorted((int(other.split("-")[1]), other) for other, value in own.items()
                         if other != source and value == "read-only")
-        context[source]["other"] = ("read-only", others[0][1]) if others else None
+        context[source] = {"sandbox": own.get(source), "profile": profile_selected,
+                           "other": ("read-only", others[0][1]) if others else None}
     return context
 
 
@@ -728,7 +726,7 @@ def finding(risk, files=None, contexts=None):
     return f"**{headline}** {why}", plain["how"], step
 
 
-def gap(text, absent, files):
+def gap(text, absent, files, contexts=None):
     """A gap's paragraph; absent holds the sources whose Codex config file automatic discovery did not find, and
     files maps a source found automatically to where Codex keeps it."""
     source, separator, message = text.partition(": ")
@@ -738,6 +736,9 @@ def gap(text, absent, files):
         lead, step = ABSENT[message], ABSENT_STEPS[message]
     else:
         lead, step = lookup(GAPS, message), lookup(STEPS, message)
+    if (message == "sandbox_mode is absent; the reader does not infer its effective value."
+            and contexts and contexts.get(source, {}).get("profile")):
+        step = "Review the permission profile selected by `default_permissions` in your inspected files."
     if lead is None or step is None:
         lead, step = UNKNOWN_GAP[0].format(cell(message)), UNKNOWN_GAP[1]
     # Each part is its own paragraph: single newlines would join them when the Markdown is rendered.
@@ -1025,7 +1026,7 @@ def markdown(report, files=None):
     lines += ["## Not checked", ""]
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] == "configuration file"}
     if gaps:
-        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, absent, files) for text in gaps), ""]
+        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, absent, files, contexts) for text in gaps), ""]
     else:
         lines += ["stay-safe checked every setting it supports in the files it read. "
                   "What this report can't see, below, still applies.", ""]

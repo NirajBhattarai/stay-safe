@@ -31,6 +31,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 
 - I get advice for each finding, including the setting to change and stricter options where supported. `test_what_to_do.py::test_each_finding_gives_lower_friction_then_stricter_option_then_how_to_change_it`
 - I inspect different sandbox settings and the advice never suggests a weaker sandbox. `test_what_to_do.py::test_commands_advice_never_loosens_the_configured_sandbox`
+- I select a permission profile in one file and can follow the approval finding and sandbox gap advice without replacing it. `test_what_to_do.py::test_profile_in_either_file_preserves_approval_and_gap_advice`
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.

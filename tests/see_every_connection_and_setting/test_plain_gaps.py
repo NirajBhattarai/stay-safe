@@ -318,7 +318,7 @@ UNSOURCED = {message for message in PLAIN
              if message.startswith(("Codex home:", "System config folder:", "Committed", "Incomplete", "Revision"))}
 
 
-def gap_text(gap, absent=False, file=None):
+def gap_text(gap, absent=False, file=None, profile=False):
     """The expected Markdown paragraph for a JSON gap: its plain lead, what to do, then its file label, if any.
 
     absent: the gap's source is a Codex config file that automatic discovery did not find.
@@ -329,6 +329,8 @@ def gap_text(gap, absent=False, file=None):
     if source.startswith(("config-", "rules-")):
         lead, step = ((ABSENT[message], ABSENT_STEPS[message]) if absent and message in ABSENT
                       else (PLAIN[message], STEPS[message]))
+        if profile and message == "sandbox_mode is absent; the reader does not infer its effective value.":
+            step = "Review the permission profile selected by `default_permissions` in your inspected files."
         return f"{lead}\n\n*What to do:* {step}\n\n*File `{file or source}`*"
     return f"{PLAIN[gap]}\n\n*What to do:* {STEPS[gap]}"
 
@@ -357,7 +359,7 @@ class PlainGapTests(ConfigCase):
         report = inspect([])
         report["inspection_gaps"] = [labelled(message) for message in PLAIN] + ["config-1: A future gap text."]
         self.assertEqual(gap_items(markdown(report)),
-                         [gap_text(labelled(message)) for message in PLAIN]
+                         [gap_text(labelled(message), profile=True) for message in PLAIN]
                          + ["**Not checked:** A future gap text.\n\n*What to do:* Review this part of your setup "
                             "yourself.\n\n*File `config-1`*"])
 
@@ -424,6 +426,6 @@ future_feature = 1
         gaps = json.loads(runs[0].stdout)["inspection_gaps"]
         self.assertGreaterEqual(len(gaps), 25)
         self.assertIn("config-3: approval_policy is absent; the reader does not infer its effective value.", gaps)
-        self.assertEqual(gap_items(runs[1].stdout), [gap_text(gap) for gap in gaps])
+        self.assertEqual(gap_items(runs[1].stdout), [gap_text(gap, profile=True) for gap in gaps])
         self.assertNotIn("seed-", runs[1].stdout)
 

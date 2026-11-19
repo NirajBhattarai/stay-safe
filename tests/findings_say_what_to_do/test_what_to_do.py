@@ -173,8 +173,8 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     approval_only = f"`approval_policy` {TOP}"
     if profile:
         return block(
-            "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). Your `default_permissions` "
-            "profile, not `sandbox_mode`, decides what commands can write; review it.",
+            "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file selects a "
+            "`default_permissions` profile. Review it before changing the sandbox.",
             approval_only, keep, check)
     if sandbox == "read-only":
         return block(
@@ -428,7 +428,7 @@ class WhatToDoTests(ConfigCase):
             # A file that selects a profile and also sets `read-only` counts too: in a later layer, an added
             # `sandbox_mode` would replace that profile (openai/codex 086ccc8 core/src/config/mod.rs L2717-L2719; F18).
             ((never, 'default_permissions = "dev"\nsandbox_mode = "read-only"\n[permissions.dev]\n'),
-             {commands_1: commands(file=first, where=first, other=("read-only", "config-2"))}),
+             {commands_1: commands(file=first, where=first, profile=True)}),
         ]
         for texts, expected in cases:
             with self.subTest(files=texts):
