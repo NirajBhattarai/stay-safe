@@ -11,6 +11,33 @@ FIXTURE = Path(__file__).with_name("known.toml")
 
 
 class CatalogTests(ConfigCase):
+    def test_named_apps_respect_the_apps_switch_in_each_file(self):
+        # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-6998454778
+        # openai/codex 086ccc8: core/src/mcp.rs L465–486 and core/src/mcp_tool_call.rs L223–237.
+        apps = '[apps.calendar]\ndefault_tools_approval_mode="approve"\n[apps.drive]\n'
+        override = '[apps.calendar.tools.delete]\nenabled=true\napproval_mode="approve"\n'
+        for tool in ("", override):
+            with self.subTest(tool=bool(tool)):
+                off = self.config('features.apps=false\n' + apps + tool, "off.toml")
+                on = self.config(apps + tool, "on.toml")
+                report = inspect([off, on])
+                output = markdown(report)
+                setup = section(output, "Your setup").split("config-2")[0]
+                for app in ("calendar", "drive"):
+                    self.assertIn(f"App `{app}`: off", setup)
+                    line = next(line for line in setup.splitlines() if f"App `{app}`:" in line)
+                    self.assertIn("features.apps = false", line)
+                expected = [
+                    ("automatic_tools", "apps.calendar"), ("destructive_tools", "apps.calendar"),
+                    ("destructive_tools", "apps.drive"), ("self_described_tools", "apps.drive"),
+                ]
+                if tool:
+                    expected += [("automatic_tools", "apps.calendar.tools.delete"),
+                                 ("destructive_tools", "apps.calendar.tools.delete")]
+                self.assertCountEqual([(r["rule"], r["entry"]) for r in report["risks"] if ":apps." in r["entry"]],
+                                      [(rule, "config-2:" + setting) for rule, setting in expected])
+                self.assertNotIn("config-1:apps.", section(output, "Findings"))
+
     def test_standalone_tool_filters_keep_names_and_report_withheld_names(self):
         base = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[mcp_servers.github]\nurl="https://example.com/mcp"\n'
         report = inspect([self.config(base + 'enabled_tools=["get_issue", "files/create"]\ndisabled_tools=["delete_repository"]')])
