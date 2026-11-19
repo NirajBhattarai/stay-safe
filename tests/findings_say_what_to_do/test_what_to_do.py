@@ -173,8 +173,8 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     approval_only = f"`approval_policy` {TOP}"
     if profile:
         return block(
-            "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file selects a "
-            "`default_permissions` profile. Review it before changing the sandbox.",
+            "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file sets "
+            "`default_permissions`. Check its value and any profile it names before changing the sandbox.",
             approval_only, keep, check)
     if sandbox == "read-only":
         return block(
@@ -329,20 +329,23 @@ class WhatToDoTests(ConfigCase):
         # openai/codex 086ccc8 core/src/config/mod.rs L2711–2723: a later sandbox_mode replaces a profile.
         profile = 'default_permissions=":read-only"\napproval_policy="on-request"\n'
         never = 'approval_policy="never"\n'
-        for index, texts in enumerate(((never, profile), (profile, never)), 1):
-            with self.subTest(finding_file=index):
+        cases = [(1, (never, profile), True), (2, (profile, never), True),
+                 (1, (never, 'default_permissions=false\n'), True),
+                 (1, (never, '[permissions.dev]\n'), False)]
+        for index, texts, sets_selector in cases:
+            with self.subTest(files=texts):
                 report = self.run_cli(*self.files(*texts)).stdout
                 finding = next(item for item in finding_items(report) if "Rule `commands_without_prompts`" in item)
                 advice = what_to_do(finding)
-                self.assertIn('Set `approval_policy = "on-request"`', advice)
-                self.assertIn(f'Edit `<config-{index}>` to set `approval_policy = "on-request"`', advice)
-                with self.subTest(advice="finding"):
-                    self.assertNotIn('sandbox_mode =', advice)
+                file = passed(f"config-{index}")
+                self.assertEqual(advice, commands(file=file, where=file, profile=sets_selector))
                 gap = next(item for item in section(report, "Not checked").split("\n\n---\n\n")
-                           if "Not checked: your sandbox setting" in item)
-                step = gap.split("*What to do:*")[1]
-                self.assertIn("profile", step)
-                self.assertNotIn("sandbox_mode =", step)
+                           if "**Not checked: your sandbox setting.**" in item and f"*File `config-{index}`*" in item)
+                step = gap.split("*What to do:* ")[1].split("\n\n")[0]
+                expected = ("Review `default_permissions` in your inspected files and check any profile it names." if sets_selector else
+                            "Check the sandbox setting wherever you run Codex (the app or the command line). "
+                            'To set it in a file, add `sandbox_mode = "workspace-write"` or `"read-only"` to your config file.')
+                self.assertEqual(step, expected)
 
     def run_cli(self, *args, env=None):
         run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=ROOT, env=env or {},
