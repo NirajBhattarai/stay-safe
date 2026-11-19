@@ -286,6 +286,16 @@
     ]
   },
   {
+    "setting": "model_providers.*.aws",
+    "value": "credential commands",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[model_providers.amazon-bedrock.aws.credential_export]\ncommand=\"synthetic-export\"\n[model_providers.amazon-bedrock.aws.auth_refresh]\ncommand=\"aws\"",
+    "entry": "model_providers.amazon-bedrock",
+    "gaps": [
+      "Model-provider aws.auth_refresh command was not checked.",
+      "Model-provider aws.credential_export command was not checked."
+    ]
+  },
+  {
     "setting": "notify",
     "value": "command list with nonempty program",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\nnotify=[\"synthetic-command\"]",
