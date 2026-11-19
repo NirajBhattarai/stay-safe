@@ -352,6 +352,11 @@ class WhatToDoTests(ConfigCase):
                 self.assertIn("**Not checked: your permission profiles.** Stay-safe doesn't check permission profiles "
                               "or what commands they allow.", report)
 
+        # The finding file's explicit mode is still useful context, even if a profile is set elsewhere.
+        found = self.findings(*self.files(profile, never + 'sandbox_mode="workspace-write"\n'))
+        project = passed("config-2")
+        self.assertEqual(found[COMMANDS_KEY], commands("workspace-write", project, project, profile="`config-1`"))
+
     def run_cli(self, *args, env=None):
         run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=ROOT, env=env or {},
                              text=True, capture_output=True, timeout=10)
@@ -433,9 +438,6 @@ class WhatToDoTests(ConfigCase):
             # Three files: `read-only` in the third counts, even after a `workspace-write` in the second (F17).
             ((never, USER_WORKSPACE, USER_READ_ONLY),
              {commands_1: commands(file=first, where=first, other=("read-only", "config-3"))}),
-            # A selector in another file leaves the configured mode visible. Only change approval.
-            (('default_permissions=":read-only"\n', never + 'sandbox_mode="workspace-write"\n'),
-             {COMMANDS_KEY: commands("workspace-write", second, second, profile="`config-1`")}),
             # For the unrestricted-filesystem finding, the other file's read-only mode still counts
             # even when that file also selects a profile (openai/codex 086ccc8, config/mod.rs L2717–2722).
             ((never + 'sandbox_mode="danger-full-access"\n', 'default_permissions="dev"\nsandbox_mode="read-only"\n'),

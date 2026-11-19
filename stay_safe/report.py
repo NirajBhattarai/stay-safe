@@ -183,16 +183,17 @@ LABELS_GROUP = {
     "ask": "Edit {file} so my `{name}` {kind} uses `default_tools_approval_mode = \"prompt\"` with `approval_mode = \"approve\"` only for these tools I trust: <tool names>"}
 # Rows: approval_policy `on-request`, sandbox_mode `workspace-write` and `read-only`. The advice never suggests a
 # sandbox looser than one set by the finding's file or another inspected file: `workspace-write` only when none sets
-# the stricter `read-only`. With `default_permissions`, the permission profile, not `sandbox_mode`, decides
-# what commands can write (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722).
+# the stricter `read-only`. A later layer can replace a profile with sandbox_mode, so edit approval alone
+# if any inspected file sets default_permissions (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722).
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
+PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). An inspected file sets "
-                "`default_permissions`. Check its value and any profile it names before changing the sandbox.",
-        "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
+        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
+                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
                 "ask you first; commands still can't write files). But " + SAVED_STILL,
@@ -307,8 +308,8 @@ KINDS = {"mcp_servers": "MCP server", "apps": "app"}
 STRICTNESS = ("read-only", "workspace-write")
 
 
-def sandbox_context(report):
-    """Collect each file's sandbox mode, any selected profile, and any other read-only sandbox.
+def sandbox_context(report, files):
+    """Collect configured modes, the files that set default_permissions, and the other read-only sandboxes.
 
     The reader reports a selected profile as the conflict gap (with `sandbox_mode`), or as the named-profile gap without
     the absent-`sandbox_mode` gap and without a `sandbox_mode` entry (stay_safe/codex.py, Reader.sandbox); unselected
@@ -321,20 +322,20 @@ def sandbox_context(report):
     sources |= {source for source in gaps if source.startswith("config-")}
     own = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
            if entry["name"] == "sandbox_mode" and entry["observations"]}
-    profile_selected = any(
-        "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
-        or ("Named permission profiles are outside reader coverage; sandbox settings are not "
-            "effective-permission evidence." in messages
-            and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
-            and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
-            and source not in own)
-        for source, messages in gaps.items()
-    )
+    profiles = [source for source, messages in gaps.items()
+                if "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
+                or ("Named permission profiles are outside reader coverage; sandbox settings are not "
+                    "effective-permission evidence." in messages
+                    and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
+                    and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
+                    and source not in own)]
+    profile_files = ", ".join(f"`{files.get(source, source)}`" for source in sorted(profiles, key=source_order))
     context = {}
     for source in sources:
+        # A read-only setting still counts here when its file also selects a profile.
         others = sorted((int(other.split("-")[1]), other) for other, value in own.items()
                         if other != source and value == "read-only")
-        context[source] = {"sandbox": own.get(source), "profile": profile_selected,
+        context[source] = {"sandbox": own.get(source), "profile": profile_files,
                            "other": ("read-only", others[0][1]) if others else None}
     return context
 
@@ -364,11 +365,13 @@ def advice(risk, files, contexts):
     spec = pick_spec(spec, context)
     path = files.get(source)
     other = context.get("other") or ("", "")
+    mode = context.get("sandbox")
     fields = {"file": f"`{path}`" if path else f"`<{source}>`", "where": f"`{path}`" if path else f"`<{source}>`",
               "table": name, "name": keys[1] if len(keys) > 1 else "", "tool": keys[3] if len(keys) == 4 else "",
               "kind": KINDS.get(keys[0], ""), "line": keys[1] if len(keys) > 1 else "",
               "allowlist": spec.get("allowlist", "") if keys[0] == "mcp_servers" else "",
-              "value": other[0], "label": other[1]}
+              "value": other[0], "label": other[1], "profile": context.get("profile", ""),
+              "mode_note": f"This file sets `sandbox_mode` to `{mode}`. " if mode else ""}
     fill = lambda text: text.format(**fields)
     paragraphs = [f"*What to do:* {fill(spec['what'])}",
                   f"*Change it:* {fill(spec['where'])}, or ask Codex: \"{fill(spec['ask'])}; show only what you change.\""]
@@ -427,9 +430,8 @@ GAPS = {
         "**Not checked: your sandbox setting.** Your `sandbox_mode` value isn't one stay-safe supports, so it "
         f"can't tell what commands Codex runs are allowed to do. {WITHHELD}",
     "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.":
-        "**Not checked: your permission profiles.** Your config file has named permission profiles, which "
-        "stay-safe doesn't read. They can change what commands are allowed to do, so your sandbox settings may "
-        "not show what commands can really do.",
+        "**Not checked: your permission profiles.** Stay-safe doesn't check permission profiles or what commands "
+        "they allow.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
@@ -738,7 +740,7 @@ def gap(text, absent, files, contexts=None):
         lead, step = lookup(GAPS, message), lookup(STEPS, message)
     if (message == "sandbox_mode is absent; the reader does not infer its effective value."
             and contexts and contexts.get(source, {}).get("profile")):
-        step = "Review `default_permissions` in your inspected files and check any profile it names."
+        step = PROFILE_CHECK.format(profile=contexts[source]["profile"])
     if lead is None or step is None:
         lead, step = UNKNOWN_GAP[0].format(cell(message)), UNKNOWN_GAP[1]
     # Each part is its own paragraph: single newlines would join them when the Markdown is rendered.
@@ -999,7 +1001,7 @@ def markdown(report, files=None):
         lines += [paragraph, ""]
     blocks, titles = [], []
     # The sandboxes the files set, so the advice never suggests a looser one (reviews of archived PR #129, F2 and F13).
-    contexts = sandbox_context(report)
+    contexts = sandbox_context(report, files)
     for number, risk in enumerate(risks, 1):
         citations = ", ".join(f"[{i}]({report['incident_links'][i]})" if i in report["incident_links"] else i for i in risk["incidents"])
         lead, how, step = finding(risk, files, contexts) or (risk["explanation"], "See the cited incidents.",
