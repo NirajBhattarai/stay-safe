@@ -324,6 +324,26 @@ COMMANDS_KEY = ("commands_without_prompts", "config-2:approval_policy")
 
 
 class WhatToDoTests(ConfigCase):
+    def test_profile_in_either_file_preserves_approval_and_gap_advice(self):
+        # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7000570739
+        # openai/codex 086ccc8 core/src/config/mod.rs L2711–2723: a later sandbox_mode replaces a profile.
+        profile = 'default_permissions=":read-only"\napproval_policy="on-request"\n'
+        never = 'approval_policy="never"\n'
+        for index, texts in enumerate(((never, profile), (profile, never)), 1):
+            with self.subTest(finding_file=index):
+                report = self.run_cli(*self.files(*texts)).stdout
+                finding = next(item for item in finding_items(report) if "Rule `commands_without_prompts`" in item)
+                advice = what_to_do(finding)
+                self.assertIn('Set `approval_policy = "on-request"`', advice)
+                self.assertIn(f'Edit `<config-{index}>` to set `approval_policy = "on-request"`', advice)
+                with self.subTest(advice="finding"):
+                    self.assertNotIn('sandbox_mode =', advice)
+                gap = next(item for item in section(report, "Not checked").split("\n\n---\n\n")
+                           if "Not checked: your sandbox setting" in item)
+                step = gap.split("*What to do:*")[1]
+                self.assertIn("profile", step)
+                self.assertNotIn("sandbox_mode =", step)
+
     def run_cli(self, *args, env=None):
         run = subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=ROOT, env=env or {},
                              text=True, capture_output=True, timeout=10)
