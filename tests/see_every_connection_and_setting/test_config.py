@@ -14,7 +14,7 @@ class CatalogTests(ConfigCase):
     def test_named_apps_respect_the_apps_switch_in_each_file(self):
         # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-6998454778
         # openai/codex 086ccc8: core/src/mcp.rs L465–486 and core/src/mcp_tool_call.rs L223–237.
-        apps = '[apps.calendar]\ndefault_tools_approval_mode="approve"\n[apps.drive]\n'
+        apps = '[apps.calendar]\nenabled=true\ndefault_tools_approval_mode="approve"\n[apps.drive]\n'
         override = '[apps.calendar.tools.delete]\nenabled=true\napproval_mode="approve"\n'
         for tool in ("", override):
             with self.subTest(tool=bool(tool)):
@@ -32,6 +32,10 @@ class CatalogTests(ConfigCase):
                     ("destructive_tools", "apps.drive"), ("self_described_tools", "apps.drive"),
                 ]
                 if tool:
+                    child = [entry["observations"] for entry in report["catalog"]
+                             if entry["id"] == "config-1:apps.calendar.tools.delete"]
+                    self.assertEqual(child, [["disabled by features.apps = false", "tool approval: approve"]])
+                    self.assertIn("Tool `delete` of app `calendar`: off (`features.apps = false`), tool approval `approve`", setup)
                     expected += [("automatic_tools", "apps.calendar.tools.delete"),
                                  ("destructive_tools", "apps.calendar.tools.delete")]
                 self.assertCountEqual([(r["rule"], r["entry"]) for r in report["risks"] if ":apps." in r["entry"]],
