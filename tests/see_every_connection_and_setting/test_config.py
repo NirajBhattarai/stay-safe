@@ -22,7 +22,8 @@ class CatalogTests(ConfigCase):
                 # Both spellings map to Apps. Codex applies the sorted keys, so connectors wins in either order:
                 # openai/codex 086ccc8 features/src/legacy.rs L11–15 and features/src/lib.rs L695–696, L776–789.
                 active = ("", "features.apps=true\n", "features.apps=false\nfeatures.connectors=true\n",
-                          "features.connectors=true\nfeatures.apps=false\n")
+                          "features.connectors=true\nfeatures.apps=false\n", "features.apps=0\n",
+                          "features.apps=false\nfeatures.connectors=0\n")
                 on = [self.config(flags + apps + tool, f"on-{n}.toml") for n, flags in enumerate(active)]
                 also_off = self.config("features.apps=false\nfeatures.connectors=false\n" + apps + tool, "also-off.toml")
                 report = inspect([off, *on, also_off])
