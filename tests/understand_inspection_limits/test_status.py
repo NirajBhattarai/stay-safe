@@ -20,14 +20,16 @@ class StatusTests(ConfigCase):
         keys = ("credential_export", "auth_refresh")
         generic = "config-1: Configuration contains fields outside reader coverage; their values were withheld."
         for selected in (False, True):
-            for settings, empty in (((), False), (keys[:1], False), (keys[1:], False), (keys, False), (keys, True)):
-                with self.subTest(selected=selected, settings=settings, empty=empty):
+            for settings, inline in (((), None), (keys[:1], None), (keys[1:], None), (keys, None),
+                                     (keys, "{}"), (keys[:1], '"private-arg"'), (keys[1:], '"private-arg"')):
+                with self.subTest(selected=selected, settings=settings, inline=inline):
                     text = quiet + ('model_provider="amazon-bedrock"\n' if selected else "")
                     text += '[model_providers.amazon-bedrock.aws]\nregion="us-west-2"\n'
                     for key in settings:
-                        text += f'[model_providers.amazon-bedrock.aws.{key}]\n'
-                        if not empty:
-                            text += f'command="private-{key}"\nargs=["private-arg"]\n'
+                        if inline is None:
+                            text += f'[model_providers.amazon-bedrock.aws.{key}]\ncommand="private-{key}"\nargs=["private-arg"]\n'
+                        else:
+                            text += f'{key}={inline}\n'
                     path = str(self.config(text))
                     human = run_checkout(checkout, "--config", path, cwd=self.root)
                     machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
