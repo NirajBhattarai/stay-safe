@@ -14,6 +14,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
 Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limits/)
 
+- I pass a cleared file to `--rules` and the introduction names it and confirms it contains no saved approvals. `test_scope.py::test_selected_rules_file_is_named_when_it_has_no_saved_approvals`
 - I follow the report's scope link and see its limits on live connections, effective permissions and other unverified behavior. `test_scope.py::test_the_full_scope_holds_every_scope_line`
 - I supply an unreadable file beside a readable one and see the failure without losing valid findings. `test_selected_config_failures.py::test_each_failure_has_a_distinct_private_safe_reason_and_action_in_both_formats`
 - I get an incomplete report and an explanation of exit status 2. `test_status.py::test_reports_with_gaps_explain_exit_two_on_stderr_only`

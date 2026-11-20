@@ -927,10 +927,8 @@ def ordered(risks):
 
 
 def files_read(report, files):
-    """The selected files stay-safe read, in order. A file is left out when it was not found (its catalog entry says
-    so), when a config file gave no entry (it was refused), or when a rules file's gap says its input was refused.
-    A rules file passed with `--rules` that holds nothing to list or flag leaves no trace in the report and is not
-    named."""
+    """Identify successfully inspected sources from their labels, catalog entries and per-file gaps.
+    An explicitly selected empty rules file has a source label even though it has no entries or gaps."""
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
@@ -949,7 +947,7 @@ def introduction(report, files, read):
     if read:
         names = []
         for kind, description in READ.items():
-            labels = [f"`{files.get(source, source)}`" for source in read if source.startswith(kind + "-")]
+            labels = [f"`{files.get(source) or source}`" for source in read if source.startswith(kind + "-")]
             if labels:
                 joined = ", ".join(labels[:-1]) + (" and " if labels[:-1] else "") + labels[-1]
                 names.append(f"{description} ({joined})")
@@ -960,6 +958,10 @@ def introduction(report, files, read):
             f"{'that file says' if len(read) == 1 else 'those files say'}, without running any tests in Codex.")
     else:
         paragraphs.append("stay-safe could not read any configuration files. See Not checked for the reason.")
+    if ("rules-1" in read and files.get("rules-1") is None
+            and not any(entry["source"] == "rules-1" for entry in report["catalog"])
+            and not any(gap.startswith("rules-1: ") for gap in gaps)):
+        paragraphs.append("Your rules file contains no saved approvals.")
     if risks:
         sentences = [f"stay-safe found {count(len(risks), 'risky setting', 'risky settings')}."]
         for group, (_, (one, several), _) in enumerate(GROUPS):
@@ -1003,6 +1005,8 @@ def markdown(report, files=None):
              f"{count(len(risks), 'finding', 'findings')}, {count(len(gaps), 'thing', 'things')} not checked.", ""]
     for paragraph in introduction(report, files, read):
         lines += [paragraph, ""]
+    # Only automatically discovered sources have paths for headings and suggested edits.
+    files = {source: path for source, path in files.items() if path is not None}
     blocks, titles = [], []
     # The sandboxes the files set, so the advice never suggests a looser one (reviews of archived PR #129, F2 and F13).
     contexts = sandbox_context(report, files)
@@ -1204,7 +1208,7 @@ def plain(report, files=None):
 
 
 def render(report, format_name="markdown", files=None):
-    """files maps an automatically found source, such as config-1, to where Codex keeps it; JSON doesn't use it."""
+    """files maps source labels to automatic paths, or None for an explicitly selected rules file. JSON omits paths."""
     if format_name == "json":
         return json.dumps(report, ensure_ascii=True, indent=2) + "\n"
     if format_name == "plain":
