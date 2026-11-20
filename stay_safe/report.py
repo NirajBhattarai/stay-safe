@@ -266,6 +266,13 @@ ADVICE = {
         "ask": "Edit {file} to remove my `{name}` hooks",
         "check": "In {where}, each `command` in the `hooks` of `[[{table}]]`, often written as `[[{table}.hooks]]` "
                  "sections, is a command they run. Find out who publishes the program it starts before you trust it."},
+    ("configured_program", "model_providers", 2): {
+        "what": "Keep it if you trust the provider's sign-in command. Stricter: remove `auth.command` or set it to "
+                "a program you trust.",
+        "where": "under `[model_providers.{name}.auth]`",
+        "ask": "Edit {file} to review the sign-in command for my `{name}` provider",
+        "check": "Under `[model_providers.{name}.auth]` in {where}, confirm the `command` is a program you trust.",
+    },
     ("automatic_tools", "mcp_servers", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "apps", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "mcp_servers", 4): TOOL_PROMPT,
