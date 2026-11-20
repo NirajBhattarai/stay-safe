@@ -17,22 +17,23 @@ class ScopeTests(ConfigCase):
     def test_selected_rules_file_is_named_when_it_has_no_saved_approvals(self):
         # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7009857808
         checkout = copy_checkout(self.root / "checkout")
-        rules = self.root / "selected.rules"
+        cleared = self.config("", "cleared.rules")
+        commented = self.config("  # removed\n\n", "commented.rules")
+        saved = self.config('prefix_rule(pattern=["git"], decision="allow")\n', "saved.rules")
+        unsupported = self.config("unsupported_rule()\n", "unsupported.rules")
+        missing = self.root / "missing.rules"
+        refused = self.root / "link.rules"
+        refused.symlink_to(saved)
         quiet = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy={inherit="none"}\n'
-        for config, content, select_rules, status, named, empty in (
-            (None, "", True, 0, True, True), (None, "  # removed\n\n", True, 0, True, True),
-            (quiet, "", True, 0, True, True), (quiet + "unknown_setting=true\n", "", True, 2, True, True),
-            (quiet, "", False, 0, False, False),
-            (None, 'prefix_rule(pattern=["git"], decision="allow")\n', True, 0, True, False),
-            (None, "unsupported_rule()\n", True, 2, True, False), (None, None, True, 2, False, False),
+        for config, rules, status, named, empty in (
+            (None, cleared, 0, True, True), (None, commented, 0, True, True),
+            (quiet, cleared, 0, True, True), (quiet + "unknown_setting=true\n", cleared, 2, True, True),
+            (quiet, None, 0, False, False), (None, saved, 0, True, False), (None, unsupported, 2, True, False),
+            (None, missing, 2, False, False), (None, refused, 2, False, False),
         ):
-            with self.subTest(config=config, content=content, select_rules=select_rules):
-                if content is None:
-                    rules.unlink(missing_ok=True)
-                else:
-                    rules.write_text(content, encoding="utf-8")
+            with self.subTest(config=config, rules=rules):
                 args = ["--config", str(self.config(config))] if config is not None else []
-                if select_rules:
+                if rules is not None:
                     args.extend(["--rules", str(rules)])
                 run = run_checkout(checkout, *args, "--format", "markdown", cwd=self.root)
                 self.assertEqual(run.returncode, status)
@@ -43,7 +44,8 @@ class ScopeTests(ConfigCase):
                 self.assertEqual("no saved approvals" in intro.lower(), empty)
                 if status == 0:
                     self.assertIn("0 things not checked", intro)
-                if content is None:
-                    self.assertIn("doesn't exist", section(run.stdout, "Not checked"))
-                elif content and not empty and status == 0:
+                if rules in (missing, refused):
+                    reason = "doesn't exist" if rules == missing else "couldn't read it"
+                    self.assertIn(reason, section(run.stdout, "Not checked"))
+                if rules == saved:
                     self.assertIn("rules-1:prefix_rule.1", section(run.stdout, "Findings"))
