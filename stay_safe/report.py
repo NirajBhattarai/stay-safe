@@ -489,6 +489,8 @@ GAPS = {
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
+    "Model-provider setting {label} was not checked for a credential command.":
+        "**Not checked: `{label}`.** Stay-safe did not check this setting for a credential command.",
     "notify is not a command list with a nonempty program.":
         "**Not checked: your `notify` setting.** It isn't a list that starts with a program name, so stay-safe "
         "can't tell whether it starts a program.",
@@ -631,6 +633,7 @@ STEPS = {
         "Review those per-account settings yourself.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
+    "Model-provider setting {label} was not checked for a credential command.": "Review `{label}` in your config file.",
     "notify is not a command list with a nonempty program.":
         "Write `notify` as a list that starts with the program, or remove it.",
     "hooks contains an invalid event configuration.": "Write each hook event as a list of hook groups, or remove it.",
