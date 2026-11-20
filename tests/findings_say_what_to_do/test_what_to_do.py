@@ -45,7 +45,7 @@ CONFIRMED = {"documented", "documented in source"}
 # that is not a setting: core variable names (openai/codex 086ccc8, protocol/src/shell_environment.rs L178-L181), the
 # `set` table Codex adds after `inherit` (same file, L153-L158), and a saved approval's pattern words.
 SETTINGS = {
-    ("approval_policy", 1): {'approval_policy = "on-request"': "approval on-request",
+    ("approval_policy", 1): {'approval_policy = "on-request"': "approval on-request", "on-request": "approval on-request",
                              'sandbox_mode = "workspace-write"': "sandbox workspace-write",
                              'sandbox_mode = "read-only"': "sandbox read-only"},
     ("sandbox_mode", 1): {'sandbox_mode = "workspace-write"': "sandbox workspace-write",
@@ -165,6 +165,12 @@ def program_server(name, file=FILE, where=WHERE):
 # what commands can write (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722; F14). A saved approval runs its
 # commands outside the sandbox (Saved approval records).
 SAVED_STILL = "commands a saved approval allows still run outside the sandbox."
+# https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L836-L843
+# https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L873
+# With `on-request` in a restricted sandbox, dangerous commands and sandbox overrides prompt, while other commands run
+# without a prompt.
+ON_REQUEST_LIMIT = (" With `on-request`, ordinary commands can still run without a prompt in a restricted sandbox; "
+                    "Codex asks only for dangerous commands or requests to leave it.")
 
 
 def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
@@ -174,19 +180,19 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     if profile:
         mode = f"This file sets `sandbox_mode` to `{sandbox}`. " if sandbox else ""
         return block(
-            'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
-            f"For read-only access, check that any profile you use blocks writes. Even then, {SAVED_STILL}",
+            'Set `approval_policy = "on-request"` (Codex decides when to ask you first).' + ON_REQUEST_LIMIT +
+            f" For read-only access, check that any profile you use blocks writes. Even then, {SAVED_STILL}",
             approval_only, keep, f"{mode}Review `default_permissions` in {profile} and any profile it names.")
     if sandbox == "read-only":
         return block(
             "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to ask "
-            f"you first; commands still can't write files). But {SAVED_STILL}",
+            "you first; commands still can't write files)." + ON_REQUEST_LIMIT + f" But {SAVED_STILL}",
             approval_only, keep, check)
     if sandbox == "workspace-write":
         return block(
             "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when to "
             "ask you first; commands can still write in your workspace). Stricter: also `sandbox_mode = \"read-only\"` "
-            f"(commands can't write files). Either way, {SAVED_STILL}",
+            "(commands can't write files)." + ON_REQUEST_LIMIT + f" Either way, {SAVED_STILL}",
             approval_only, keep, check)
     if other:
         value, label = other
@@ -197,7 +203,7 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     return block(
         "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only in "
         "your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` (commands "
-        f"can't write files). Either way, {SAVED_STILL}",
+        "can't write files)." + ON_REQUEST_LIMIT + f" Either way, {SAVED_STILL}",
         TOP,
         f"Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`", check)
 
@@ -413,6 +419,19 @@ class WhatToDoTests(ConfigCase):
                 text = 'approval_policy = "never"\n' + (f'sandbox_mode = "{sandbox_mode}"\n' if sandbox_mode else "")
                 found = self.findings("--config", str(self.config(text)))
                 self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")], commands(sandbox_mode))
+
+    def test_commands_advice_discloses_on_request_prompt_limits_in_restricted_sandbox(self):
+        # https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L836-L843
+        # https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L873
+        # With `on-request` in a restricted sandbox, dangerous commands and sandbox overrides prompt, while other
+        # commands run without a prompt.
+        for mode in ("read-only", "workspace-write"):
+            with self.subTest(sandbox_mode=mode):
+                text = f'approval_policy = "never"\nsandbox_mode = "{mode}"\n'
+                found = self.findings("--config", str(self.config(text)))
+                advice = found[("commands_without_prompts", "config-1:approval_policy")]
+                self.assertIn("ordinary commands can still run without a prompt in a restricted sandbox", advice)
+                self.assertIn("Codex asks only for dangerous commands or requests to leave it", advice)
 
     def test_advice_never_loosens_a_sandbox_another_inspected_file_sets(self):
         first, second = passed("config-1"), passed("config-2")

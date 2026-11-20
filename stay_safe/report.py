@@ -188,20 +188,29 @@ LABELS_GROUP = {
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
 PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
+# With `on-request`, Codex allows non-dangerous, non-escalated commands in a restricted sandbox rather than prompting;
+# dangerous commands and sandbox overrides still prompt
+# (https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L836-L843,
+# https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L873).
+# Every approval option must say so: otherwise the finding's "without asking" risk is presented as fixed by a change that
+# leaves it in place.
+ON_REQUEST_LIMIT = (" With `on-request`, ordinary commands can still run without a prompt in a restricted sandbox; "
+                    "Codex asks only for dangerous commands or requests to leave it.")
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
-                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first).' + ON_REQUEST_LIMIT +
+                " For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
-                "ask you first; commands still can't write files). But " + SAVED_STILL,
+                "ask you first; commands still can't write files)." + ON_REQUEST_LIMIT + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "workspace-write": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when "
                 "to ask you first; commands can still write in your workspace). Stricter: also "
-                "`sandbox_mode = \"read-only\"` (commands can't write files). Either way, " + SAVED_STILL,
+                "`sandbox_mode = \"read-only\"` (commands can't write files)." + ON_REQUEST_LIMIT + " Either way, " +
+                SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
         "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
@@ -210,7 +219,7 @@ COMMANDS = {
     None: {
         "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only "
                 "in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
-                "(commands can't write files). Either way, " + SAVED_STILL,
+                "(commands can't write files)." + ON_REQUEST_LIMIT + " Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
         "check": COMMANDS_CHECK}}
