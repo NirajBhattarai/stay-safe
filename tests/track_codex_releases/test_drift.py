@@ -43,9 +43,9 @@ class ReleaseTests(unittest.TestCase):
         self.meanings = self.folder / "meanings.md"
         self.meanings.write_text(
             f"[approval]: https://github.com/openai/codex/blob/{anchor}/{SOURCE}#L2-L3\n")
-        self.lines.insert(0, "inserted outside the citation")
+        self.lines[0:0] = ["inserted outside the citation", "second inserted line", "third inserted line"]
         self.commit("rust-v0.10.0")
-        self.lines[2] = "cited one changed"
+        self.lines[4] = "cited one changed"
         self.schema["properties"]["kept"] = {"type": "integer"}
         del self.schema["properties"]["removed"]
         self.schema["properties"]["added"] = {"type": "boolean"}
@@ -163,6 +163,13 @@ class ReleaseTests(unittest.TestCase):
         self.git("tag", "rust-v0.14.0")
         with self.assertRaisesRegex(ValueError, "missing source file: rust-v0.14.0:codex-rs/core/config.schema.json"):
             self.scan("rust-v0.13.0")
+        for index, (kind, branches) in enumerate((kind, branches)
+                for kind in ("allOf", "anyOf", "oneOf") for branches in ({}, [])):
+            self.schema = {"type": "object", "properties": {"setting": {kind: branches}}}
+            tag = f"rust-v0.15.{index}"
+            self.commit(tag)
+            with self.subTest(kind=kind, branches=branches), self.assertRaisesRegex(ValueError, "schema"):
+                self.scan(tag, tag)
 
     def test_cli_reports_complete_scan_or_explicit_failure_without_advancing_state(self):
         state = self.folder / "state.json"

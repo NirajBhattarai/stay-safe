@@ -146,7 +146,10 @@ def schema_fields(schema):
         for key, child in sorted(properties.items()):
             visit(child, f"{path}.{key}" if path else key, seen)
         for key in ("allOf", "anyOf", "oneOf"):
-            for child in node.get(key, []):
+            branches = node.get(key, [])
+            if key in node and (not isinstance(branches, list) or not branches):
+                raise ValueError(f"invalid schema {key} at {path}: expected a nonempty list")
+            for child in branches:
                 visit(child, path, seen)
         if isinstance(node.get("additionalProperties"), dict):
             visit(node["additionalProperties"], f"{path}.*", seen)
