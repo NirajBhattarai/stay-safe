@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch
 
 from stay_safe.cli import main
+from stay_safe.report import inspect, render
 from tests.support import FEEDBACK, ConfigCase, copy_checkout, run_checkout, section
 
 
@@ -39,6 +40,76 @@ class StatusTests(ConfigCase):
                     self.assertNotIn("starts a program on your computer", section(human.stdout, "Your setup"))
                     for private in ("private-server", "private-helper"):
                         self.assertNotIn(private, run.stdout + human.stdout)
+
+    def test_gateway_and_otel_helpers_name_unchecked_commands(self):
+        quiet = COMPLETE + 'shell_environment_policy={inherit="none"}\nfeatures.apps=false\nnotify=["kept-program"]\n'
+        generic = "config-1: Configuration contains fields outside reader coverage; their values were withheld."
+        gateway = "Model-provider setting gateway_oauth.credential_export was not checked for a credential command."
+        otel = "otel.headers_helper was not checked for a header command."
+        cases = (
+            ("gateway_oauth.credential_export", "credential_export", "[model_providers.corp.gateway_oauth]\n", gateway),
+            ("otel.headers_helper", "headers_helper", "[otel]\n", otel),
+        )
+        values = (None, '""', '"private-helper"', '{}', '{command="private-helper", args=["private-arg"]}')
+        for label, key, table, message in cases:
+            for selected in (False, True):
+                for value in values:
+                    with self.subTest(setting=label, selected=selected, value=value):
+                        text = quiet
+                        if label.startswith("gateway") and selected:
+                            text += 'model_provider="corp"\n'
+                        text += table
+                        if label.startswith("otel") and selected:
+                            text += 'exporter={otlp-http={endpoint="https://example.com/v1/logs", protocol="json"}}\n'
+                        if value is not None:
+                            text += f'{key}={value}\n'
+                        path = self.config(text)
+                        report = inspect([path])
+                        expected = [generic] if selected or label.startswith("otel") else []
+                        if value is not None:
+                            expected.append("config-1: " + message)
+                        self.assertCountEqual(report["inspection_gaps"], expected)
+                        self.assertEqual([(r["rule"], r["entry"]) for r in report["risks"]],
+                                         [("configured_program", "config-1:notify")])
+                        human = render(report, "markdown")
+                        unchecked = section(human, "Not checked") if expected else ""
+                        self.assertEqual(unchecked.count("**Not checked:"), len(expected))
+                        if value is not None:
+                            kind = "credential" if label.startswith("gateway") else "header"
+                            self.assertIn(f"**Not checked: `{label}`.** Stay-safe did not check this setting for a {kind} "
+                                          f"command.\n\n*What to do:* Review `{label}` in your config file.\n\n*File `config-1`*",
+                                          unchecked)
+                        for output in (human, json.dumps(report)):
+                            for private in ("private-helper", "private-arg", "kept-program"):
+                                self.assertNotIn(private, output)
+
+        both = ('[model_providers.corp.gateway_oauth.credential_export]\n'
+                'command="private-helper"\nargs=["private-arg"]\n'
+                '[otel]\nheaders_helper="private-helper private-arg"\n')
+        other_fields = "some settings in your config file"
+        cli_cases = (
+            (both, [generic, "config-1: " + gateway, "config-1: " + otel],
+             [other_fields, "`gateway_oauth.credential_export`", "`otel.headers_helper`"]),
+            ('[model_providers.corp]\ngateway_oauth=false\n', ["config-1: gateway_oauth must be a table."],
+             ["your `gateway_oauth` settings"]),
+            ('otel="private-helper"\n', [generic], [other_fields]),
+            ('otel=["private-arg"]\n', [generic], [other_fields]),
+        )
+        checkout = copy_checkout(self.root / "checkout")
+        for settings, gaps, labels in cli_cases:
+            with self.subTest(settings=settings):
+                path = str(self.config(quiet + settings))
+                human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
+                machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
+                self.assertCountEqual(json.loads(machine.stdout)["inspection_gaps"], gaps)
+                unchecked = section(human.stdout, "Not checked")
+                self.assertEqual(unchecked.count("**Not checked:"), len(labels))
+                for label in labels:
+                    self.assertIn(f"**Not checked: {label}.**", unchecked)
+                for run in (human, machine):
+                    self.assertEqual((run.returncode, run.stderr), (2, EXPLANATION))
+                    for private in ("private-helper", "private-arg", "kept-program"):
+                        self.assertNotIn(private, run.stdout + run.stderr)
 
     def test_aws_credentials_name_each_unchecked_command(self):
         checkout = copy_checkout(self.root / "checkout")
