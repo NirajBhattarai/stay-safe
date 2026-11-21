@@ -161,5 +161,5 @@ Real-world reports of coding agents doing destructive or risky things. Risk rule
 ## I29. Malicious npm package shipped an installer for a remotely controlled agent
 - Harness: Hermes Agent
 - What happened: SafeDep found that the postinstall script in `@leadstack/crm-connect` 1.0.15 was written to install Hermes Agent, start its gateway, wait for a Telegram bot connection, and rename the systemd service to look like a LeadStack component. SafeDep reported that npm removed the package. Its analysis describes no commands sent to a victim's machine.
-- Enabling condition: the root service required the install script to run as root and explicitly request that Hermes run the gateway as root. An authorized Telegram user could then use the agent's shell and file tools. SafeDep did not recover the attacker's configuration, so whether it disabled approval prompts is unknown.
+- Enabling condition: the root service required the install script to run as root and explicitly request that Hermes run the gateway as root. An authorized Telegram user could then use the agent's shell and file tools. SafeDep could not recover the downloaded `.env`, so whether approval prompts were disabled is unknown.
 - Source: [SafeDep analysis](https://safedep.io/blog/malicious-npm-leadstack-crm-connect-hermes-agent-backdoor)
