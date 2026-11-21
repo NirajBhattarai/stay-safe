@@ -42,6 +42,7 @@ authored expectations; it does not derive expectations from the reader or its ru
 Additional positive and negative cases live under
 [each_risk_shows_its_cause](../tests/each_risk_shows_its_cause/test_conditions.py).
 
+Except for the [checked tool-approval ranges](#tool-approval-by-version),
 Codex source links are pinned to OpenAI Codex `rust-v0.167.0`
 (`086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a`) and were re-checked there on 2026-11-09.
 The configuration reference was read on 2026-11-02 for retired values.
@@ -69,7 +70,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `mcp_servers.*.enabled_tools` | `named allowlist` | Only listed names are allowed by this file, before the denylist; the list does not establish live availability. Catalog: `configured names: read, files/write`. Rules: none. Gap: no. | [mcp] | documented |
 | `mcp_servers.*.disabled_tools` | `named denylist` | Listed names are removed after applying the allowlist. Catalog: `configured names: delete`. Rules: none. Gap: no. | [mcp] | documented |
 | `mcp_servers.*.default_tools_approval_mode` | `approve` | Preapproval mode. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: approve`. Rules: `automatic_tools`. Gap: no. | [tool-approval] | documented in source |
-| `mcp_servers.*.default_tools_approval_mode` | `auto` | Uses server-declared hints for tool approval. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
+| `mcp_servers.*.default_tools_approval_mode` | `auto` | Uses server-declared hints in the [order for the checked version](#tool-approval-by-version). Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
 | `mcp_servers.*.default_tools_approval_mode` | `prompt` | Requests approval. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: prompt`. Rules: none. Gap: no. | [tool-approval] | documented in source |
 | `mcp_servers.*.default_tools_approval_mode` | `writes` | Uses the server’s read-only hint for tool approval. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: writes`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
 | `mcp_servers.*.tools.*.approval_mode` | `approve` | A named tool override replaces the server default when the tool is permitted by its filters. Catalog: `configured enabled`, `tool approval: approve`. Rules: `automatic_tools`. Gap: no. | [mcp] | documented |
@@ -101,8 +102,8 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `web_search` | `indexed` | The reader records this recognized configured mode without inferring live network availability. Catalog: `indexed`. Rules: none. Gap: no. | [schema] | documented |
 | `web_search` | `live` | The reader records this recognized configured mode without inferring live network availability. Catalog: `live`. Rules: none. Gap: no. | [schema] | documented |
 | `web_search` | `unrecognized string` | An unrecognized mode is withheld and produces a coverage gap. Catalog: none. Rules: none. Gap: yes. | [schema] | open |
-| `mcp_servers.*.default_tools_approval_mode` | `omitted` | The documented auto default applies to an enabled server when no tool override replaces it. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
-| `apps.*.default_tools_approval_mode` | `omitted without _default mode` | The documented auto default applies to a named enabled app when no app or tool override replaces it. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
+| `mcp_servers.*.default_tools_approval_mode` | `omitted` | The documented [auto default](#tool-approval-by-version) applies to an enabled server when no tool override replaces it. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
+| `apps.*.default_tools_approval_mode` | `omitted without _default mode` | The documented [auto default](#tool-approval-by-version) applies to a named enabled app when no app or tool override replaces it. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
 | `apps.*.default_tools_approval_mode` | `writes inherited from _default` | The named app inherits the writes policy from its default; the hint-dependent meaning is defined in the mode rows above. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: writes`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [apps] | documented |
 | `shell_environment_policy` | `omitted` | Catalog: `inherit: all (default)`, `ignore_default_excludes: true (default)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment-input] | documented in source |
 | `shell_environment_policy.inherit` | `all` | Catalog: `inherit: all (explicit)`, `ignore_default_excludes: true (default)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment] | documented in source |
@@ -113,6 +114,27 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `shell_environment_policy` | `additional fields` | Catalog: none. Rules: none. Gap: yes. | [shell-environment] | open |
 | `features.apps` | `omitted` | Codex's apps feature is on by default ([default][apps-feature]). When Codex is signed in with ChatGPT, it adds an MCP connection to ChatGPT named `codex_apps` ([connection][apps-connection], [sign-in][apps-sign-in]); `false` removes it. The reader does not check sign-in. Catalog: `ChatGPT Apps`, `exists only if Codex is signed in with ChatGPT, which is not checked`, `features.apps = false turns it off`. Rules: none. Gap: no. | [apps-feature] | documented in source |
 | `features.apps` | `false` | Reported apps and tools show as off and produce no findings, unless the legacy `connectors` flag can turn Apps back on ([alias][apps-alias], [application order][apps-feature-order]). Catalog: `disabled by features.apps = false`, `tool approval: auto (default)`. Rules: none. Gap: no. | [apps-connection] | documented in source |
+
+## Tool approval by version
+
+The `auto` and `writes` modes use server-supplied hints for MCP and app tools.
+The hint check and its immediate approval caller were read at every stable release
+from `rust-v0.167.0` through `rust-v0.171.0` on 2026-11-21. This checked range
+applies only to that approval logic; stay-safe does not detect the installed Codex version.
+
+| Checked stable releases | `auto` when both `readOnlyHint` and `destructiveHint` are `true` | Pinned source |
+| --- | --- | --- |
+| 0.167.0–0.168.0 | The hint check requires approval: the destructive hint wins. | [0.167.0][tool-approval], [0.168.0][tool-approval-0-168] |
+| 0.169.0–0.171.0 | The hint check does not require approval: the read-only hint wins. | [0.169.0][tool-approval-0-169], [0.171.0][tool-approval-0-171] |
+
+At the hint check throughout these releases, `writes` requires approval unless
+`readOnlyHint` is `true`. For `auto` with a false or missing read-only hint, approval is required
+unless both the destructive and open-world hints are explicitly `false`.
+
+The approval caller ([0.167.0][tool-approval-caller-0-167],
+[0.171.0][tool-approval-caller-0-171]) uses the hint exemption only when strict
+auto review is off. Permission policy and remembered approvals also affect the
+outcome. This is documented in source, not observed in a live tool call.
 
 ## Saved approval records
 
@@ -151,7 +173,12 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 [approval-granular]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/protocol.rs#L1158-L1168
 [sandbox]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/protocol.rs
 [mcp]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs
-[tool-approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L2597-L2627
+[tool-approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L2595-L2626
+[tool-approval-0-168]: https://github.com/openai/codex/blob/9480ec100c3edee9fc69172e8e80a4730444094d/codex-rs/core/src/mcp_tool_call.rs#L2744-L2775
+[tool-approval-0-169]: https://github.com/openai/codex/blob/d32063f96c2dff1dc96af839b3952abb6acfeda4/codex-rs/core/src/mcp_tool_call.rs#L2757-L2784
+[tool-approval-0-171]: https://github.com/openai/codex/blob/ccf9be8cc458bd6b8336fe84d68d8893f2691a5e/codex-rs/core/src/mcp_tool_call.rs#L2855-L2882
+[tool-approval-caller-0-167]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1564-L1610
+[tool-approval-caller-0-171]: https://github.com/openai/codex/blob/ccf9be8cc458bd6b8336fe84d68d8893f2691a5e/codex-rs/core/src/mcp_tool_call.rs#L1715-L1757
 [apps]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs
 [provider-auth]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/model-provider-info/src/lib.rs#L177-L260
 [app-tool-policy]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L279-L305
