@@ -88,3 +88,12 @@ Tests: [tests/find_feedback/](../tests/find_feedback/)
 - I find feedback links in readable reports while JSON stays machine-readable. `test_feedback.py::test_reports_link_once_and_json_stays_a_document`
 - I get an argument error and can find feedback without exposing private arguments. `test_feedback.py::test_argument_errors_link_once_without_echoing_private_arguments`
 - I can provide the context for a problem, idea or challenge without attaching a report. `test_forms.py::test_forms_collect_context_without_requiring_a_report`
+
+## [track_codex_releases] I can see which new Codex releases changed the sources or configuration fields behind the report.
+Issue: https://github.com/chalkbadger/stay-safe/issues/128
+Tests: [tests/track_codex_releases/](../tests/track_codex_releases/)
+
+- I compare releases and see each stable version's changed cited ranges and configuration fields. `test_drift.py::test_each_stable_release_reports_only_changed_citations_and_schema_differences`
+- I cite a whole file or a range that is later deleted and still see its changes. `test_drift.py::test_whole_file_and_deleted_citations_remain_visible`
+- I supply missing or invalid scan inputs and get an explicit failure. `test_drift.py::test_missing_refs_files_and_invalid_inputs_fail_instead_of_returning_clean_results`
+- I run the checker and get a complete scan or a failing exit status without advancing the saved progress. `test_drift.py::test_cli_reports_complete_scan_or_explicit_failure_without_advancing_state`
