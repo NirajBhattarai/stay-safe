@@ -89,8 +89,9 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `apps.*.destructive_enabled` | `true inherited from _default` | Codex follows [the order above](#codex-configuration-meanings). Catalog: `configured enabled`, `destructive tools enabled by apps._default.destructive_enabled`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [app-tool-policy] | documented in source |
 | `apps.*.destructive_enabled` | `false inherited from _default` | Codex follows [the order above](#codex-configuration-meanings). Catalog: `configured enabled`, `destructive tools disabled by apps._default.destructive_enabled`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [app-tool-policy] | documented in source |
 | `apps.*.links` | `per-account policy` | Account-specific policy is outside reader coverage and account identities are withheld. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [apps] | open |
-| `model_providers.*` | `definition` | The provider name is catalogued; endpoints and credentials are withheld and no provider selection is inferred. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: no. | [schema] | documented |
-| `model_providers.*.auth` | `command-backed authentication` | Command-backed provider authentication is outside reader coverage. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [schema] | open |
+| `model_providers.*` | `definition` | The provider name is catalogued; endpoints and credentials are withheld and no provider selection is inferred. See the rows below for credential commands. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: no. | [schema] | documented |
+| `model_providers.*.auth` | `command-backed authentication` | Command-backed provider authentication is outside reader coverage. This row covers the provider’s `auth` command. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [schema] | open |
+| `model_providers.*.aws` | `credential commands` | Each `credential_export` or `auth_refresh` setting present is named as unchecked, whether or not the file selects the provider. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [provider-auth] | documented in source |
 | `notify` | `command list with nonempty program` | Notifications may spawn a configured external command; its contents are withheld. Catalog: `notification command configured; command withheld`. Rules: `configured_program`. Gap: no. | [notify-program] | documented in source |
 | `hooks.*` | `command handler with nonempty command` | Codex runs a `type = "command"` handler whose command is not empty, whatever its [matcher][hook-matcher] or [options][hook-handlers] such as `timeout`; trust and enablement in `hooks.state` are uninspected. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
 | `hooks.*` | `no command handler with nonempty command` | Codex skips `prompt` and `agent` handlers ([source][hook-skipped]) and empty commands ([source][hook-empty]); an `mcp_tool` handler calls a tool on an MCP server ([source][hook-mcp-tool]). Catalog: `contents withheld`. Rules: none. Gap: yes. | [hooks] | documented in source |
@@ -111,6 +112,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `shell_environment_policy.ignore_default_excludes` | `false` | Catalog: `inherit: all (default)`, `ignore_default_excludes: false (explicit)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment] | documented in source |
 | `shell_environment_policy` | `additional fields` | Catalog: none. Rules: none. Gap: yes. | [shell-environment] | open |
 | `features.apps` | `omitted` | Codex's apps feature is on by default ([default][apps-feature]). When Codex is signed in with ChatGPT, it adds an MCP connection to ChatGPT named `codex_apps` ([connection][apps-connection], [sign-in][apps-sign-in]); `false` removes it. The reader does not check sign-in. Catalog: `ChatGPT Apps`, `exists only if Codex is signed in with ChatGPT, which is not checked`, `features.apps = false turns it off`. Rules: none. Gap: no. | [apps-feature] | documented in source |
+| `features.apps` | `false` | Reported apps and tools show as off and produce no findings, unless the legacy `connectors` flag can turn Apps back on ([alias][apps-alias], [application order][apps-feature-order]). Catalog: `disabled by features.apps = false`, `tool approval: auto (default)`. Rules: none. Gap: no. | [apps-connection] | documented in source |
 
 ## Saved approval records
 
@@ -151,11 +153,14 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 [mcp]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs
 [tool-approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L2597-L2627
 [apps]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs
+[provider-auth]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/model-provider-info/src/lib.rs#L177-L260
 [app-tool-policy]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L279-L305
 [app-config]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L534-L576
 [app-default-destructive]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L471-L476
 [app-enabled]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L174-L185
 [app-enabled-field]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L537-L540
+[apps-alias]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/legacy.rs#L11-L15
+[apps-feature-order]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/lib.rs#L695-L789
 [apps-feature]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/lib.rs#L1658-L1663
 [apps-connection]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp.rs#L464-L479
 [apps-sign-in]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/mcp/mod.rs#L358-L360

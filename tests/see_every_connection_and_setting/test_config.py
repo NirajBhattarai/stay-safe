@@ -11,6 +11,44 @@ FIXTURE = Path(__file__).with_name("known.toml")
 
 
 class CatalogTests(ConfigCase):
+    def test_named_apps_respect_the_apps_switch_in_each_file(self):
+        # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-6998454778
+        # openai/codex 086ccc8: core/src/mcp.rs L465–486 and core/src/mcp_tool_call.rs L223–237.
+        apps = '[apps.calendar]\nenabled=true\ndefault_tools_approval_mode="approve"\n[apps.drive]\n'
+        override = '[apps.calendar.tools.delete]\nenabled=true\napproval_mode="approve"\n'
+        for tool in ("", override):
+            with self.subTest(tool=bool(tool)):
+                off = self.config('features.apps=false\n' + apps + tool, "off.toml")
+                # Both spellings map to Apps. Codex applies the sorted keys, so connectors wins in either order:
+                # openai/codex 086ccc8 features/src/legacy.rs L11–15 and features/src/lib.rs L695–696, L776–789.
+                active = ("", "features.apps=true\n", "features.apps=false\nfeatures.connectors=true\n",
+                          "features.connectors=true\nfeatures.apps=false\n", "features.apps=0\n",
+                          "features.apps=false\nfeatures.connectors=0\n")
+                on = [self.config(flags + apps + tool, f"on-{n}.toml") for n, flags in enumerate(active)]
+                also_off = self.config("features.apps=false\nfeatures.connectors=false\n" + apps + tool, "also-off.toml")
+                report = inspect([off, *on, also_off])
+                output = markdown(report)
+                setup = section(output, "Your setup").split("config-2")[0]
+                for app in ("calendar", "drive"):
+                    self.assertIn(f"App `{app}`: off", setup)
+                    line = next(line for line in setup.splitlines() if f"App `{app}`:" in line)
+                    self.assertIn("features.apps = false", line)
+                expected = [
+                    ("automatic_tools", "apps.calendar"), ("destructive_tools", "apps.calendar"),
+                    ("destructive_tools", "apps.drive"), ("self_described_tools", "apps.drive"),
+                ]
+                if tool:
+                    child = [entry["observations"] for entry in report["catalog"]
+                             if entry["id"] == "config-1:apps.calendar.tools.delete"]
+                    self.assertEqual(child, [["disabled by features.apps = false", "tool approval: approve"]])
+                    self.assertIn("Tool `delete` of app `calendar`: off (`features.apps = false`), tool approval `approve`", setup)
+                    expected += [("automatic_tools", "apps.calendar.tools.delete"),
+                                 ("destructive_tools", "apps.calendar.tools.delete")]
+                self.assertCountEqual([(r["rule"], r["entry"]) for r in report["risks"] if ":apps." in r["entry"]],
+                                      [(rule, f"config-{n}:{setting}") for n in range(2, 2 + len(on))
+                                       for rule, setting in expected])
+                self.assertNotIn("config-1:apps.", section(output, "Findings"))
+
     def test_standalone_tool_filters_keep_names_and_report_withheld_names(self):
         base = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[mcp_servers.github]\nurl="https://example.com/mcp"\n'
         report = inspect([self.config(base + 'enabled_tools=["get_issue", "files/create"]\ndisabled_tools=["delete_repository"]')])
@@ -276,6 +314,19 @@ approval_mode="prompt"
             ("self_described_tools", "config-1:mcp_servers.remote"),
             ("environment_inheritance", "config-1:shell_environment_policy"),
         ])
+        for sandbox_mode, extra, gaps in [
+            ("workspace-write", '[sandbox_workspace_write]\nnetwork_access=false\nfuture_field=true',
+             ["config-1: sandbox_workspace_write contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", '[apps.calendar]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false\n'
+                          '[apps.calendar.tools.create_event]\napproval_mode="prompt"\nfuture_field=true',
+             ["config-1: tools contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", '[hooks]\nfuture_field=1', ["config-1: Hook execution policy is outside reader coverage.",
+                                                      "config-1: hooks contains fields outside reader coverage; their values were withheld."]),
+            ("read-only", 'model_reasoning_effort="high"', []),
+        ]:
+            with self.subTest(extra=extra):
+                config = f'approval_policy="on-request"\nsandbox_mode="{sandbox_mode}"\n{extra}\n[shell_environment_policy]\ninherit="none"'
+                self.assertEqual(inspect([self.config(config)])["inspection_gaps"], gaps)
         malformed = inspect([self.config('approval_policy="never"\nsandbox_mode=["secret"]\n[mcp_servers.a]\ncommand="echo"\nurl="https://example.com"\nhttp_headers_helper=true')])
         self.assertEqual([r["rule"] for r in malformed["risks"]], ["commands_without_prompts", "environment_inheritance"])
         self.assertEqual(malformed["inspection_gaps"], [

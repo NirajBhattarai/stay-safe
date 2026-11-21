@@ -48,13 +48,18 @@ class ConfiguredConditionTests(ConfigCase):
         }, PROFILE_GAPS)
 
     def test_program_rule_requires_a_configured_enabled_command(self):
+        # Event names: openai/codex@086ccc8, codex-rs/protocol/src/hooks.rs L113-L137.
+        events = ("PreModelRequest", "PostModelRequest", "PreToolUse", "PermissionRequest", "PostToolUse",
+                  "PreCompact", "PostCompact", "SessionStart", "SessionEnd", "UserPromptSubmit",
+                  "SubagentStart", "SubagentStop", "Stop", "Interrupt")
+        handler = '[{hooks=[{type="command", command="synthetic-command fake-secret"}]}]'
+        hook_cases = [(f"[hooks]\n{event}={handler}", [("configured_program", f"hooks.{event}")]) for event in events]
         for tail, expected in [
             ('[mcp_servers.local]\ncommand="synthetic-command"', [("configured_program", "mcp_servers.local"), ("self_described_tools", "mcp_servers.local")]),
             ('[mcp_servers.local]\nurl="https://example.com"', [("self_described_tools", "mcp_servers.local")]),
             ('[mcp_servers.local]\nurl="https://example.com"\nhttp_headers_helper="synthetic-helper"', [("configured_program", "mcp_servers.local"), ("self_described_tools", "mcp_servers.local")]),
             ('notify=["synthetic-command"]', [("configured_program", "notify")]),
-            ('[hooks]\nSessionStart=[{hooks=[{type="command", command="synthetic-command fake-secret"}]}]', [("configured_program", "hooks.SessionStart")]),
-        ]:
+        ] + hook_cases:
             with self.subTest(tail=tail):
                 result = self.assert_risks(BASE + tail, expected)
                 self.assertNotIn("fake-secret", str(result))

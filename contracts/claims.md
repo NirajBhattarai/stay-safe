@@ -5,6 +5,7 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/13
 Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_and_setting/)
 
 - I inspect known settings and see the expected entries and findings. `test_config.py::test_known_configuration_has_exact_named_catalog_and_risks`
+- I turn Apps off in one file and see why its named apps give no warnings, while another file keeps its own warnings. `test_config.py::test_named_apps_respect_the_apps_switch_in_each_file`
 - I inspect several files and each keeps its own settings and identities. `test_config.py::test_files_remain_independent_and_identity_preserves_dotted_name`
 - I have no default config file and see the assessed defaults and remaining gaps. `test_defaults.py::test_both_formats_report_cited_defaults_and_retained_gaps`
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
@@ -13,9 +14,11 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
 Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limits/)
 
+- I pass a cleared file to `--rules` and the introduction names it and confirms it contains no saved approvals. `test_scope.py::test_selected_rules_file_is_named_when_it_has_no_saved_approvals`
 - I follow the report's scope link and see its limits on live connections, effective permissions and other unverified behavior. `test_scope.py::test_the_full_scope_holds_every_scope_line`
 - I supply an unreadable file beside a readable one and see the failure without losing valid findings. `test_selected_config_failures.py::test_each_failure_has_a_distinct_private_safe_reason_and_action_in_both_formats`
 - I get an incomplete report and an explanation of exit status 2. `test_status.py::test_reports_with_gaps_explain_exit_two_on_stderr_only`
+- I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
@@ -31,6 +34,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 
 - I get advice for each finding, including the setting to change and stricter options where supported. `test_what_to_do.py::test_each_finding_gives_lower_friction_then_stricter_option_then_how_to_change_it`
 - I inspect different sandbox settings and the advice never suggests a weaker sandbox. `test_what_to_do.py::test_commands_advice_never_loosens_the_configured_sandbox`
+- I select a permission profile in one file and can follow the approval finding and sandbox gap advice without replacing it. `test_what_to_do.py::test_profile_in_either_file_preserves_approval_and_gap_advice`
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.

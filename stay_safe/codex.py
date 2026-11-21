@@ -160,10 +160,10 @@ class Reader:
             self.gap(f"A {label} approval mode is unsupported or invalid; its value was withheld.")
         return [], {}
 
-    def tool(self, parts, name, config, mode, available, destructive):
+    def tool(self, parts, name, config, mode, available, destructive, off_reason=None):
         # A tool without its own mode takes its connection's; that risk stays on the connection.
         own = "approval_mode" in config
-        obs = ["configured enabled" if available else "disabled or enablement unknown"]
+        obs = [off_reason or ("configured enabled" if available else "disabled or enablement unknown")]
         if destructive:
             obs.append("enabled even if destructive")
         approval, facts = self.tool_approval(config.get("approval_mode", "auto" if mode is None else mode), own and available, "per-tool", report_invalid=own)
@@ -227,7 +227,7 @@ class Reader:
             facts["configured_program"] = enabled is True and valid and (valid_command or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
-    def app_tools(self, app, name, enabled, mode, tools_enabled):
+    def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason):
         # Without default_tools_enabled = true, only tools enabled by name take the app's mode.
         applies = tools_enabled is True or any("approval_mode" not in config and config.get("enabled") is True
                                                for config in tool_tables(app).values())
@@ -237,10 +237,11 @@ class Reader:
                 self.unknown(config, {"approval_mode", "enabled"}, "tools")
                 tool_enabled = self.boolean(config, "enabled", tools_enabled, "tools") if "enabled" in config else tools_enabled
                 available = tool_enabled is True and enabled is True
-                self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True)
+                self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True,
+                          off_reason)
         return observations, facts
 
-    def apps(self, data):
+    def apps(self, data, apps_off):
         apps = self.table(data.get("apps", {}), "apps")
         default = apps.get("_default", {})
         if not isinstance(default, dict):
@@ -254,16 +255,18 @@ class Reader:
             # Not enabled: apps._default.enabled disables no named app (harnesses/codex.md [app-enabled]).
             settings = {**{k: v for k, v in default.items() if k != "enabled"}, **app}
             template = name == "_default"
+            off_reason = "disabled by features.apps = false" if apps_off and not template else None
             allowed = {"enabled", "destructive_enabled", "open_world_enabled", "default_tools_approval_mode", "approvals_reviewer"}
             if not template:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
-            enabled = self.boolean(settings, "enabled", True, "apps")
+            enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
             tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
-            obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
+            obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")
-            policy, facts = self.app_tools(app, name, enabled, settings.get("default_tools_approval_mode"), tools_enabled)
+            policy, facts = self.app_tools(app, name, enabled, settings.get("default_tools_approval_mode"),
+                                           tools_enabled, off_reason)
             # Codex decides by default_tools_enabled, then destructive_enabled: harnesses/codex.md [app-tool-policy].
             source = ("destructive_enabled" if "destructive_enabled" in app
                       else "apps._default.destructive_enabled" if "destructive_enabled" in settings else "Codex default")
@@ -316,12 +319,15 @@ class Reader:
         self.sandbox(data)
         self.shell_environment(data)
         self.mcp(data)
-        self.apps(data)
         if "model_providers" in data:
             for name, provider in self.named(self.table(data["model_providers"], "model_providers"), "model_providers"):
                 self.add(["model_providers", name], "model provider", ["configured; endpoint and credentials withheld"])
                 if "auth" in provider:
                     self.gap("Model-provider command-backed authentication is outside reader coverage.")
+                aws = self.table(provider.get("aws", {}), "aws")
+                for key in ("credential_export", "auth_refresh"):
+                    if key in aws:
+                        self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
         if "notify" in data:
             notify = data["notify"]
             # The first element is the program; later arguments may be empty.
@@ -352,9 +358,12 @@ class Reader:
         features = self.table(data.get("features", {}), "features")
         self.unknown(features, {"apps"}, "features")
         # Codex adds the ChatGPT Apps connection at ChatGPT sign-in unless this is false: harnesses/codex.md [apps-feature].
-        if self.boolean(features, "apps", True, "features.apps"):
+        apps_enabled = self.boolean(features, "apps", True, "features.apps")
+        if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
                      "which is not checked", "features.apps = false turns it off"])
+        # The legacy connectors key can turn Apps back on (harnesses/codex.md, features.apps).
+        self.apps(data, apps_enabled is False and features.get("connectors", False) is False)
         if "web_search" in data:
             value = data["web_search"]
             if isinstance(value, str) and value in {"disabled", "cached", "indexed", "live"}:

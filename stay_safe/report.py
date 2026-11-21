@@ -183,16 +183,17 @@ LABELS_GROUP = {
     "ask": "Edit {file} so my `{name}` {kind} uses `default_tools_approval_mode = \"prompt\"` with `approval_mode = \"approve\"` only for these tools I trust: <tool names>"}
 # Rows: approval_policy `on-request`, sandbox_mode `workspace-write` and `read-only`. The advice never suggests a
 # sandbox looser than one set by the finding's file or another inspected file: `workspace-write` only when none sets
-# the stricter `read-only`. With `default_permissions`, the permission profile, not `sandbox_mode`, decides
-# what commands can write (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722).
+# the stricter `read-only`. A later layer can replace a profile with sandbox_mode, so edit approval alone
+# if any inspected file sets default_permissions (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722).
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
+PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first). Your `default_permissions` "
-                "profile, not `sandbox_mode`, decides what commands can write; review it.",
-        "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
+        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
+                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
         "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
                 "ask you first; commands still can't write files). But " + SAVED_STILL,
@@ -307,9 +308,8 @@ KINDS = {"mcp_servers": "MCP server", "apps": "app"}
 STRICTNESS = ("read-only", "workspace-write")
 
 
-def sandbox_context(report):
-    """For each inspected config file: the sandbox it sets, whether `default_permissions` selects a permission
-    profile instead, and the first other inspected file that sets the stricter `read-only`, with its label.
+def sandbox_context(report, files):
+    """Collect configured modes, the files that set default_permissions, and the other read-only sandboxes.
 
     The reader reports a selected profile as the conflict gap (with `sandbox_mode`), or as the named-profile gap without
     the absent-`sandbox_mode` gap and without a `sandbox_mode` entry (stay_safe/codex.py, Reader.sandbox); unselected
@@ -322,22 +322,21 @@ def sandbox_context(report):
     sources |= {source for source in gaps if source.startswith("config-")}
     own = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
            if entry["name"] == "sandbox_mode" and entry["observations"]}
+    profiles = [source for source, messages in gaps.items()
+                if "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
+                or ("Named permission profiles are outside reader coverage; sandbox settings are not "
+                    "effective-permission evidence." in messages
+                    and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
+                    and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
+                    and source not in own)]
+    profile_files = ", ".join(f"`{files.get(source, source)}`" for source in sorted(profiles, key=source_order))
     context = {}
     for source in sources:
-        messages = gaps.get(source, set())
-        profile = ("default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
-                   or ("Named permission profiles are outside reader coverage; sandbox settings are not "
-                       "effective-permission evidence." in messages
-                       and "sandbox_mode is absent; the reader does not infer its effective value." not in messages
-                       and "sandbox_mode is unsupported or invalid; its value was withheld." not in messages
-                       and source not in own))
-        context[source] = {"sandbox": own.get(source), "profile": profile, "other": None}
-    for source in context:
-        # A file that selects a profile still counts: in a later layer, an added `sandbox_mode` would replace that
-        # profile (openai/codex 086ccc8, core/src/config/mod.rs L2717-L2719).
+        # A read-only setting still counts here when its file also selects a profile.
         others = sorted((int(other.split("-")[1]), other) for other, value in own.items()
                         if other != source and value == "read-only")
-        context[source]["other"] = ("read-only", others[0][1]) if others else None
+        context[source] = {"sandbox": own.get(source), "profile": profile_files,
+                           "other": ("read-only", others[0][1]) if others else None}
     return context
 
 
@@ -366,11 +365,13 @@ def advice(risk, files, contexts):
     spec = pick_spec(spec, context)
     path = files.get(source)
     other = context.get("other") or ("", "")
+    mode = context.get("sandbox")
     fields = {"file": f"`{path}`" if path else f"`<{source}>`", "where": f"`{path}`" if path else f"`<{source}>`",
               "table": name, "name": keys[1] if len(keys) > 1 else "", "tool": keys[3] if len(keys) == 4 else "",
               "kind": KINDS.get(keys[0], ""), "line": keys[1] if len(keys) > 1 else "",
               "allowlist": spec.get("allowlist", "") if keys[0] == "mcp_servers" else "",
-              "value": other[0], "label": other[1]}
+              "value": other[0], "label": other[1], "profile": context.get("profile", ""),
+              "mode_note": f"This file sets `sandbox_mode` to `{mode}`. " if mode else ""}
     fill = lambda text: text.format(**fields)
     paragraphs = [f"*What to do:* {fill(spec['what'])}",
                   f"*Change it:* {fill(spec['where'])}, or ask Codex: \"{fill(spec['ask'])}; show only what you change.\""]
@@ -429,9 +430,8 @@ GAPS = {
         "**Not checked: your sandbox setting.** Your `sandbox_mode` value isn't one stay-safe supports, so it "
         f"can't tell what commands Codex runs are allowed to do. {WITHHELD}",
     "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.":
-        "**Not checked: your permission profiles.** Your config file has named permission profiles, which "
-        "stay-safe doesn't read. They can change what commands are allowed to do, so your sandbox settings may "
-        "not show what commands can really do.",
+        "**Not checked: your permission profiles.** Stay-safe doesn't check permission profiles or what commands "
+        "they allow.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
@@ -489,6 +489,8 @@ GAPS = {
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
+    "Model-provider setting {label} was not checked for a credential command.":
+        "**Not checked: `{label}`.** Stay-safe did not check this setting for a credential command.",
     "notify is not a command list with a nonempty program.":
         "**Not checked: your `notify` setting.** It isn't a list that starts with a program name, so stay-safe "
         "can't tell whether it starts a program.",
@@ -631,6 +633,7 @@ STEPS = {
         "Review those per-account settings yourself.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
+    "Model-provider setting {label} was not checked for a credential command.": "Review `{label}` in your config file.",
     "notify is not a command list with a nonempty program.":
         "Write `notify` as a list that starts with the program, or remove it.",
     "hooks contains an invalid event configuration.": "Write each hook event as a list of hook groups, or remove it.",
@@ -728,7 +731,7 @@ def finding(risk, files=None, contexts=None):
     return f"**{headline}** {why}", plain["how"], step
 
 
-def gap(text, absent, files):
+def gap(text, absent, files, contexts=None):
     """A gap's paragraph; absent holds the sources whose Codex config file automatic discovery did not find, and
     files maps a source found automatically to where Codex keeps it."""
     source, separator, message = text.partition(": ")
@@ -738,6 +741,9 @@ def gap(text, absent, files):
         lead, step = ABSENT[message], ABSENT_STEPS[message]
     else:
         lead, step = lookup(GAPS, message), lookup(STEPS, message)
+    if (message == "sandbox_mode is absent; the reader does not infer its effective value."
+            and contexts and contexts.get(source, {}).get("profile")):
+        step = PROFILE_CHECK.format(profile=contexts[source]["profile"])
     if lead is None or step is None:
         lead, step = UNKNOWN_GAP[0].format(cell(message)), UNKNOWN_GAP[1]
     # Each part is its own paragraph: single newlines would join them when the Markdown is rendered.
@@ -776,6 +782,7 @@ SETUP_WORDS = {
     "ChatGPT Apps": "an MCP connection to ChatGPT",
     "exists only if Codex is signed in with ChatGPT, which is not checked":
         "only when Codex is signed in with ChatGPT (stay-safe doesn't check sign-in)",
+    "disabled by features.apps = false": "off (`features.apps = false`)",
     "features.apps = false turns it off": "`features.apps = false` turns it off",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
@@ -920,10 +927,8 @@ def ordered(risks):
 
 
 def files_read(report, files):
-    """The selected files stay-safe read, in order. A file is left out when it was not found (its catalog entry says
-    so), when a config file gave no entry (it was refused), or when a rules file's gap says its input was refused.
-    A rules file passed with `--rules` that holds nothing to list or flag leaves no trace in the report and is not
-    named."""
+    """Identify successfully inspected sources from their labels, catalog entries and per-file gaps.
+    An explicitly selected empty rules file has a source label even though it has no entries or gaps."""
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
@@ -942,7 +947,7 @@ def introduction(report, files, read):
     if read:
         names = []
         for kind, description in READ.items():
-            labels = [f"`{files.get(source, source)}`" for source in read if source.startswith(kind + "-")]
+            labels = [f"`{files.get(source) or source}`" for source in read if source.startswith(kind + "-")]
             if labels:
                 joined = ", ".join(labels[:-1]) + (" and " if labels[:-1] else "") + labels[-1]
                 names.append(f"{description} ({joined})")
@@ -953,6 +958,10 @@ def introduction(report, files, read):
             f"{'that file says' if len(read) == 1 else 'those files say'}, without running any tests in Codex.")
     else:
         paragraphs.append("stay-safe could not read any configuration files. See Not checked for the reason.")
+    if ("rules-1" in read and files.get("rules-1") is None
+            and not any(entry["source"] == "rules-1" for entry in report["catalog"])
+            and not any(gap.startswith("rules-1: ") for gap in gaps)):
+        paragraphs.append("Your rules file contains no saved approvals.")
     if risks:
         sentences = [f"stay-safe found {count(len(risks), 'risky setting', 'risky settings')}."]
         for group, (_, (one, several), _) in enumerate(GROUPS):
@@ -996,9 +1005,11 @@ def markdown(report, files=None):
              f"{count(len(risks), 'finding', 'findings')}, {count(len(gaps), 'thing', 'things')} not checked.", ""]
     for paragraph in introduction(report, files, read):
         lines += [paragraph, ""]
+    # Only automatically discovered sources have paths for headings and suggested edits.
+    files = {source: path for source, path in files.items() if path is not None}
     blocks, titles = [], []
     # The sandboxes the files set, so the advice never suggests a looser one (reviews of archived PR #129, F2 and F13).
-    contexts = sandbox_context(report)
+    contexts = sandbox_context(report, files)
     for number, risk in enumerate(risks, 1):
         citations = ", ".join(f"[{i}]({report['incident_links'][i]})" if i in report["incident_links"] else i for i in risk["incidents"])
         lead, how, step = finding(risk, files, contexts) or (risk["explanation"], "See the cited incidents.",
@@ -1029,7 +1040,7 @@ def markdown(report, files=None):
     lines += ["## Not checked", ""]
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] == "configuration file"}
     if gaps:
-        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, absent, files) for text in gaps), ""]
+        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, absent, files, contexts) for text in gaps), ""]
     else:
         lines += ["stay-safe checked every setting it supports in the files it read. "
                   "What this report can't see, below, still applies.", ""]
@@ -1201,7 +1212,7 @@ def plain(report, files=None):
 
 
 def render(report, format_name="markdown", files=None):
-    """files maps an automatically found source, such as config-1, to where Codex keeps it; JSON doesn't use it."""
+    """files maps source labels to automatic paths, or None for an explicitly selected rules file. JSON omits paths."""
     if format_name == "json":
         return json.dumps(report, ensure_ascii=True, indent=2) + "\n"
     if format_name == "plain":

@@ -14,8 +14,8 @@ one file, each list line ends with its file label, such as `config-2`. In a Mark
 the saved page, a list line links to its detailed finding. GitHub issue and PR comments
 may omit heading anchors, so pasted reports use the matching finding numbers there.
 In the terminal, look for the same number, such as `Finding 3`.
-When stay-safe cannot read any configuration files, the introduction says so and
-points to Not checked for the reason. Multiple config labels share one description.
+See [how the introduction reports an empty or comment-only file passed to `--rules`](../contracts/claims.md#understand_inspection_limits-i-can-tell-what-the-report-establishes-and-what-needs-further-checking).
+When stay-safe cannot read any selected file, the introduction points to Not checked for the reason. Multiple config labels share one description.
 The detailed findings come next, in the list's order. Each finding says what it means for you, how it has gone wrong in reported incidents
 and what to do, then ends with one line giving its rule ID, entry ID and configured
 values. What to do gives a lower-friction option where the
