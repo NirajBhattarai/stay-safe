@@ -106,6 +106,20 @@ class ReleaseTests(unittest.TestCase):
         change = self.scan("rust-v0.11.0")["releases"][0]["sources"][0]
         self.assertEqual(change["labels"], ["approval", "whole"])
         self.assertIn("-cited two", change["diff"])
+        introduced = self.repo / "codex-rs/introduced.rs"
+        introduced.write_text("new cited function\n")
+        self.commit("rust-v0.13.0")
+        newer = self.git("rev-parse", "HEAD").strip()
+        self.meanings.write_text(self.meanings.read_text() +
+                                 f"[newer]: https://github.com/openai/codex/blob/{newer}/codex-rs/introduced.rs#L1\n")
+        addition = self.scan()["releases"][-1]["sources"][0]
+        self.assertEqual(addition["labels"], ["newer"])
+        self.assertIn("+new cited function", addition["diff"])
+        introduced.unlink()
+        self.commit("rust-v0.14.0")
+        deletion = self.scan("rust-v0.13.0")["releases"][0]["sources"][0]
+        self.assertEqual(deletion["labels"], ["newer"])
+        self.assertIn("-new cited function", deletion["diff"])
 
     def test_missing_refs_files_and_invalid_inputs_fail_instead_of_returning_clean_results(self):
         for start, end in (("rust-v0.8.0", None), ("rust-v0.11.0", "rust-v0.9.0"),
@@ -124,12 +138,14 @@ class ReleaseTests(unittest.TestCase):
         self.commit("rust-v0.12.0")
         with self.assertRaisesRegex(ValueError, "schema"):
             self.scan()
+        self.schema = {"type": "object", "properties": {}}
+        self.commit("rust-v0.13.0")
         (self.repo / SCHEMA).unlink()
         self.git("add", "-u")
         self.git("commit", "-qm", "missing schema")
-        self.git("tag", "rust-v0.13.0")
-        with self.assertRaisesRegex(ValueError, "config.schema.json"):
-            self.scan("rust-v0.12.0")
+        self.git("tag", "rust-v0.14.0")
+        with self.assertRaisesRegex(ValueError, "missing source file: rust-v0.14.0:codex-rs/core/config.schema.json"):
+            self.scan("rust-v0.13.0")
 
     def test_cli_reports_complete_scan_or_explicit_failure_without_advancing_state(self):
         state = self.folder / "state.json"
@@ -150,5 +166,3 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(failure.stdout, "")
         self.assertIn("state", failure.stderr)
         self.assertEqual(state.read_text(), "{")
-        state.write_bytes(initial)
-        self.assertEqual(state.read_bytes(), initial)

@@ -1,0 +1,6 @@
+{
+  "last_scanned_tag": "rust-v0.167.0",
+  "last_scanned_commit": "086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a",
+  "reviewed_behavior": "See the row-specific evidence and checked versions in harnesses/codex.md.",
+  "scan_record": "https://github.com/chalkbadger/stay-safe/pull/131"
+}
