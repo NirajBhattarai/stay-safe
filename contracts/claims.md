@@ -94,6 +94,7 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/128
 Tests: [tests/track_codex_releases/](../tests/track_codex_releases/)
 
 - I compare releases and see each stable version's changed cited ranges and configuration fields. `test_drift.py::test_each_stable_release_reports_only_changed_citations_and_schema_differences`
+- I change a schema field's alternatives or array structure and see that field reported as changed. `test_drift.py::test_schema_branch_and_array_structure_changes_are_reported`
 - I cite a whole file or a range that is later deleted and still see its changes. `test_drift.py::test_whole_file_and_deleted_citations_remain_visible`
 - I supply missing or invalid scan inputs and get an explicit failure. `test_drift.py::test_missing_refs_files_and_invalid_inputs_fail_instead_of_returning_clean_results`
 - I run the checker and get a complete scan or a failing exit status without advancing the saved progress. `test_drift.py::test_cli_reports_complete_scan_or_explicit_failure_without_advancing_state`

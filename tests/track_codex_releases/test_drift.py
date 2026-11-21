@@ -121,6 +121,23 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(deletion["labels"], ["newer"])
         self.assertIn("-new cited function", deletion["diff"])
 
+    def test_schema_branch_and_array_structure_changes_are_reported(self):
+        self.schema = {"type": "object", "properties": {
+            "choices": {"allOf": [{"type": "integer"}, {"minimum": 1}]},
+            "sequence": {"type": "array", "items": {"type": "integer"}},
+            "single": {"oneOf": [{"type": "integer"}]}}}
+        self.commit("rust-v0.12.0")
+        fields = self.schema["properties"]
+        fields["choices"]["anyOf"] = fields["choices"].pop("allOf")
+        fields["sequence"]["items"] = [fields["sequence"]["items"]]
+        fields["single"]["oneOf"].append({"type": "integer"})
+        self.commit("rust-v0.13.0")
+        report = self.scan("rust-v0.12.0", "rust-v0.13.0")
+        self.assertEqual([(item["change"], item["path"]) for item in report["releases"][0]["schema"]],
+                         [("changed", "choices"), ("changed", "sequence"), ("changed", "single")])
+        for path in ("choices", "sequence", "single"):
+            self.assertIn(f"Changed: `{path}`", codex_drift.render(report))
+
     def test_missing_refs_files_and_invalid_inputs_fail_instead_of_returning_clean_results(self):
         for start, end in (("rust-v0.8.0", None), ("rust-v0.11.0", "rust-v0.9.0"),
                            ("rust-v0.9.0", "rust-v0.12.0"), ("main", None)):

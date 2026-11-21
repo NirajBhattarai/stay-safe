@@ -134,7 +134,7 @@ def schema_fields(schema):
                 raise ValueError(f"missing schema reference: {ref}") from error
             if ref not in seen:
                 visit(target, path, seen | {ref})
-        navigation = {"$ref", "$schema", "definitions", "properties", "allOf", "anyOf", "oneOf", "items"}
+        navigation = {"$ref", "$schema", "definitions", "properties"}
         if isinstance(node.get("additionalProperties"), dict):
             navigation.add("additionalProperties")
         metadata = {key: value for key, value in node.items() if key not in navigation}
