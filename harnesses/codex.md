@@ -42,7 +42,7 @@ authored expectations; it does not derive expectations from the reader or its ru
 Additional positive and negative cases live under
 [each_risk_shows_its_cause](../tests/each_risk_shows_its_cause/test_conditions.py).
 
-Except for the [checked tool-approval ranges](#tool-approval-by-version),
+Unless a row or section names another release,
 Codex source links are pinned to OpenAI Codex `rust-v0.167.0`
 (`086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a`) and were re-checked there on 2026-11-09.
 The configuration reference was read on 2026-11-02 for retired values.
