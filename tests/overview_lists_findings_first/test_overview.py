@@ -54,6 +54,8 @@ default_tools_approval_mode = "prompt"
 APPROVALS = ('\nprefix_rule(pattern=["git", "status"], decision="allow")\n' + "\n" * 7
              + 'prefix_rule(pattern=["curl"], decision="allow")\n')
 SANDBOX_ONLY = QUIET.replace("read-only", "danger-full-access")
+# With danger-full-access, on-request asks only before commands Codex flags as dangerous (issue #141).
+MOST_COMMANDS = "With these settings, Codex runs most commands without asking you."
 
 
 def overview(report):
@@ -139,13 +141,15 @@ class OverviewTests(ConfigCase):
             ("network_access", "config-2:sandbox_workspace_write.network_access"),
             ("network_access", "config-3:sandbox_workspace_write.network_access"),
             ("environment_inheritance", "config-1:shell_environment_policy"),
+            # never with danger-full-access approves every tool call (issue #141).
+            ("automatic_tools", "config-1:approval_policy"),
             ("automatic_tools", "config-1:mcp_servers.search"),
             ("configured_program", "config-1:mcp_servers.github"),
             ("self_described_tools", "config-1:mcp_servers.github")]
         found = details(markdown)
         self.assertEqual([(rule, entry) for _, _, rule, entry in found], expected)
-        self.assertEqual([number for number, *_ in found], list(range(1, 15)))
-        headings = [GROUP_1] * 4 + [GROUP_2] * 8 + [GROUP_3, NOT_RANKED]
+        self.assertEqual([number for number, *_ in found], list(range(1, 16)))
+        headings = [GROUP_1] * 4 + [GROUP_2] * 9 + [GROUP_3, NOT_RANKED]
         self.assertEqual(listed(markdown), [
             (heading, number, f"[{headline}](#finding-{number}) (`{entry.split(':')[0]}`)")
             for heading, (number, headline, _, entry) in zip(headings, found)])
@@ -162,7 +166,9 @@ class OverviewTests(ConfigCase):
         report = self.report(SANDBOX_ONLY, SANDBOX_ONLY)
         markdown = render(report, "markdown")
         self.assertEqual(listed(markdown), [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1) (`config-1`)"),
-                                            (GROUP_1, 2, f"[{SANDBOX_OFF}](#finding-2) (`config-2`)")])
+                                            (GROUP_1, 2, f"[{SANDBOX_OFF}](#finding-2) (`config-2`)"),
+                                            (GROUP_1, 3, f"[{MOST_COMMANDS}](#finding-3) (`config-1`)"),
+                                            (GROUP_1, 4, f"[{MOST_COMMANDS}](#finding-4) (`config-2`)")])
         # Check Markdown heading destinations; actual browser navigation is a separate observation.
         body = section(markdown, "Findings")
         for number in (1, 2):
@@ -175,7 +181,7 @@ class OverviewTests(ConfigCase):
         # Saved page: each link's target is one element's id, and the finding that follows it is that file's.
         page = Targets(render(report, "html"))
         self.assertEqual([link for link in page.links if link.startswith("#")],
-                         ["#finding-1", "#finding-2"])
+                         ["#finding-1", "#finding-2", "#finding-3", "#finding-4"])
         for target in ("finding-1", "finding-2", "not-checked"):
             self.assertEqual(page.ids.count(target), 1)
         self.assertLess(page.ids.index("finding-1"), page.ids.index("finding-2"))
@@ -186,7 +192,8 @@ class OverviewTests(ConfigCase):
         self.assertTrue(page.text["not-checked"].startswith("Not checked"))
         # A single file needs no disambiguating label.
         self.assertEqual(listed(render(self.report(SANDBOX_ONLY), "markdown")),
-                         [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1)")])
+                         [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1)"),
+                          (GROUP_1, 2, f"[{MOST_COMMANDS}](#finding-2)")])
 
     def test_representative_introduction_explains_results_and_limits(self):
         # A default run, as in the issue's example: both files exist where Codex keeps them.
@@ -311,10 +318,12 @@ class UnchangedTests(ConfigCase):
                                  [(status, INCOMPLETE if status else "")] * 2)
                 report = json.loads(runs[0].stdout)
                 self.assertEqual([(risk["rule"], risk["entry"]) for risk in report["risks"]],
-                                 [("configured_program", "config-1:notify"),
+                                 [("commands_without_prompts", "config-1:approval_policy"),
+                                  ("configured_program", "config-1:notify"),
                                   ("unrestricted_filesystem", "config-1:sandbox_mode")])
                 self.assertEqual([(rule, entry) for _, _, rule, entry in details(runs[1].stdout)],
                                  [("unrestricted_filesystem", "config-1:sandbox_mode"),
+                                  ("commands_without_prompts", "config-1:approval_policy"),
                                   ("configured_program", "config-1:notify")])
                 self.assertEqual(report["inspection_gaps"], [] if status == 0 else [
                     "config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."])

@@ -349,6 +349,8 @@ class Reader:
             self.gap("Profiles are outside reader coverage; a selected profile can override the reported settings.")
         self.approval(data)
         self.sandbox(data)
+        approval = next((e for e in self.entries if e["name"] == "approval_policy"), None)
+        full = (data.get("sandbox_mode") == "danger-full-access" and "default_permissions" not in data)
         self.shell_environment(data)
         self.mcp(data)
         if "model_providers" in data:
@@ -408,8 +410,25 @@ class Reader:
                                "model_providers", "notify", "hooks", "web_search", "default_permissions", "permissions",
                                "shell_environment_policy", "profile", "profiles", "features"}
         self.unknown(data, known, "Configuration")
+        if approval and full:
+            self.full_access(approval)
         self.entries.sort(key=lambda e: e["name"])
         return self.entries, sorted(self.gaps)
+
+    def full_access(self, approval):
+        """What an unrestricted sandbox adds to the approval policy (harnesses/codex.md rows approval_policy with
+        danger-full-access): on-request allows every command Codex doesn't flag as dangerous, and never approves
+        every MCP and app tool call whatever its approval mode."""
+        if approval["observations"] == ["on-request"]:
+            approval["observations"].append("with danger-full-access, commands Codex doesn't flag as dangerous run without asking")
+            approval["facts"]["commands_without_prompts"] = True
+        elif approval["observations"] == ["never"]:
+            reachable = any(e["kind"] == "MCP server" and (e["name"] == "features.apps" or "configured enabled" in e["observations"])
+                            or e["kind"] == "app policy" and e["name"] != "apps._default" and "configured enabled" in e["observations"]
+                            for e in self.entries)
+            if reachable:
+                approval["observations"].append("with danger-full-access, MCP and app tool calls run without asking")
+                approval["facts"]["automatic_tools"] = True
 
 
 def open_input(path):

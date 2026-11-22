@@ -13,6 +13,18 @@
   },
   {
     "setting": "approval_policy",
+    "value": "on-request with danger-full-access",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"danger-full-access\"\n",
+    "entry": "approval_policy"
+  },
+  {
+    "setting": "approval_policy",
+    "value": "never with danger-full-access",
+    "config": "approval_policy=\"never\"\nsandbox_mode=\"danger-full-access\"\n",
+    "entry": "approval_policy"
+  },
+  {
+    "setting": "approval_policy",
     "value": "untrusted",
     "config": "approval_policy=\"untrusted\"\nsandbox_mode=\"read-only\"",
     "entry": "approval_policy",
@@ -53,7 +65,7 @@
   {
     "setting": "sandbox_mode",
     "value": "danger-full-access",
-    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"danger-full-access\"",
+    "config": "approval_policy=\"never\"\nsandbox_mode=\"danger-full-access\"",
     "entry": "sandbox_mode"
   },
   {
@@ -69,7 +81,7 @@
   {
     "setting": "permissions",
     "value": "definitions without selection",
-    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"danger-full-access\"\n[permissions.example]\nextends=\":read-only\"",
+    "config": "approval_policy=\"never\"\nsandbox_mode=\"danger-full-access\"\n[permissions.example]\nextends=\":read-only\"",
     "entry": "sandbox_mode",
     "gaps": [
       "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence."
