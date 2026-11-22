@@ -31,6 +31,27 @@ class ChatGptAppsTests(ConfigCase):
         self.assertNotIn("ChatGPT", render(report))
         self.assertEqual(report["inspection_gaps"], [])
 
+    def test_chatgpt_apps_connection_says_whether_apps_not_named_can_change_data(self):
+        # Issue #139: an app the file does not name follows apps._default, then Codex's default of true
+        # (openai/codex 086ccc8, connectors/src/app_tool_policy.rs L174-L185 and L287-L294; config/src/types.rs
+        # L471-L476 gives a template without the field true as well).
+        base = CHATGPT_APPS[:3]
+        for template, last in [
+            ("", "apps not named in this file: destructive tools enabled by Codex default"),
+            ('[apps._default]\ndefault_tools_approval_mode="prompt"\n',
+             "apps not named in this file: destructive tools enabled by Codex default"),
+            ("[apps._default]\ndestructive_enabled=false\n",
+             "apps not named in this file: destructive tools disabled by apps._default.destructive_enabled"),
+            ("[apps._default]\ndestructive_enabled=true\n",
+             "apps not named in this file: destructive tools enabled by apps._default.destructive_enabled"),
+            ("[apps._default]\nenabled=false\n", "apps not named in this file: disabled by apps._default.enabled"),
+        ]:
+            with self.subTest(template=template):
+                report = inspect([self.config(TOP + template)])
+                self.assertEqual(connection(report), [("config-1:features.apps", "MCP server", base + [last])])
+                self.assertEqual([r for r in report["risks"] if r["entry"] == "config-1:features.apps"], [])
+                self.assertIn("ChatGPT Apps connection", render(report))
+
 
 if __name__ == "__main__":
     unittest.main()

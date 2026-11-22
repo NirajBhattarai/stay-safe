@@ -154,7 +154,7 @@ def gap_items(report):
 # The ChatGPT Apps connection a configuration without `features.apps = false` names: harnesses/codex.md
 # row `features.apps` `omitted`, from Codex's default (archived issue #121).
 CHATGPT_APPS = ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, which is not checked",
-                "features.apps = false turns it off"]
+                "features.apps = false turns it off", "apps not named in this file: destructive tools enabled by Codex default"]
 
 
 class ConfigCase(unittest.TestCase):

@@ -392,6 +392,35 @@ class WhatToDoTests(ConfigCase):
             with self.subTest(rule=key[0], entry=key[1]):
                 self.assertEqual(found[key], expected)
 
+    def test_app_template_findings_cover_apps_the_file_does_not_name(self):
+        # Issue #139: Codex gives apps the file does not name apps._default's approval mode and destructive_enabled
+        # (harnesses/codex.md rows apps._default.default_tools_approval_mode `approve` and
+        # apps._default.destructive_enabled `true`); named apps without their own mode inherit it too (row
+        # apps.*.default_tools_approval_mode `approve inherited from _default`). enabled = false turns off apps the
+        # file does not name and no named app (row apps._default.enabled).
+        text = ('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
+                '[apps._default]\ndefault_tools_approval_mode = "approve"\ndestructive_enabled = true\n')
+        args = self.files(text)
+        found = self.findings(*args)
+        self.assertEqual(found[("automatic_tools", "config-1:apps._default")], block(
+            'Set `default_tools_approval_mode = "writes"` (uses server hints). Stricter: '
+            '`default_tools_approval_mode = "prompt"`. Apps you name without their own mode change too.',
+            "under `[apps._default]`",
+            f'Edit {FILE} to set `default_tools_approval_mode = "writes"` under `[apps._default]`'))
+        self.assertEqual(found[("destructive_tools", "config-1:apps._default")], block(
+            "Set `destructive_enabled = false` (tools marked as not destructive stay on; tools marked destructive, or "
+            "not marked, turn off). Stricter: `enabled = false` (apps your config doesn't name turn off; apps you "
+            "name stay on).",
+            "under `[apps._default]`",
+            f"Edit {FILE} to set `destructive_enabled = false` under `[apps._default]`"))
+        markdown = self.run_cli(*args).stdout
+        self.assertIn("**Apps your config doesn't name use tool approval mode `approve`, set in `apps._default`.** "
+                      "Untrusted tool content could lead to unwanted actions.", markdown)
+        self.assertIn("**Apps your config doesn't name have tools that can change or delete data turned on, set in "
+                      "`apps._default`.** A mistaken operation could change or delete data in the connected service.",
+                      markdown)
+        self.assertNotIn("`_default` app", markdown)
+
     def test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy(self):
         never = 'approval_policy = "never"\n'
         on_request = 'approval_policy = "on-request"\n'

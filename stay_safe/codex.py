@@ -296,7 +296,31 @@ class Reader:
                 # Codex disables every tool of a disabled app whatever else it sets (app_tool_policy.rs
                 # L272-L277 at 086ccc8), so its other settings can't change a finding and give no gap.
                 self.gaps = before
-            self.add(["apps", name], "app policy", obs + policy, {} if template else facts)
+            if template:
+                # Codex gives apps this file does not name the template's approval mode and destructive_enabled
+                # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.
+                facts = {k: v for k, v in facts.items() if k == "automatic_tools"} if enabled is True and not apps_off else {}
+                explicit = default.get("destructive_enabled")
+                if enabled is True and not apps_off and type(explicit) is bool:
+                    obs.append(f"destructive tools {'enabled' if explicit else 'disabled'} by apps._default.destructive_enabled")
+                    facts["destructive_tools"] = explicit
+                if facts.get("automatic_tools") or facts.get("destructive_tools"):
+                    obs.insert(1, "applies to apps not named in this file")
+            self.add(["apps", name], "app policy", obs + policy, facts)
+
+    @staticmethod
+    def unnamed_apps(data):
+        """What an app this file does not name gets: apps._default, then Codex's defaults (harnesses/codex.md [app-enabled])."""
+        apps = data.get("apps")
+        default = apps.get("_default", {}) if isinstance(apps, dict) else {}
+        default = default if isinstance(default, dict) else {}
+        if default.get("enabled") is False:
+            return "apps not named in this file: disabled by apps._default.enabled"
+        destructive = default.get("destructive_enabled")
+        if type(destructive) is bool:
+            return (f"apps not named in this file: destructive tools {'enabled' if destructive else 'disabled'} "
+                    "by apps._default.destructive_enabled")
+        return "apps not named in this file: destructive tools enabled by Codex default"
 
     def projects(self, projects):
         """Count literal declarations only; never use project keys as filesystem paths."""
@@ -369,7 +393,7 @@ class Reader:
         apps_enabled = self.boolean(features, "apps", True, "features.apps")
         if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
-                     "which is not checked", "features.apps = false turns it off"])
+                     "which is not checked", "features.apps = false turns it off", self.unnamed_apps(data)])
         # The legacy connectors key can turn Apps back on (harnesses/codex.md, features.apps).
         self.apps(data, apps_enabled is False and features.get("connectors", False) is False)
         if "web_search" in data:

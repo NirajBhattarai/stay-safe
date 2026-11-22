@@ -306,6 +306,25 @@ ADVICE = {
         "ask": "Edit {file} to replace line {line} with a rule that allows only <the command you meant>",
         "check": "Open {where} and read line {line}: its `pattern` lists the words a command must start with."},
 }
+# apps._default carries its risks for apps the file does not name (issue #139; harnesses/codex.md rows
+# apps._default.default_tools_approval_mode `approve`, apps._default.destructive_enabled `true` and apps._default.enabled;
+# named apps without their own mode inherit it, row apps.*.default_tools_approval_mode `approve inherited from _default`).
+TEMPLATE_HEADLINES = {
+    "automatic_tools": "Apps your config doesn't name use tool approval mode `approve`, set in `apps._default`.",
+    "destructive_tools": "Apps your config doesn't name have tools that can change or delete data turned on, set in "
+                         "`apps._default`."}
+TEMPLATE_ADVICE = {
+    "automatic_tools": {
+        "what": "Set `default_tools_approval_mode = \"writes\"` (uses server hints). Stricter: "
+                "`default_tools_approval_mode = \"prompt\"`. Apps you name without their own mode change too.",
+        "where": "under `[apps._default]`",
+        "ask": "Edit {file} to set `default_tools_approval_mode = \"writes\"` under `[apps._default]`"},
+    "destructive_tools": {
+        "what": "Set `destructive_enabled = false` (tools marked as not destructive stay on; tools marked destructive, "
+                "or not marked, turn off). Stricter: `enabled = false` (apps your config doesn't name turn off; apps "
+                "you name stay on).",
+        "where": "under `[apps._default]`",
+        "ask": "Edit {file} to set `destructive_enabled = false` under `[apps._default]`"}}
 KINDS = {"mcp_servers": "MCP server", "apps": "app"}
 STRICTNESS = ("read-only", "workspace-write")
 
@@ -360,7 +379,8 @@ def advice(risk, files, contexts):
     """A finding's What to do, Change it and Check paragraphs; None where its rule and entry have none."""
     source, _, name = risk["entry"].partition(":")
     keys = parts(name)
-    spec = ADVICE.get((risk["rule"], keys[0], len(keys)))
+    spec = (TEMPLATE_ADVICE.get(risk["rule"]) if keys == ["apps", "_default"]
+            else ADVICE.get((risk["rule"], keys[0], len(keys))))
     if spec is None or (keys[0] == "prefix_rule" and not keys[1].isdigit()):
         return None
     context = contexts.get(source, {})
@@ -731,6 +751,8 @@ def finding(risk, files=None, contexts=None):
     pick = lambda text: (text.get(keys[0]) if isinstance(text, dict)
                          else text[len(keys) == 4] if isinstance(text, tuple) else text)
     headline, why, step = pick(plain["headline"]), pick(plain["why"]), advice(risk, files or {}, contexts or {})
+    if keys == ["apps", "_default"]:
+        headline = TEMPLATE_HEADLINES.get(risk["rule"], headline)
     if "{line}" in headline:
         if shape != ("prefix_rule", 2):
             return None
@@ -797,6 +819,7 @@ SETUP_WORDS = {
         "only when Codex is signed in with ChatGPT (stay-safe doesn't check sign-in)",
     "disabled by features.apps = false": "off (`features.apps = false`)",
     "features.apps = false turns it off": "`features.apps = false` turns it off",
+    "applies to apps not named in this file": "applies to apps your file doesn't name",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
     "read-only": "`read-only` (commands can't write files)",
@@ -820,6 +843,13 @@ def setup_words(keys, observation):
     if found and found[1] in APPROVAL_MODES:
         mode = f"`{found[1]}`"
         return f"tool approval left at the default, {mode}" if found[2] else f"tool approval {mode}"
+    # Apps the file does not name (harnesses/codex.md row features.apps `omitted`, issue #139).
+    found = re.fullmatch(r"apps not named in this file: destructive tools (enabled|disabled) by (.+)", observation)
+    if found:
+        origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"
+        return f"apps your file doesn't name have tools that change or delete data {'on' if found[1] == 'enabled' else 'off'} ({origin})"
+    if observation == "apps not named in this file: disabled by apps._default.enabled":
+        return "apps your file doesn't name are off (`apps._default.enabled`)"
     found = re.fullmatch(r"destructive tools (enabled|disabled) by (.+)", observation)
     if found:
         origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"

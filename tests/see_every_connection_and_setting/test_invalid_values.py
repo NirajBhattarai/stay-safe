@@ -80,7 +80,7 @@ CASES = {
     # codex-rs/connectors/src/app_tool_policy.rs L174-L185), so apps.cal is enabled and keeps the gap above.
     "apps.*.destructive_enabled under apps._default.enabled = false": ({}, '[apps._default]\nenabled=false\n[apps.cal]\ndestructive_enabled="yes"\n',
                                                                      ["apps has an invalid destructive_enabled flag."],
-                                                                     {"apps._default": ["disabled", "tool approval: auto (default)"],
+                                                                     {"apps._default": ["disabled", "tool approval: auto (default)"], "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"], 
                                                                       "apps.cal": ["configured enabled", "tool approval: auto (default)"]},
                                                                      [("self_described_tools", "apps.cal")]),
     # Codex rejects this file; stay-safe's rule for invalid input applies (contracts/claims.md [see_every_connection_and_setting]): the
@@ -88,7 +88,8 @@ CASES = {
     # named apps (archived issue #90's answer to https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6727960187).
     "apps._default.destructive_enabled under apps._default.enabled = false": ({}, '[apps._default]\nenabled=false\ndestructive_enabled="yes"\n',
                                                                              ["apps has an invalid destructive_enabled flag."],
-                                                                             {"apps._default": ["disabled", "tool approval: auto (default)"]}, []),
+                                                                             {"apps._default": ["disabled", "tool approval: auto (default)"],
+                                                                              "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]}, []),
     "apps.*.default_tools_approval_mode": ({}, APP + 'default_tools_approval_mode="yes"\n',
                                            ["A tool approval mode is unsupported or invalid; its value was withheld."],
                                            {"apps.cal": ["configured enabled", CODEX_DEFAULT]}, [("destructive_tools", "apps.cal")]),

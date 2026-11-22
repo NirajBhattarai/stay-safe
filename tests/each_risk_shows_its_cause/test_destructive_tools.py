@@ -39,15 +39,19 @@ class DestructiveToolTests(ConfigCase):
             self.assert_destructive(tail, [("apps.files", evidence)])
 
     def test_risk_names_where_destructive_enabled_true_comes_from(self):
-        for tail, source in [
-            ('[apps.files]\ndestructive_enabled=true', "destructive_enabled"),
-            ('[apps._default]\ndestructive_enabled=false\n[apps.files]\ndestructive_enabled=true', "destructive_enabled"),
-            ('[apps._default]\ndestructive_enabled=true\n[apps.files]', "apps._default.destructive_enabled"),
+        # An enabled template with destructive_enabled = true also gives the risk for apps the file does not name
+        # (issue #139; app_tool_policy.rs L287-L294 at 086ccc8).
+        template = [("apps._default", ["configured enabled", "applies to apps not named in this file",
+                                       "destructive tools enabled by apps._default.destructive_enabled", AUTO])]
+        for tail, source, unnamed in [
+            ('[apps.files]\ndestructive_enabled=true', "destructive_enabled", []),
+            ('[apps._default]\ndestructive_enabled=false\n[apps.files]\ndestructive_enabled=true', "destructive_enabled", []),
+            ('[apps._default]\ndestructive_enabled=true\n[apps.files]', "apps._default.destructive_enabled", template),
             # apps._default.enabled = false leaves this app enabled (archived issue #90; app_tool_policy.rs L174-L185 at
             # 086ccc8), and destructive_enabled still falls back to the template (L287-L294 at 086ccc8).
-            ('[apps._default]\nenabled=false\ndestructive_enabled=true\n[apps.files]', "apps._default.destructive_enabled"),
+            ('[apps._default]\nenabled=false\ndestructive_enabled=true\n[apps.files]', "apps._default.destructive_enabled", []),
         ]:
-            self.assert_destructive(tail, [("apps.files", ["configured enabled", "destructive tools enabled by " + source, AUTO])])
+            self.assert_destructive(tail, unnamed + [("apps.files", ["configured enabled", "destructive tools enabled by " + source, AUTO])])
 
     def test_default_tools_enabled_true_decides_whatever_destructive_enabled_says(self):
         evidence = ["configured enabled", "destructive tools enabled by default_tools_enabled", AUTO]
@@ -88,7 +92,7 @@ class DestructiveToolTests(ConfigCase):
              {"apps.files": ["configured enabled", "destructive tools disabled by destructive_enabled", AUTO],
               "apps.files.tools.read": ["configured enabled", "tool approval: prompt"]}),
             ('[apps._default]\ndestructive_enabled=false\n[apps.files]',
-             {"apps._default": ["configured enabled", AUTO],
+             {"apps._default": ["configured enabled", "destructive tools disabled by apps._default.destructive_enabled", AUTO],
               "apps.files": ["configured enabled", "destructive tools disabled by apps._default.destructive_enabled", AUTO]}),
             # The same under apps._default.enabled = false, which disables no named app (archived issue #90; app_tool_policy.rs
             # L174-L185 at 086ccc8); destructive_enabled still falls back to the template (L287-L294 at 086ccc8).
