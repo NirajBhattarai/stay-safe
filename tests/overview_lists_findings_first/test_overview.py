@@ -54,7 +54,7 @@ default_tools_approval_mode = "prompt"
 APPROVALS = ('\nprefix_rule(pattern=["git", "status"], decision="allow")\n' + "\n" * 7
              + 'prefix_rule(pattern=["curl"], decision="allow")\n')
 SANDBOX_ONLY = QUIET.replace("read-only", "danger-full-access")
-# With danger-full-access, on-request asks only before commands Codex flags as dangerous (issue #141).
+# With danger-full-access, on-request lets ordinary commands run without asking (issue #141).
 MOST_COMMANDS = "With these settings, Codex runs most commands without asking you."
 
 
@@ -141,7 +141,7 @@ class OverviewTests(ConfigCase):
             ("network_access", "config-2:sandbox_workspace_write.network_access"),
             ("network_access", "config-3:sandbox_workspace_write.network_access"),
             ("environment_inheritance", "config-1:shell_environment_policy"),
-            # never with danger-full-access approves every tool call (issue #141).
+            # never with danger-full-access can let tool calls run without asking (issue #141).
             ("automatic_tools", "config-1:approval_policy"),
             ("automatic_tools", "config-1:mcp_servers.search"),
             ("configured_program", "config-1:mcp_servers.github"),

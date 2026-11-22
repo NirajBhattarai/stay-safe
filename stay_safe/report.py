@@ -209,18 +209,20 @@ COMMANDS = {
         "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
                 "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
-    # on-request with danger-full-access asks only before commands Codex flags as dangerous (issue #141; harnesses/codex.md
+    # on-request with danger-full-access lets ordinary commands run without asking (issue #141; harnesses/codex.md
     # row approval_policy `on-request with danger-full-access`), so the sandbox is what to change.
     "full-on-request": {
         "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
-                "only in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+                "in your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides "
+                "when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only "
-                "in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
+                "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
+                "to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
@@ -232,26 +234,30 @@ SANDBOX = {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"read-only\"`"},
     None: {
-        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write only in your workspace). Stricter: "
+        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write in your workspace and in any extra "
+                "folders in `writable_roots`, so review that list). Stricter: "
                 "`sandbox_mode = \"read-only\"` (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"`"}}
-# never with danger-full-access approves every MCP and app tool call (issue #141; harnesses/codex.md row approval_policy
+# never with danger-full-access can let MCP and app tool calls run without asking (issue #141; harnesses/codex.md row approval_policy
 # `never with danger-full-access`); with a sandbox, each tool's approval mode applies again, and never refuses a call
 # that needs approval (openai/codex 086ccc8, core/src/mcp_tool_call.rs L1691-L1699).
 FULL_ACCESS_TOOLS = {
     "what": "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and "
-            "Codex refuses calls that need approval instead of asking). Stricter: `sandbox_mode = \"read-only\"` "
+            "Codex refuses calls that need approval instead of asking), and review any extra folders in "
+            "`writable_roots`. Stricter: `sandbox_mode = \"read-only\"` "
             "(commands can't write files).",
     "where": "`sandbox_mode` " + TOP,
     "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`"}
 FULL_ACCESS_HEADLINES = {
     "commands_without_prompts": ("With these settings, Codex runs most commands without asking you.",
-                                 "With `sandbox_mode = \"danger-full-access\"`, `on-request` asks first only before "
-                                 "commands Codex flags as dangerous, such as a forced `rm`. Other commands, including "
-                                 "ones that delete or change files, run without asking."),
-    "automatic_tools": ("With these settings, Codex uses MCP server and app tools without asking you.",
-                        "With `approval_policy = \"never\"` and `sandbox_mode = \"danger-full-access\"`, Codex approves "
-                        "every tool call, whatever each server's or app's approval mode says. " + AUTOMATIC)}
+                                 "With `sandbox_mode = \"danger-full-access\"`, ordinary commands can run without "
+                                 "asking, including ones that delete or change files. For commands without a matching "
+                                 "rule, Codex asks first only if it flags the command as dangerous, such as a forced "
+                                 "`rm`."),
+    "automatic_tools": ("With these settings, Codex can use MCP server and app tools without asking you.",
+                        "`approval_policy = \"never\"` with `sandbox_mode = \"danger-full-access\"` can allow MCP "
+                        "server and app tools to run without asking you, even when a tool's approval mode requests "
+                        "approval. " + AUTOMATIC)}
 ADVICE = {
     ("commands_without_prompts", "approval_policy", 1): COMMANDS,
     ("automatic_tools", "approval_policy", 1): FULL_ACCESS_TOOLS,
@@ -860,10 +866,10 @@ SETUP_WORDS = {
     "applies to apps not named in this file": "applies to apps your file doesn't name",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
-    "with danger-full-access, commands Codex doesn't flag as dangerous run without asking":
-        "but with `danger-full-access` it asks only before commands it flags as dangerous, such as a forced `rm`",
-    "with danger-full-access, MCP and app tool calls run without asking":
-        "and with `danger-full-access` it uses MCP server and app tools without asking",
+    "with danger-full-access, ordinary commands can run without asking":
+        "but with `danger-full-access` ordinary commands can run without asking",
+    "with danger-full-access, MCP and app tool calls can run without asking":
+        "and with `danger-full-access` MCP server and app tools can run without asking",
     "read-only": "`read-only` (commands can't write files)",
     "workspace-write": "`workspace-write` (commands can write in your workspace)",
     "danger-full-access": "`danger-full-access` (no sandbox)",

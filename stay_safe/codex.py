@@ -421,17 +421,18 @@ class Reader:
 
     def full_access(self, approval):
         """What an unrestricted sandbox adds to the approval policy (harnesses/codex.md rows approval_policy with
-        danger-full-access): on-request allows every command Codex doesn't flag as dangerous, and never approves
-        every MCP and app tool call whatever its approval mode."""
+        danger-full-access): on-request lets commands no execution rule matches run unless Codex flags them as
+        dangerous, and never can let MCP and app tool calls run without asking whatever their approval mode, unless
+        strict automatic review is on."""
         if approval["observations"] == ["on-request"]:
-            approval["observations"].append("with danger-full-access, commands Codex doesn't flag as dangerous run without asking")
+            approval["observations"].append("with danger-full-access, ordinary commands can run without asking")
             approval["facts"]["commands_without_prompts"] = True
         elif approval["observations"] == ["never"]:
             reachable = any(e["kind"] == "MCP server" and (e["name"] == "features.apps" or "configured enabled" in e["observations"])
                             or e["kind"] == "app policy" and e["name"] != "apps._default" and "configured enabled" in e["observations"]
                             for e in self.entries)
             if reachable:
-                approval["observations"].append("with danger-full-access, MCP and app tool calls run without asking")
+                approval["observations"].append("with danger-full-access, MCP and app tool calls can run without asking")
                 approval["facts"]["automatic_tools"] = True
 
 
