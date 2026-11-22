@@ -100,7 +100,9 @@ FINDINGS = {
         "why": "It covers every command that starts with its saved words. A rule that asks first or forbids the "
                "command can override it, and stay-safe doesn't check whether one does.",
         "how": "A Codex user reported that a saved approval for `curl` let later `curl` commands run without asking, "
-               "even after restarting in another workspace."},
+               "even after restarting in another workspace. A Claude Code user reported that a broad Railway "
+               "approval let a command print secrets into the transcript while commands to release a new version "
+               "stayed blocked."},
     "commands_without_prompts": {
         "headline": "With these settings, Codex runs commands without asking you.",
         "why": "It won't ask before any command it's allowed to run, so injected or mistaken instructions could make "

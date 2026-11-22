@@ -164,6 +164,12 @@ Real-world reports of coding agents doing destructive or risky things. Risk rule
 - Enabling condition: the root service required the install script to run as root and explicitly request that Hermes run the gateway as root. An authorized Telegram user could then use the agent's shell and file tools. SafeDep could not recover the downloaded `.env`, so whether approval prompts were disabled is unknown.
 - Source: [SafeDep analysis](https://safedep.io/blog/malicious-npm-leadstack-crm-connect-hermes-agent-backdoor)
 
+## I30. Railway credentials printed in a Claude Code transcript
+- Harness: Claude Code (auto mode)
+- What happened: a user reported that Claude Code blocked Railway deploy commands and suggested adding a permission rule. After the user saved a broad Railway approval, the next tool call listed environment variables and printed API secrets and a database password into the transcript. Deploy commands remained blocked.
+- Enabling condition: the user saved `Bash(railway:*)` in `.claude/settings.local.json`. The rule covered `railway variable list`, which returned the values without further confirmation or masking.
+- Source: [Claude Code issue #111589](https://github.com/anthropics/claude-code/issues/111589)
+
 ## I31. RunPod asked an agent to hide a rating request from its user
 - Harness: a coding agent using RunPod’s hosted MCP server. The reporter did not name the agent.
 - What happened: a user reported that a successful `create-pod` result asked their agent to rate RunPod without telling them. Their agent declined and told them. RunPod confirmed it had collected agent ratings with each agent’s self-reported model, referral answers and per-account creation counts.

@@ -3,7 +3,7 @@
 ## saved_approval
 
 - Settings: [Saved approval records](../harnesses/codex.md#saved-approval-records)
-- Incidents: [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces)
+- Incidents: [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces), [I30](../incidents.md#i30-railway-credentials-printed-in-a-claude-code-transcript)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+saved_approval+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+saved_approval)
 

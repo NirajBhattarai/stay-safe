@@ -22,7 +22,9 @@ TOOL_HINTS = GROUP_HINTS
 # Rule -> one sentence on its cited incidents, from incidents.md (reading check, 2026-11-09).
 HOW = {
     "saved_approval": "A Codex user reported that a saved approval for `curl` let later `curl` commands run without "
-                      "asking, even after restarting in another workspace.",
+                      "asking, even after restarting in another workspace. A Claude Code user reported that a broad "
+                      "Railway approval let a command print secrets into the transcript while commands to release a new "
+                      "version stayed blocked.",
     "commands_without_prompts": "Agents running commands without approval have run a delete command aimed at a home "
                                 "directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance.",
     "unrestricted_filesystem": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete "

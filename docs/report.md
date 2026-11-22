@@ -38,7 +38,7 @@ the JSON report keeps its own order.
 | --- | --- | --- | --- |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `unrestricted_filesystem` | [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped) |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `commands_without_prompts` | [I2](../incidents.md#i2-home-directory-added-to-a-delete-command), [I3](../incidents.md#i3-windows-drive-wiped), [I24](../incidents.md#i24-driver-update-followed-by-boot-and-network-failures) |
-| 1 | Nothing stands between a mistaken or injected instruction and your computer | `saved_approval` | [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces) |
+| 1 | Nothing stands between a mistaken or injected instruction and your computer | `saved_approval` | [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces), [I30](../incidents.md#i30-railway-credentials-printed-in-a-claude-code-transcript) |
 | 2 | Harm is limited to one channel or service | `destructive_tools` | [I7](../incidents.md#i7-production-volumes-deleted-with-a-found-token), [I8](../incidents.md#i8-database-changes-after-an-order-to-stop) |
 | 2 | Harm is limited to one channel or service | `network_access` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets) |
 | 2 | Harm is limited to one channel or service | `environment_inheritance` | [I23](../incidents.md#i23-production-tables-dropped-by-a-dev-only-migration-command) |
