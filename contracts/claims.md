@@ -12,6 +12,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I let commands in `workspace-write` mode write to extra folders and see that setting under "Not checked", without the folders' paths. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
 - I see on the ChatGPT Apps connection whether apps my file doesn't name are off and where their `destructive_enabled` comes from. `test_chatgpt_apps.py::test_chatgpt_apps_connection_says_whether_apps_not_named_can_change_data`
 - My Codex folder has skills in `skills` and an `environments.toml` file, and I see each under "Not checked" without their contents. `test_skills_and_environments.py::test_skills_and_environments_toml_each_give_their_own_gap`
+- I give `apps._default` an invalid value and see that the ChatGPT Apps connection says unknown for apps my file doesn't name, next to the invalid-value gap. `test_chatgpt_apps.py::test_invalid_template_leaves_apps_not_named_unknown_and_keeps_its_gap`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
@@ -30,7 +31,7 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - I see the expected warnings tied to their settings and reported incidents. `test_report.py::test_cli_risks_have_expected_entries_incidents_and_status_in_both_formats`
 - I change command or sandbox settings and get warnings only when their conditions apply. `test_conditions.py::test_command_prompt_and_filesystem_rules_have_independent_positive_and_negative_cases`
 - I set a hook whose only command is its Windows command and see that it can start a program. `test_hooks.py::test_windows_command_alone_reports_program`
-- I combine `danger-full-access` with `on-request` or `never` and see that Codex runs most commands, or every tool call, without asking. `test_conditions.py::test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking`
+- I combine `danger-full-access` with `on-request` or `never` and see that ordinary commands, or MCP and app tool calls, can run without asking. `test_conditions.py::test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking`
 - I lose an incident citation and see the gap while the findings remain. `test_report.py::test_cli_reports_missing_incident_citation_and_preserves_safe_data`
 - I set an approval mode or `destructive_enabled = true` in `apps._default` and see its risk once, on the template, for apps my file doesn't name. `test_single_attribution.py::test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps`
 
@@ -43,6 +44,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I select a permission profile in one file and can follow the approval finding and sandbox gap advice without replacing it. `test_what_to_do.py::test_profile_in_either_file_preserves_approval_and_gap_advice`
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
 - I use `danger-full-access` with `on-request` or `never` and the advice tells me to change the sandbox. `test_what_to_do.py::test_full_access_findings_on_the_approval_policy_say_to_change_the_sandbox`
+- I follow the sandbox advice in a file with extra writable folders and see that the advice and the new report both tell me to review `writable_roots`. `test_what_to_do.py::test_following_the_sandbox_advice_with_writable_roots_leaves_them_to_review`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.

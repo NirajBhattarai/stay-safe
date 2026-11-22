@@ -52,11 +52,12 @@ EXPECTED = {
     ("commands_without_prompts", "config-1:approval_policy"):
         "**With these settings, Codex runs commands without asking you.** It won't ask before any command it's "
         "allowed to run, so injected or mistaken instructions could make it run code you didn't want.",
-    # Issue #141: never with danger-full-access approves every tool call (row approval_policy `never with danger-full-access`).
+    # Issue #141: never with danger-full-access can let tool calls run without asking (row approval_policy `never with
+    # danger-full-access`).
     ("automatic_tools", "config-1:approval_policy"):
-        "**With these settings, Codex uses MCP server and app tools without asking you.** With "
-        "`approval_policy = \"never\"` and `sandbox_mode = \"danger-full-access\"`, Codex approves every tool call, "
-        f"whatever each server's or app's approval mode says. {AUTOMATIC}",
+        "**With these settings, Codex can use MCP server and app tools without asking you.** "
+        "`approval_policy = \"never\"` with `sandbox_mode = \"danger-full-access\"` can allow MCP server and app tools "
+        f"to run without asking you, even when a tool's approval mode requests approval. {AUTOMATIC}",
     ("automatic_tools", "config-1:apps.calendar"):
         f"**Your `calendar` app's tool approval mode is `approve`.** {AUTOMATIC}",
     ("destructive_tools", "config-1:apps.calendar"):
