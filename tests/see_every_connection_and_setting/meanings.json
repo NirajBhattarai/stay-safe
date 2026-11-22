@@ -94,6 +94,15 @@
     "entry": "sandbox_workspace_write.network_access"
   },
   {
+    "setting": "sandbox_workspace_write.writable_roots",
+    "value": "paths under workspace-write",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"workspace-write\"\n[sandbox_workspace_write]\nwritable_roots=[\"/srv/shared\"]\n",
+    "entry": "sandbox_workspace_write.writable_roots",
+    "gaps": [
+      "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated."
+    ]
+  },
+  {
     "setting": "mcp_servers.*.enabled",
     "value": "false",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.remote]\ncommand=\"synthetic-command\"\nenabled=false",

@@ -117,6 +117,15 @@ class Reader:
             table = self.table(data["sandbox_workspace_write"], "sandbox_workspace_write")
             self.unknown(table, {"network_access", "writable_roots", "exclude_tmpdir_env_var", "exclude_slash_tmp"}, "sandbox_workspace_write")
             active = mode == "workspace-write" and not profile
+            if "writable_roots" in table:
+                roots = table["writable_roots"]
+                if not (isinstance(roots, list) and all(isinstance(r, str) for r in roots)):
+                    self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
+                elif roots and active:
+                    # Codex adds each root to the folders sandboxed commands may write: harnesses/codex.md [writable-roots].
+                    self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+                             "workspace-write mode, some possibly outside the workspace; their paths were withheld "
+                             "and were not evaluated.")
             if "network_access" in table:
                 value = self.boolean(table, "network_access", False, "sandbox_workspace_write")
                 if value is not None:
