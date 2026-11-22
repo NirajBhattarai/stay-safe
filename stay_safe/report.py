@@ -850,6 +850,10 @@ def setup_words(keys, observation):
         return f"apps your file doesn't name have tools that change or delete data {'on' if found[1] == 'enabled' else 'off'} ({origin})"
     if observation == "apps not named in this file: disabled by apps._default.enabled":
         return "apps your file doesn't name are off (`apps._default.enabled`)"
+    if observation == "apps not named in this file: destructive tools unknown":
+        return "unknown whether apps your file doesn't name have tools that change or delete data on (`apps._default.destructive_enabled` is invalid)"
+    if observation == "apps not named in this file: settings unknown":
+        return "unknown what apps your file doesn't name are allowed to do (`apps._default` is invalid)"
     found = re.fullmatch(r"destructive tools (enabled|disabled) by (.+)", observation)
     if found:
         origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"
