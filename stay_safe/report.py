@@ -622,6 +622,9 @@ GAPS = {
         "stay-safe doesn't read.",
     "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
         "**Not checked: your `environments.toml` file.** Could not check it.",
+    "Codex home: environments.toml is not a file; Codex fails to read it.":
+        "**Not checked: your `environments.toml` file.** Your Codex folder has an `environments.toml` that isn't a "
+        "regular file, such as a folder. Codex reports an error when it tries to read it.",
     "Committed incident citations are incomplete; source links are unavailable.":
         "**Not checked: some cited incidents.** stay-safe couldn't find every cited incident in its incident list, "
         "so those incidents appear without links.",
@@ -747,6 +750,8 @@ STEPS = {
         "Review the environments in `environments.toml` yourself.",
     "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
         "Check that you can open `environments.toml` in your Codex folder.",
+    "Codex home: environments.toml is not a file; Codex fails to read it.":
+        "Replace `environments.toml` in your Codex folder with the file you meant, or remove it.",
     "System config folder: /etc/codex holds Codex configuration that was not inspected.":
         "Review the files in `/etc/codex` yourself.",
     "Codex home: Could not check the plugin cache. Check that you can open plugins/cache in your Codex folder.":
