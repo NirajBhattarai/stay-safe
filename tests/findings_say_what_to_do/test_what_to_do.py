@@ -204,6 +204,17 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
 
 # Rows: sandbox workspace-write, sandbox read-only. With `read-only` in another inspected file, `workspace-write` would
 # be looser, so only `read-only` is offered (F13).
+# Issue #141: with danger-full-access, never approves every tool call (row approval_policy `never with
+# danger-full-access`); with a sandbox each tool's mode applies again and never refuses a call that needs approval
+# (openai/codex 086ccc8, core/src/mcp_tool_call.rs L1691-L1699). Rows sandbox_mode workspace-write and read-only.
+def full_access_tools(file=FILE):
+    return block(
+        "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and Codex "
+        "refuses calls that need approval instead of asking). Stricter: `sandbox_mode = \"read-only\"` (commands "
+        "can't write files).",
+        "`sandbox_mode` " + TOP, f"Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`")
+
+
 def sandbox(file=FILE, other=None):
     if other:
         return block(
@@ -281,6 +292,7 @@ SECOND_FILE = passed("config-2")
 EXPECTED = {
     ("commands_without_prompts", "config-1:approval_policy"): commands("danger-full-access"),
     ("unrestricted_filesystem", "config-1:sandbox_mode"): sandbox(),
+    ("automatic_tools", "config-1:approval_policy"): full_access_tools(),
     ("configured_program", "config-1:notify"): notify(),
     ("configured_program", "config-1:mcp_servers.github"): program_server("github"),
     ("self_described_tools", "config-1:mcp_servers.github"): labels_group("MCP server", "github", "mcp_servers.github"),
@@ -443,6 +455,26 @@ class WhatToDoTests(ConfigCase):
                 found = self.findings("--config", str(self.config(text)))
                 self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")], commands(sandbox_mode))
 
+    def test_full_access_findings_on_the_approval_policy_say_to_change_the_sandbox(self):
+        # Issue #141: with danger-full-access, on-request asks only before commands Codex flags as dangerous (row
+        # approval_policy `on-request with danger-full-access`), so the advice keeps on-request and changes the sandbox
+        # (rows sandbox_mode workspace-write and read-only; a saved approval still runs outside it, row prefix_rule).
+        args = ("--config", str(self.config('approval_policy = "on-request"\nsandbox_mode = "danger-full-access"\n')))
+        found = self.findings(*args)
+        self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")], block(
+            'Set `sandbox_mode = "workspace-write"` and keep `approval_policy = "on-request"` (commands can write only '
+            'in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = "read-only"` (commands '
+            "can't write files). Either way, commands a saved approval allows still run outside the sandbox.",
+            "`sandbox_mode` " + TOP,
+            f'Edit {FILE} to set `sandbox_mode = "workspace-write"` without changing `approval_policy`',
+            f"Look for `approval_policy` and `sandbox_mode` in {WHERE}."))
+        self.assertIn("**With these settings, Codex runs most commands without asking you.** With "
+                      '`sandbox_mode = "danger-full-access"`, `on-request` asks first only before commands Codex flags '
+                      "as dangerous, such as a forced `rm`. Other commands, including ones that delete or change files, "
+                      "run without asking.", self.run_cli(*args).stdout)
+        found = self.findings("--config", str(self.config('approval_policy = "never"\nsandbox_mode = "danger-full-access"\n')))
+        self.assertEqual(found[("automatic_tools", "config-1:approval_policy")], full_access_tools())
+
     def test_advice_never_loosens_a_sandbox_another_inspected_file_sets(self):
         first, second = passed("config-1"), passed("config-2")
         commands_1 = ("commands_without_prompts", "config-1:approval_policy")
@@ -547,6 +579,7 @@ class WhatToDoTests(ConfigCase):
                     ("commands_without_prompts", "config-1:approval_policy"):
                         commands("danger-full-access", file, file),
                     ("unrestricted_filesystem", "config-1:sandbox_mode"): sandbox(file),
+                    ("automatic_tools", "config-1:approval_policy"): full_access_tools(file),
                     ("configured_program", "config-1:notify"): notify(file, file),
                     ("configured_program", "config-1:mcp_servers.github"): program_server("github", file, file),
                     ("self_described_tools", "config-1:mcp_servers.github"):
