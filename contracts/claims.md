@@ -29,6 +29,8 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 
 - I see the expected warnings tied to their settings and reported incidents. `test_report.py::test_cli_risks_have_expected_entries_incidents_and_status_in_both_formats`
 - I change command or sandbox settings and get warnings only when their conditions apply. `test_conditions.py::test_command_prompt_and_filesystem_rules_have_independent_positive_and_negative_cases`
+- I set a hook whose only command is its Windows command and see that it can start a program. `test_hooks.py::test_windows_command_alone_reports_program`
+- I combine `danger-full-access` with `on-request` or `never` and see that Codex runs most commands, or every tool call, without asking. `test_conditions.py::test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking`
 - I lose an incident citation and see the gap while the findings remain. `test_report.py::test_cli_reports_missing_incident_citation_and_preserves_safe_data`
 - I set an approval mode or `destructive_enabled = true` in `apps._default` and see its risk once, on the template, for apps my file doesn't name. `test_single_attribution.py::test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps`
 
@@ -40,6 +42,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I inspect different sandbox settings and the advice never suggests a weaker sandbox. `test_what_to_do.py::test_commands_advice_never_loosens_the_configured_sandbox`
 - I select a permission profile in one file and can follow the approval finding and sandbox gap advice without replacing it. `test_what_to_do.py::test_profile_in_either_file_preserves_approval_and_gap_advice`
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
+- I use `danger-full-access` with `on-request` or `never` and the advice tells me to change the sandbox. `test_what_to_do.py::test_full_access_findings_on_the_approval_policy_say_to_change_the_sandbox`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
@@ -102,3 +105,4 @@ Tests: [tests/follow_rule_evidence/](../tests/follow_rule_evidence/)
 - I follow the saved-approval finding and its rule index to the Codex approval and Claude Code credential reports. `test_index.py::test_saved_approval_links_to_both_incident_entries_in_the_report_and_index`
 - I see each readable finding's rule linked at the report revision, or plain text when that revision is unknown. `test_index.py::test_readable_rule_links_follow_revision_and_unknown_stays_plain`
 - I find the index's search label configured on the challenge form, with the rule ID directed to its required finding field. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
+- I read what the `network_access` and `commands_without_prompts` citations support, with links to the incidents, rule, and sources the note names. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`

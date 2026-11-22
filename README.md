@@ -6,15 +6,17 @@ stay-safe reads settings and saved approvals from files. Only some settings are 
 
 Here is a finding from a run on a [test configuration](tests/runs_without_a_coding_agent/sample.toml):
 
-> **Your config turns off Codex's sandbox.** Commands Codex runs aren't limited to your project, so a mistaken command could damage files elsewhere on your computer.
+> **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
 >
-> *How it has gone wrong:* Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. [I1](https://github.com/chalkbadger/stay-safe/blob/v0.2.2/incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.2/incidents.md#i3-windows-drive-wiped) (reported, not verified).
+> *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
 >
-> *What to do:* Set `sandbox_mode = "workspace-write"` (commands can write only in your workspace). Stricter: `sandbox_mode = "read-only"` (commands can't write files).
+> *What to do:* Set `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (Codex decides when to ask you first; commands still can't write files). But commands a saved approval allows still run outside the sandbox.
 >
-> *Change it:* near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `sandbox_mode = "workspace-write"`; show only what you change."
+> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
 >
-> *Rule `unrestricted_filesystem` · setting `config-1:sandbox_mode` = `danger-full-access`*
+> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
+>
+> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
 
 It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in

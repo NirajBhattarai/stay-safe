@@ -51,6 +51,8 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | --- | --- | --- | --- | --- |
 | `approval_policy` | `never` | Permitted commands do not ask for approval; the sandbox remains separate. Catalog: `never`. Rules: `commands_without_prompts`. Gap: no. | [approval] | documented |
 | `approval_policy` | `on-request` | The model decides when to request approval; this is not blanket preapproval. Catalog: `on-request`. Rules: none. Gap: no. | [approval] | documented |
+| `approval_policy` | `on-request with danger-full-access` | With no sandbox, Codex runs every command it does not flag as dangerous without asking ([decision][full-access-commands]); the flag covers forced deletes ([flag][dangerous-commands]). Catalog: `on-request`, `with danger-full-access, commands Codex doesn't flag as dangerous run without asking`. Rules: `commands_without_prompts`. Gap: no. | [full-access-commands] | documented in source |
+| `approval_policy` | `never with danger-full-access` | With no sandbox, Codex approves every MCP and app tool call whatever its approval mode ([approval][full-access-tools], [call][full-access-tool-call]); the reader reports it when an enabled MCP server or the ChatGPT Apps connection is present. Catalog: `never`, `with danger-full-access, MCP and app tool calls run without asking`. Rules: `commands_without_prompts`, `automatic_tools`. Gap: no. | [full-access-tools] | documented in source |
 | `approval_policy` | `untrusted` | The configuration reference retires this unsupported value; the reader leaves it unhandled. Catalog: none. Rules: none. Gap: yes. | [configuration-reference] | documented: retired |
 | `approval_policy` | `on-failure` | The configuration reference deprecates this value; the reader leaves it unhandled. Catalog: none. Rules: none. Gap: yes. | [configuration-reference] | documented: deprecated |
 | `approval_policy` | `granular` | A category set to `false` rejects its approval requests automatically instead of asking, as `never` does; the reader leaves this policy unhandled. Catalog: none. Rules: none. Gap: yes. | [approval-granular] | open |
@@ -97,6 +99,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `model_providers.*.aws` | `credential commands` | Each `credential_export` or `auth_refresh` setting present is named as unchecked, whether or not the file selects the provider. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [provider-auth] | documented in source |
 | `notify` | `command list with nonempty program` | Notifications may spawn a configured external command; its contents are withheld. Catalog: `notification command configured; command withheld`. Rules: `configured_program`. Gap: no. | [notify-program] | documented in source |
 | `hooks.*` | `command handler with nonempty command` | Codex runs a `type = "command"` handler whose command is not empty, whatever its [matcher][hook-matcher] or [options][hook-handlers] such as `timeout`; trust and enablement in `hooks.state` are uninspected. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
+| `hooks.*` | `command handler with empty command and nonempty Windows command` | On Windows, Codex runs the handler's `commandWindows` (alias `command_windows`) in place of `command` when it is set ([field][hook-command-windows], [choice][hook-windows-choice]); on other platforms it skips the empty `command`. The file may be used on either platform, so the handler counts. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
 | `hooks.*` | `no command handler with nonempty command` | Codex skips `prompt` and `agent` handlers ([source][hook-skipped]) and empty commands ([source][hook-empty]); an `mcp_tool` handler calls a tool on an MCP server ([source][hook-mcp-tool]). Catalog: `contents withheld`. Rules: none. Gap: yes. | [hooks] | documented in source |
 | `hooks.state` | `trusts, distrusts or disables a hook` | Codex runs a hook from the user's `config.toml` only when this state enables and trusts it ([gate][hook-trust], [trust check][hook-trust-check], [state source][hook-state]); the reader does not inspect it, so a command handler keeps its risk. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
 | `web_search` | `disabled` | The reader records this recognized configured mode without inferring live network availability. Catalog: `disabled`. Rules: none. Gap: no. | [schema] | documented |
@@ -171,6 +174,10 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 [app-enabled-run]: https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6726050010
 [app-tool-policy-tests]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy_tests.rs#L685-L770
 [writable-roots]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/config/mod.rs#L3769-L3790
+[full-access-commands]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L864
+[dangerous-commands]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/shell-command/src/command_safety/is_dangerous_command.rs#L132-L160
+[full-access-tools]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/mcp/mod.rs#L91-L110
+[full-access-tool-call]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1577-L1588
 [hooks]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs
 [mcp-url]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L407
 [mcp-transport]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L512-L566
@@ -178,6 +185,8 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 [hook-handlers]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L140-L188
 [hook-skipped]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L782-L801
 [hook-empty]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L665-L671
+[hook-command-windows]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L150-L155
+[hook-windows-choice]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L660-L671
 [hook-mcp-tool]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L729-L781
 [hook-trust]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L917-L923
 [hook-trust-check]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L1000-L1027

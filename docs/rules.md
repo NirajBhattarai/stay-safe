@@ -11,6 +11,7 @@
 
 - Settings: [Codex meanings](../harnesses/codex.md) rows `approval_policy`
 - Incidents: [I2](../incidents.md#i2-home-directory-added-to-a-delete-command), [I3](../incidents.md#i3-windows-drive-wiped), [I24](../incidents.md#i24-driver-update-followed-by-boot-and-network-failures)
+- Citations support: the incidents show the general condition, commands running without approval, not the exact commands. Under `on-request` with full access, Codex still asks before forced deletes such as those in [I2](../incidents.md#i2-home-directory-added-to-a-delete-command) and [I3](../incidents.md#i3-windows-drive-wiped) ([#141](https://github.com/chalkbadger/stay-safe/issues/141); Codex [exec_policy.rs](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L864), [is_dangerous_command.rs](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/shell-command/src/command_safety/is_dangerous_command.rs)).
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+commands_without_prompts+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+commands_without_prompts)
 
@@ -30,7 +31,7 @@
 
 ## automatic_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.default_tools_approval_mode`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `approval_policy`, `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.default_tools_approval_mode`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
 - Incidents: [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I20](../incidents.md#i20-injected-text-turned-off-approvals)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+automatic_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+automatic_tools)
@@ -46,6 +47,7 @@
 
 - Settings: [Codex meanings](../harnesses/codex.md) rows `sandbox_workspace_write.network_access`
 - Incidents: [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets)
+- Citations support: [I15](../incidents.md#i15-prompt-injection-through-github-issues) and [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets) show injected instructions reaching data that a network channel could send out. This rule reports `sandbox_workspace_write.network_access` only. Full access is reported by [`unrestricted_filesystem`](#unrestricted_filesystem), not by a separate network finding.
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+network_access+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+network_access)
 
