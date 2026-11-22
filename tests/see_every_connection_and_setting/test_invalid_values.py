@@ -68,6 +68,7 @@ CASES = {
     "apps._default.enabled": ({}, '[apps._default]\nenabled="yes"\n[apps.cal]\ndefault_tools_approval_mode="approve"\n',
                               [BOOLEAN_GAP.format("apps")],
                               {"apps._default": ["enablement unknown", "tool approval: auto (default)"],
+                               "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: settings unknown"],
                                "apps.cal": ["configured enabled", "destructive tools enabled by Codex default", "tool approval: approve"]},
                               [("automatic_tools", "apps.cal"), ("destructive_tools", "apps.cal")]),
     "apps.*.enabled": ({}, '[apps.cal]\nenabled="yes"\ndefault_tools_approval_mode="approve"\n',

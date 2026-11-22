@@ -11,6 +11,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
 - I let commands in `workspace-write` mode write to extra folders and see that setting under "Not checked", without the folders' paths. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
 - I see on the ChatGPT Apps connection whether apps my file doesn't name are off and where their `destructive_enabled` comes from. `test_chatgpt_apps.py::test_chatgpt_apps_connection_says_whether_apps_not_named_can_change_data`
+- I give `apps._default` an invalid value and see that the ChatGPT Apps connection says unknown for apps my file doesn't name, next to the invalid-value gap. `test_chatgpt_apps.py::test_invalid_template_leaves_apps_not_named_unknown_and_keeps_its_gap`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97

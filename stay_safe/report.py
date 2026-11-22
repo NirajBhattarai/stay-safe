@@ -481,10 +481,10 @@ GAPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
-    "sandbox_workspace_write.writable_roots adds folders that commands can write outside the workspace; their paths were withheld and were not evaluated.":
-        "**Not checked: extra folders commands can write to.** Your `writable_roots` lets commands Codex runs in "
-        "`workspace-write` mode write to folders outside your workspace. stay-safe doesn't check what those folders "
-        "are. Their paths are left out of this report.",
+    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
+        "**Not checked: extra folders commands can write to.** Your config lists folders in `writable_roots` that "
+        "commands may write to in `workspace-write` mode. Some may be outside your workspace. stay-safe doesn't "
+        "check what those folders are. Their paths are left out of this report.",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.":
         "**Not checked: extra folders commands can write to.** Your `writable_roots` isn't a list of folder "
         f"paths, so stay-safe can't tell where commands can write. {WITHHELD}",
@@ -658,7 +658,7 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
-    "sandbox_workspace_write.writable_roots adds folders that commands can write outside the workspace; their paths were withheld and were not evaluated.":
+    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
         "Review each folder in `writable_roots` yourself, and remove any that commands shouldn't change, such as "
         "the Docker socket (`/var/run/docker.sock`).",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.": "Make `writable_roots` a list of folder paths, or remove it.",
@@ -892,6 +892,10 @@ def setup_words(keys, observation):
         return f"apps your file doesn't name have tools that change or delete data {'on' if found[1] == 'enabled' else 'off'} ({origin})"
     if observation == "apps not named in this file: disabled by apps._default.enabled":
         return "apps your file doesn't name are off (`apps._default.enabled`)"
+    if observation == "apps not named in this file: destructive tools unknown":
+        return "unknown whether apps your file doesn't name have tools that change or delete data on (`apps._default.destructive_enabled` is invalid)"
+    if observation == "apps not named in this file: settings unknown":
+        return "unknown what apps your file doesn't name are allowed to do (`apps._default` is invalid)"
     found = re.fullmatch(r"destructive tools (enabled|disabled) by (.+)", observation)
     if found:
         origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"
