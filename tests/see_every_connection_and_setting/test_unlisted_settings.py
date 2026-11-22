@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from stay_safe.report import inspect
@@ -41,8 +42,7 @@ def risks(report):
 class UnlistedSettingTests(ConfigCase):
     def test_sandbox_and_app_settings_no_rule_reads_give_no_entry_risk_or_gap(self):
         cases = [(SANDBOX + f"{key}={value}\n", SANDBOX_CATALOG, SANDBOX_RISKS)
-                 for key, values in (("writable_roots", ('["/var/run/docker.sock"]', '"/var/run/docker.sock"', "7", "[7]")),
-                                     ("exclude_slash_tmp", ("true", "false", '"yes"')),
+                 for key, values in (("exclude_slash_tmp", ("true", "false", '"yes"')),
                                      ("exclude_tmpdir_env_var", ("true", "false", '"yes"')))
                  for value in values]
         base = ON_REQUEST + 'sandbox_mode="read-only"\n'
@@ -58,6 +58,33 @@ class UnlistedSettingTests(ConfigCase):
                 self.assertEqual(catalog(report), expected_catalog)
                 self.assertEqual(risks(report), expected_risks)
                 self.assertEqual(report["inspection_gaps"], [])
+
+    def test_active_writable_roots_give_a_gap_and_no_entry_or_risk(self):
+        # Issue #137: Codex adds each writable root to the folders sandboxed commands may write in workspace-write
+        # mode (openai/codex 086ccc8, core/src/config/mod.rs L3769-L3790); a list that is not a list of paths fails
+        # Codex's own parsing, whatever the mode.
+        writable = ("config-1: sandbox_workspace_write.writable_roots adds folders that commands can write outside "
+                    "the workspace; their paths were withheld and were not evaluated.")
+        invalid = "config-1: sandbox_workspace_write.writable_roots is invalid; its value was withheld."
+        read_only = SANDBOX.replace('"workspace-write"', '"read-only"')
+        read_only_catalog = {**SANDBOX_CATALOG, "sandbox_mode": ["read-only"],
+                             "sandbox_workspace_write.network_access": ["true", "inactive or selection unknown"]}
+        cases = [(SANDBOX + 'writable_roots=["/var/run/docker.sock"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
+                 (SANDBOX + 'writable_roots=["/srv/a", "/srv/b"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
+                 (SANDBOX + "writable_roots=[]\n", SANDBOX_CATALOG, SANDBOX_RISKS, []),
+                 (read_only + 'writable_roots=["/var/run/docker.sock"]\n', read_only_catalog, {SHELL_RISK}, [])]
+        cases += [(base + f"writable_roots={value}\n", catalog_, risks_, [invalid])
+                  for base, catalog_, risks_ in ((SANDBOX, SANDBOX_CATALOG, SANDBOX_RISKS),
+                                                 (read_only, read_only_catalog, {SHELL_RISK}))
+                  for value in ('"/var/run/docker.sock"', "7", "[7]")]
+        for text, expected_catalog, expected_risks, expected_gaps in cases:
+            with self.subTest(config=text):
+                report = inspect([self.config(text)])
+                self.assertEqual(catalog(report), expected_catalog)
+                self.assertEqual(risks(report), expected_risks)
+                self.assertEqual(report["inspection_gaps"], expected_gaps)
+                self.assertNotIn("docker.sock", json.dumps(report))
+                self.assertNotIn("/srv/", json.dumps(report))
 
     def test_default_permissions_gives_no_entry_and_keeps_its_gaps(self):
         report = inspect([self.config(ON_REQUEST + 'default_permissions="team-profile"\n')])

@@ -62,6 +62,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `sandbox_workspace_write.network_access` | `true` | This workspace-write option controls outbound network access. Catalog: `true`, `workspace-write option`. Rules: `network_access`. Gap: no. | [sandbox] | documented |
 | `sandbox_workspace_write.network_access` | `false` | This workspace-write option controls outbound network access. Catalog: `false`, `workspace-write option`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_workspace_write.*` | `under read-only` | Workspace-write options are not selected by read-only mode. Catalog: `true`, `inactive or selection unknown`. Rules: none. Gap: no. | [schema] | documented |
+| `sandbox_workspace_write.writable_roots` | `paths under workspace-write` | Codex adds each listed folder to the folders that sandboxed commands may write ([roots][writable-roots]); the reader withholds the paths and does not evaluate what they are. Catalog: none. Rules: none. Gap: yes. | [writable-roots] | documented in source |
 | `mcp_servers.*.enabled` | `false` | A disabled server supplies no enabled program or tool condition. Catalog: `disabled`, `stdio; command withheld`, `tool approval: auto (default)`. Rules: none. Gap: no. | [mcp] | documented |
 | `mcp_servers.*.command` | `nonempty command, no url` | An enabled stdio server starts a configured command; contents are withheld. Catalog: `configured enabled`, `stdio; command withheld`, `tool approval: auto (default)`. Rules: `configured_program`, `self_described_tools`. Gap: no. | [mcp] | documented |
 | `mcp_servers.*.url` | `string, no command` | Codex uses HTTP for any string `url` without `command` ([field][mcp-url], [transport][mcp-transport]); the reader does not check its form, and the endpoint is not evidence of reachability or authentication. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [mcp-transport] | documented in source |
@@ -166,6 +167,7 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 [apps-sign-in]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/mcp/mod.rs#L358-L360
 [app-enabled-run]: https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6726050010
 [app-tool-policy-tests]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy_tests.rs#L685-L770
+[writable-roots]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/config/mod.rs#L3769-L3790
 [hooks]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs
 [mcp-url]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L407
 [mcp-transport]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L512-L566
