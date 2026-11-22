@@ -123,8 +123,9 @@ class Reader:
                     self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
                 elif roots and active:
                     # Codex adds each root to the folders sandboxed commands may write: harnesses/codex.md [writable-roots].
-                    self.gap("sandbox_workspace_write.writable_roots adds folders that commands can write outside "
-                             "the workspace; their paths were withheld and were not evaluated.")
+                    self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+                             "workspace-write mode, some possibly outside the workspace; their paths were withheld "
+                             "and were not evaluated.")
             if "network_access" in table:
                 value = self.boolean(table, "network_access", False, "sandbox_workspace_write")
                 if value is not None:
