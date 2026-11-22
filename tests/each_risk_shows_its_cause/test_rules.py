@@ -8,7 +8,7 @@ from tests.support import ROOT, ConfigCase
 class RuleTests(ConfigCase):
     def test_rules_accept_harness_neutral_observations(self):
         cases = [
-            ("saved_approval", ["I26"]),
+            ("saved_approval", ["I26", "I30"]),
             ("commands_without_prompts", ["I2", "I3", "I24"]),
             ("unrestricted_filesystem", ["I1", "I3"]),
             ("configured_program", ["I13", "I14", "I19"]),

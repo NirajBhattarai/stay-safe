@@ -256,7 +256,7 @@ prefix_rule(pattern=["curl"], decision="allow")
         path = self.rules(ALLOW)
         report = self.run_report(['--rules', str(path)])
         finding, = report['risks']
-        self.assertEqual((finding['entry'], finding['incidents']), ('rules-1:prefix_rule.1', ['I26']))
+        self.assertEqual((finding['entry'], finding['incidents']), ('rules-1:prefix_rule.1', ['I26', 'I30']))
         revision = report['provenance']['source_revision']
         self.assertEqual(finding['interpretation_source'],
                          f'https://github.com/chalkbadger/stay-safe/blob/{revision}/harnesses/codex.md')

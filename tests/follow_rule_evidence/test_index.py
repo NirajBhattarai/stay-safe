@@ -62,6 +62,20 @@ class RuleIndexTests(ConfigCase):
                         'template': ['challenge.yml'], 'finding': ['Rule ' + rule.id]}),
                 ])
 
+    def test_saved_approval_links_to_both_incident_entries_in_the_report_and_index(self):
+        rules = self.config('prefix_rule(pattern=["synthetic"], decision="allow")\n', 'default.rules')
+        report = inspect([], rules_path=rules)
+        revision = report['provenance']['source_revision']
+        output = render(report, 'markdown')
+        index = (ROOT / 'docs/rules.md').read_text().split('## saved_approval\n', 1)[1].split('\n## ', 1)[0]
+        for incident, anchor in (
+                ('I26', 'i26-saved-command-approval-persisted-across-sessions-and-workspaces'),
+                ('I30', 'i30-railway-credentials-printed-in-a-claude-code-transcript')):
+            with self.subTest(incident=incident):
+                target = f'incidents.md#{anchor}'
+                self.assertIn(f'[{incident}]({REPO}/blob/{revision}/{target})', output)
+                self.assertIn(f'[{incident}](../{target})', index)
+
     def test_readable_rule_links_follow_revision_and_unknown_stays_plain(self):
         config = self.config('approval_policy="never"\nsandbox_mode="danger-full-access"\n'
                              'notify=["private-command"]\n[mcp_servers.example]\nurl="https://example.invalid"\n'
