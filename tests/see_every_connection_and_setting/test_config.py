@@ -251,7 +251,7 @@ approval_mode="approve"
         self.assertIn("Named permission profiles are outside reader coverage", " ".join(report["inspection_gaps"]))
         self.assertIn("default_permissions and sandbox_mode conflict", " ".join(report["inspection_gaps"]))
         definitions = inspect([self.config('approval_policy="on-request"\nsandbox_mode="danger-full-access"\n[permissions.example]\nextends=":read-only"')])
-        self.assertEqual([r["rule"] for r in definitions["risks"]], ["unrestricted_filesystem", "environment_inheritance"])
+        self.assertEqual([r["rule"] for r in definitions["risks"]], ["commands_without_prompts", "unrestricted_filesystem", "environment_inheritance"])
 
     def test_preapproved_tools_are_distinct_from_auto_and_keep_slash_names(self):
         path = self.config('''approval_policy="on-request"
