@@ -63,14 +63,17 @@ class UnlistedSettingTests(ConfigCase):
         # Issue #137: Codex adds each writable root to the folders sandboxed commands may write in workspace-write
         # mode (openai/codex 086ccc8, core/src/config/mod.rs L3769-L3790); a list that is not a list of paths fails
         # Codex's own parsing, whatever the mode.
-        writable = ("config-1: sandbox_workspace_write.writable_roots adds folders that commands can write outside "
-                    "the workspace; their paths were withheld and were not evaluated.")
+        writable = ("config-1: sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+                    "workspace-write mode, some possibly outside the workspace; their paths were withheld and were "
+                    "not evaluated.")
         invalid = "config-1: sandbox_workspace_write.writable_roots is invalid; its value was withheld."
         read_only = SANDBOX.replace('"workspace-write"', '"read-only"')
         read_only_catalog = {**SANDBOX_CATALOG, "sandbox_mode": ["read-only"],
                              "sandbox_workspace_write.network_access": ["true", "inactive or selection unknown"]}
         cases = [(SANDBOX + 'writable_roots=["/var/run/docker.sock"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
                  (SANDBOX + 'writable_roots=["/srv/a", "/srv/b"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
+                 # A folder inside the project gets the same gap: the file alone can't place a folder.
+                 (SANDBOX + 'writable_roots=["./inproject-logs"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
                  (SANDBOX + "writable_roots=[]\n", SANDBOX_CATALOG, SANDBOX_RISKS, []),
                  (read_only + 'writable_roots=["/var/run/docker.sock"]\n', read_only_catalog, {SHELL_RISK}, [])]
         cases += [(base + f"writable_roots={value}\n", catalog_, risks_, [invalid])
@@ -85,6 +88,7 @@ class UnlistedSettingTests(ConfigCase):
                 self.assertEqual(report["inspection_gaps"], expected_gaps)
                 self.assertNotIn("docker.sock", json.dumps(report))
                 self.assertNotIn("/srv/", json.dumps(report))
+                self.assertNotIn("inproject-logs", json.dumps(report))
 
     def test_default_permissions_gives_no_entry_and_keeps_its_gaps(self):
         report = inspect([self.config(ON_REQUEST + 'default_permissions="team-profile"\n')])

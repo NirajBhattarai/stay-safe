@@ -20,7 +20,7 @@ Expected results follow openai/codex@086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a (l
 - environments.toml. Codex reads `environments.toml` in the Codex home (exec-server/src/environment_toml.rs
   L26, L234-L246; exec-server/src/environment.rs L194-L209). An entry can name a `program` with `args` that
   Codex runs as the exec server (environment_toml.rs L49-L50, L183-L198). A missing file, including a broken
-  link, is skipped; other read failures are errors, so a folder by that name loads nothing (L330-L341).
+  link, is skipped; other read failures are errors, so a folder by that name gets its own gap (L330-L341).
 The gap texts follow the issue: each names the location and says it was not inspected; contents are not read.
 A failure to check either location gets its own gap, as for the plugin cache (archived issue #116).
 """
@@ -44,6 +44,7 @@ SKILLS_FAILURE = ('Codex home: Could not check the skills folder. '
 ENV_GAP = 'Codex home: environments.toml exists and was not inspected.'
 ENV_FAILURE = ('Codex home: Could not check environments.toml. '
                'Check that you can open environments.toml in your Codex folder.')
+ENV_NOT_FILE = 'Codex home: environments.toml is not a file; Codex fails to read it.'
 PRIVATE = ('private-skill', 'private-description', 'private-env', 'private-program', 'private-arg')
 
 
@@ -99,6 +100,17 @@ class SkillsAndEnvironmentsTests(ConfigCase):
             (target / 'deploy' / 'SKILL.md').write_text(SKILL)
             (home / 'skills').symlink_to(target, target_is_directory=True)
             self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
+        with self.subTest(kind='a longer link to a skill folder beside its shorter route'):
+            # Review of #142: Codex walks breadth-first, so the short route lists the folder; a link that reaches
+            # it near the depth limit must not hide the skill below it.
+            home = self.home('two-routes', ['team/deploy/SKILL.md'])
+            deep = home / 'skills' / 'a' / 'b' / 'c' / 'd' / 'e'
+            deep.mkdir(parents=True)
+            (deep / 'link').symlink_to(home / 'skills' / 'team', target_is_directory=True)
+            real = os.listdir
+            # Sorted listing puts the long route (a/...) before team/, the order that hid the skill.
+            with patch('os.listdir', lambda path: sorted(real(path))):
+                self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
         with self.subTest(kind='CODEX_HOME unset'):
             home = self.home('unset', ['deploy/SKILL.md'])
             self.assertEqual(self.run_report(home, env={'HOME': str(home.parent)}), (2, [SKILLS_GAP]))
@@ -203,14 +215,27 @@ class SkillsAndEnvironmentsTests(ConfigCase):
             self.assertIn('Review the environments in `environments.toml` yourself.', text)
 
     def test_codex_home_without_an_environments_toml_file_gives_no_such_gap(self):
-        for kind in ['no environments.toml', 'folder named environments.toml', 'broken symlink']:
+        for kind in ['no environments.toml', 'broken symlink']:
             with self.subTest(kind=kind):
                 home = self.home(kind.replace(' ', '-'))
-                if kind == 'folder named environments.toml':
-                    (home / 'environments.toml').mkdir()
-                elif kind == 'broken symlink':
+                if kind == 'broken symlink':
                     (home / 'environments.toml').symlink_to(self.root / 'missing.toml')
                 self.assertEqual(self.run_report(home), (0, []))
+
+    def test_environments_toml_that_is_not_a_file_gives_its_own_gap(self):
+        # Review of #142: Codex treats read failures other than a missing file as errors (environment_toml.rs
+        # L330-L341), so a folder by that name is not the same as no file.
+        for kind in ['folder', 'symlink to a folder']:
+            with self.subTest(kind=kind):
+                home = self.home(kind.replace(' ', '-'))
+                if kind == 'folder':
+                    (home / 'environments.toml').mkdir()
+                else:
+                    (self.root / 'env-folder').mkdir()
+                    (home / 'environments.toml').symlink_to(self.root / 'env-folder', target_is_directory=True)
+                self.assertEqual(self.run_report(home), (2, [ENV_NOT_FILE]))
+        code, text = self.run_report(home, fmt='markdown')
+        self.assertIn("Your Codex folder has an `environments.toml` that isn't a regular file", text)
 
     def test_unstattable_environments_toml_reports_failure_without_private_details(self):
         home = self.home('private-env-home')

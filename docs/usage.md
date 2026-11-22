@@ -66,7 +66,10 @@ under `$CODEX_HOME`, falling back to `~/.codex` when it is unset or empty, as
 Codex does. Other `.rules` files in that `rules/` directory are not read; their
 presence, or a `rules/` directory that cannot be listed, is an inspection gap.
 So are a `hooks.json` file, plugins in `plugins/cache`, skills in `skills` and an
-`environments.toml` file, which are not read, and a failure to check the last three. A
+`environments.toml` file, which are not read, an `environments.toml` that is not a
+file, and a failure to check the last three. The default scan looks for visible user
+skills under the Codex skills folder. It skips hidden folders, including the bundled
+`.system` folder. A
 `CODEX_HOME` that is missing or not a directory, or a home directory that cannot
 be determined, is an inspection gap and no defaults are assessed.
 

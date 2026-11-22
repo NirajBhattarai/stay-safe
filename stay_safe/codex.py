@@ -123,8 +123,9 @@ class Reader:
                     self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
                 elif roots and active:
                     # Codex adds each root to the folders sandboxed commands may write: harnesses/codex.md [writable-roots].
-                    self.gap("sandbox_workspace_write.writable_roots adds folders that commands can write outside "
-                             "the workspace; their paths were withheld and were not evaluated.")
+                    self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+                             "workspace-write mode, some possibly outside the workspace; their paths were withheld "
+                             "and were not evaluated.")
             if "network_access" in table:
                 value = self.boolean(table, "network_access", False, "sandbox_workspace_write")
                 if value is not None:
@@ -311,16 +312,21 @@ class Reader:
     @staticmethod
     def unnamed_apps(data):
         """What an app this file does not name gets: apps._default, then Codex's defaults (harnesses/codex.md [app-enabled])."""
-        apps = data.get("apps")
-        default = apps.get("_default", {}) if isinstance(apps, dict) else {}
-        default = default if isinstance(default, dict) else {}
+        # A missing value takes Codex's default; an invalid table or value leaves its part unknown (Codex's schema
+        # requires booleans, so it does not fall back to the default).
+        apps = data.get("apps", {})
+        default = apps.get("_default", {}) if isinstance(apps, dict) else None
+        if not isinstance(default, dict) or type(default.get("enabled", True)) is not bool:
+            return "apps not named in this file: settings unknown"
         if default.get("enabled") is False:
             return "apps not named in this file: disabled by apps._default.enabled"
-        destructive = default.get("destructive_enabled")
-        if type(destructive) is bool:
-            return (f"apps not named in this file: destructive tools {'enabled' if destructive else 'disabled'} "
-                    "by apps._default.destructive_enabled")
-        return "apps not named in this file: destructive tools enabled by Codex default"
+        if "destructive_enabled" not in default:
+            return "apps not named in this file: destructive tools enabled by Codex default"
+        destructive = default["destructive_enabled"]
+        if type(destructive) is not bool:
+            return "apps not named in this file: destructive tools unknown"
+        return (f"apps not named in this file: destructive tools {'enabled' if destructive else 'disabled'} "
+                "by apps._default.destructive_enabled")
 
     def projects(self, projects):
         """Count literal declarations only; never use project keys as filesystem paths."""
@@ -417,17 +423,18 @@ class Reader:
 
     def full_access(self, approval):
         """What an unrestricted sandbox adds to the approval policy (harnesses/codex.md rows approval_policy with
-        danger-full-access): on-request allows every command Codex doesn't flag as dangerous, and never approves
-        every MCP and app tool call whatever its approval mode."""
+        danger-full-access): on-request lets commands no execution rule matches run unless Codex flags them as
+        dangerous, and never can let MCP and app tool calls run without asking whatever their approval mode, unless
+        strict automatic review is on."""
         if approval["observations"] == ["on-request"]:
-            approval["observations"].append("with danger-full-access, commands Codex doesn't flag as dangerous run without asking")
+            approval["observations"].append("with danger-full-access, ordinary commands can run without asking")
             approval["facts"]["commands_without_prompts"] = True
         elif approval["observations"] == ["never"]:
             reachable = any(e["kind"] == "MCP server" and (e["name"] == "features.apps" or "configured enabled" in e["observations"])
                             or e["kind"] == "app policy" and e["name"] != "apps._default" and "configured enabled" in e["observations"]
                             for e in self.entries)
             if reachable:
-                approval["observations"].append("with danger-full-access, MCP and app tool calls run without asking")
+                approval["observations"].append("with danger-full-access, MCP and app tool calls can run without asking")
                 approval["facts"]["automatic_tools"] = True
 
 

@@ -53,8 +53,8 @@ class ConfiguredConditionTests(ConfigCase):
         # (openai/codex 086ccc8, core/src/exec_policy.rs L857-L864; the flag covers forced deletes,
         # shell-command/src/command_safety/is_dangerous_command.rs), and never approves every MCP and app tool call
         # whatever its approval mode (codex-mcp/src/mcp/mod.rs L91-L110, core/src/mcp_tool_call.rs L1577-L1588).
-        commands = "with danger-full-access, commands Codex doesn't flag as dangerous run without asking"
-        tools = "with danger-full-access, MCP and app tool calls run without asking"
+        commands = "with danger-full-access, ordinary commands can run without asking"
+        tools = "with danger-full-access, MCP and app tool calls can run without asking"
         full = 'sandbox_mode="danger-full-access"\n'
         server = '[mcp_servers.r]\nurl="https://example.com"\n'
         apps_off = '[features]\napps=false\n'
