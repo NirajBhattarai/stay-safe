@@ -333,6 +333,15 @@
   },
   {
     "setting": "hooks.*",
+    "value": "command handler with empty command and nonempty Windows command",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[[hooks.PreToolUse]]\nhooks=[{type=\"command\",command=\"\",commandWindows=\"synthetic-command\"}]",
+    "entry": "hooks.PreToolUse",
+    "gaps": [
+      "Hook execution policy is outside reader coverage."
+    ]
+  },
+  {
+    "setting": "hooks.*",
     "value": "no command handler with nonempty command",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[[hooks.PreToolUse]]\nhooks=[{type=\"prompt\"},{type=\"agent\"},{type=\"mcp_tool\",server=\"synthetic\",tool=\"synthetic\"},{type=\"command\",command=\"\"}]",
     "entry": "hooks.PreToolUse",

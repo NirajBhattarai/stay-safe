@@ -381,9 +381,11 @@ class Reader:
                         self.gap("hooks contains an invalid handler group.")
                         continue
                     # Matchers, options and hooks.state do not stop a command: harnesses/codex.md [hooks].
+                    # Windows runs commandWindows (alias command_windows) when set: [hook-windows-choice].
                     program = program or any(
-                        isinstance(h, dict) and h.get("type") == "command"
-                        and isinstance(h.get("command"), str) and bool(h["command"].strip())
+                        isinstance(h, dict) and h.get("type") == "command" and isinstance(h.get("command"), str)
+                        and any(isinstance(h.get(key), str) and bool(h[key].strip())
+                                for key in ("command", "commandWindows", "command_windows"))
                         for h in group.get("hooks", []))
                 self.add(["hooks", name], "automation", ["contents withheld"], {"configured_program": program})
             self.gap("Hook execution policy is outside reader coverage.")
