@@ -94,5 +94,6 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/100
 Tests: [tests/follow_rule_evidence/](../tests/follow_rule_evidence/)
 
 - I find each rule's section with matching setting rows and incident references and valid local targets and GitHub search and form URLs. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
+- I follow the saved-approval finding and its rule index to the Codex approval and Claude Code credential reports. `test_index.py::test_saved_approval_links_to_both_incident_entries_in_the_report_and_index`
 - I see each readable finding's rule linked at the report revision, or plain text when that revision is unknown. `test_index.py::test_readable_rule_links_follow_revision_and_unknown_stays_plain`
 - I find the index's search label configured on the challenge form, with the rule ID directed to its required finding field. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`

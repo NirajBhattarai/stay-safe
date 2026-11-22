@@ -13,7 +13,7 @@ class Rule:
 RULES = (
     Rule("saved_approval",
          "A saved rule declares matching commands allowed outside the sandbox without prompting.",
-         ("I26",)),
+         ("I26", "I30")),
     Rule("commands_without_prompts",
          "Permitted commands run without asking; injected or mistaken instructions could execute code. The configured sandbox still applies.",
          ("I2", "I3", "I24")),
