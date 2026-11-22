@@ -89,6 +89,14 @@ Tests: [tests/find_feedback/](../tests/find_feedback/)
 - I get an argument error and can find feedback without exposing private arguments. `test_feedback.py::test_argument_errors_link_once_without_echoing_private_arguments`
 - I can provide the context for a problem, idea or challenge without attaching a report. `test_forms.py::test_forms_collect_context_without_requiring_a_report`
 
+## [follow_rule_evidence] I can follow a finding to its rule's evidence and challenges.
+Issue: https://github.com/chalkbadger/stay-safe/issues/100
+Tests: [tests/follow_rule_evidence/](../tests/follow_rule_evidence/)
+
+- I find each rule's section with matching setting rows and incident references and valid local targets and GitHub search and form URLs. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
+- I see each readable finding's rule linked at the report revision, or plain text when that revision is unknown. `test_index.py::test_readable_rule_links_follow_revision_and_unknown_stays_plain`
+- I find the index's search label configured on the challenge form, with the rule ID directed to its required finding field. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
+
 ## [track_codex_releases] I can see which new Codex releases changed the sources or configuration fields behind the report.
 Issue: https://github.com/chalkbadger/stay-safe/issues/128
 Tests: [tests/track_codex_releases/](../tests/track_codex_releases/)
