@@ -2,6 +2,7 @@
 import argparse
 import os
 from pathlib import Path
+import stat
 import sys
 
 from .report import inspect, render
@@ -82,6 +83,77 @@ def plugins_cache(home):
     return None
 
 
+def skills(home):
+    """Return the skills gap when Codex would find a skill in skills/, the unreadable gap, or no gap.
+
+    Codex loads skills from $CODEX_HOME/skills:
+    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/host_roots.rs#L134-L140
+    A skill is a file named SKILL.md anywhere in the walk:
+    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/discovery.rs#L142-L154
+    The walk follows folder links (ext/skills/src/loader/host.rs#L164-L167), skips file links and hidden
+    folders, among them Codex's own skills/.system, and lists folders down to depth 6
+    (ext/skills/src/loader/mod.rs#L24):
+    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L837-L839
+    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L860-L863
+    """
+    root = home / "skills"
+    failed = False
+    seen = set()
+
+    def found(folder, depth):
+        nonlocal failed
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            failed = True
+            return False
+        for name in names:
+            path = folder / name
+            try:
+                if stat.S_ISLNK(path.stat(follow_symlinks=False).st_mode) and not path.is_dir():
+                    continue
+                if name == "SKILL.md" and path.is_file():
+                    return True
+                if path.is_dir() and depth < 6 and not name.startswith(".") and path.resolve() not in seen:
+                    seen.add(path.resolve())
+                    if found(path, depth + 1):
+                        return True
+            except OSError:
+                failed = True
+        return False
+
+    try:
+        if not root.is_dir():
+            return None
+        seen.add(root.resolve())
+        if found(root, 0):
+            return "Codex home: skills holds Codex skills that were not inspected."
+    except OSError:
+        failed = True
+    if failed:
+        return ("Codex home: Could not check the skills folder. "
+                "Check that you can open skills in your Codex folder.")
+    return None
+
+
+def environments_toml(home):
+    """Return the gap for an environments.toml Codex would read, the unreadable gap, or no gap.
+
+    Codex reads it with read_to_string: a missing file, or a broken link, is skipped and other failures are
+    errors, so a folder by that name loads nothing:
+    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment_toml.rs#L330-L341
+    """
+    try:
+        if stat.S_ISDIR((home / "environments.toml").stat().st_mode):
+            return None
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except OSError:
+        return ("Codex home: Could not check environments.toml. "
+                "Check that you can open environments.toml in your Codex folder.")
+    return "Codex home: environments.toml exists and was not inspected."
+
+
 def system_config():
     """Whether Codex's system config folder holds a file Codex loads, or a rules/ folder it cannot list."""
     try:
@@ -136,6 +208,7 @@ def main(argv=None):
             cache_gap = plugins_cache(home)
             if cache_gap:
                 gaps.append(cache_gap)
+            gaps.extend(gap for gap in (skills(home), environments_toml(home)) if gap)
             if system_config():
                 gaps.append("System config folder: /etc/codex holds Codex configuration that was not inspected.")
     result = inspect(paths, rules_path=rules, discovered=defaults, gaps=gaps)

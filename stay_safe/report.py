@@ -574,6 +574,15 @@ GAPS = {
     "Codex home: hooks.json exists and was not inspected.":
         "**Not checked: your `hooks.json` file.** Your Codex folder has a `hooks.json` file, which stay-safe "
         "doesn't read.",
+    "Codex home: skills holds Codex skills that were not inspected.":
+        "**Not checked: your Codex skills.** Your Codex folder has skills in `skills`, which stay-safe doesn't read.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "**Not checked: your Codex skills.** Could not check the skills folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "**Not checked: your `environments.toml` file.** Your Codex folder has an `environments.toml` file, which "
+        "stay-safe doesn't read.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "**Not checked: your `environments.toml` file.** Could not check it.",
     "Committed incident citations are incomplete; source links are unavailable.":
         "**Not checked: some cited incidents.** stay-safe couldn't find every cited incident in its incident list, "
         "so those incidents appear without links.",
@@ -692,6 +701,13 @@ STEPS = {
     "Codex home: CODEX_HOME is unset and the home directory cannot be determined; no default files were inspected.":
         "Set `HOME` or `CODEX_HOME`, or select files with `--config` and `--rules`.",
     "Codex home: hooks.json exists and was not inspected.": "Review the hooks in `hooks.json` yourself.",
+    "Codex home: skills holds Codex skills that were not inspected.": "Review the skills in `skills` yourself.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "Check that you can open `skills` in your Codex folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "Review the environments in `environments.toml` yourself.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "Check that you can open `environments.toml` in your Codex folder.",
     "System config folder: /etc/codex holds Codex configuration that was not inspected.":
         "Review the files in `/etc/codex` yourself.",
     "Codex home: Could not check the plugin cache. Check that you can open plugins/cache in your Codex folder.":
