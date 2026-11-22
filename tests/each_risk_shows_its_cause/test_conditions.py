@@ -105,7 +105,8 @@ class ConfiguredConditionTests(ConfigCase):
              {'apps.files': ['disabled', 'tool approval: approve']}),
             # The app's own enabled = false stops the risks it would inherit (run case B).
             (TEMPLATE_OFF + '[apps.files]\nenabled=false',
-             {'apps._default': template_off, 'apps.files': template_off}),
+             {'apps._default': template_off, 'apps.files': template_off,
+              'features.apps': CHATGPT_APPS[:3] + ['apps not named in this file: disabled by apps._default.enabled']}),
             ('[apps.files]\ndefault_tools_enabled=false\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true',
              {'apps.files': ['configured enabled', 'default tools disabled or unknown', 'tool approval: approve']}),
             ('[mcp_servers.remote]\nurl="https://example.com"\ndefault_tools_approval_mode="approve"\nenabled_tools=["write"]\ndisabled_tools=["write"]',

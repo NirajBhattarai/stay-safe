@@ -30,14 +30,14 @@
 
 ## automatic_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.default_tools_approval_mode`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
 - Incidents: [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I20](../incidents.md#i20-injected-text-turned-off-approvals)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+automatic_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+automatic_tools)
 
 ## destructive_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `apps._default.enabled`, `apps.*.default_tools_enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.tools.*.enabled`, `apps.*.destructive_enabled`, `apps.*.links`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `apps._default.destructive_enabled`, `apps._default.enabled`, `apps.*.default_tools_enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.tools.*.enabled`, `apps.*.destructive_enabled`, `apps.*.links`
 - Incidents: [I7](../incidents.md#i7-production-volumes-deleted-with-a-found-token), [I8](../incidents.md#i8-database-changes-after-an-order-to-stop)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+destructive_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+destructive_tools)

@@ -26,7 +26,8 @@ SETUP = [
     "like this.",
     "- Approval: `never` (doesn't ask before commands)",
     "- ChatGPT Apps connection: an MCP connection to ChatGPT, only when Codex is signed in with ChatGPT (stay-safe "
-    "doesn't check sign-in), `features.apps = false` turns it off",
+    "doesn't check sign-in), `features.apps = false` turns it off, apps your file doesn't name have tools that "
+    "change or delete data on (Codex default)",
     "- Sandbox: `read-only` (commands can't write files)",
     "- Environment for commands: none passed on (you set this), `ignore_default_excludes` true (default)",
 ]

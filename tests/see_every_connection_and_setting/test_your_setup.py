@@ -85,7 +85,8 @@ ENTRIES = [
     # is signed in with ChatGPT, which stay-safe doesn't check; `false` removes it.
     ("config-3:features.apps", "MCP server", CHATGPT_APPS,
      "ChatGPT Apps connection: an MCP connection to ChatGPT, only when Codex is signed in with ChatGPT (stay-safe "
-     "doesn't check sign-in), `features.apps = false` turns it off"),
+     "doesn't check sign-in), `features.apps = false` turns it off, apps your file doesn't name have tools that "
+     "change or delete data on (Codex default)"),
     ("config-3:sandbox_mode", "permission", ["read-only"], "Sandbox: `read-only` (commands can't write files)"),
     ("config-3:shell_environment_policy", "permission", ["inherit: none (explicit)", "ignore_default_excludes: true (default)"],
      "Environment for commands: none passed on (you set this), `ignore_default_excludes` true (default)"),

@@ -86,7 +86,7 @@ class CatalogTests(ConfigCase):
             ("apps._default", "app policy", ["disabled", "tool approval: auto (default)"]),
             ("apps.backup", "app policy", ["disabled", "tool approval: approve"]),
             ("apps.calendar", "app policy", ["configured enabled", "destructive tools disabled by destructive_enabled", "tool approval: writes"]),
-            ("features.apps", "MCP server", CHATGPT_APPS),
+            ("features.apps", "MCP server", CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]),
             ("mcp_servers.git", "MCP server", ["configured enabled", "stdio; command withheld", "tool approval: prompt"]),
             ("mcp_servers.lookup", "MCP server", ["configured enabled", "HTTP; endpoint withheld", "tool approval: approve"]),
             ("mcp_servers.lookup.disabled_tools", "tool filter", ["configured names: delete"]),
