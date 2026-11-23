@@ -29,3 +29,13 @@ class FeedbackFormTests(unittest.TestCase):
                 guidance = " ".join(f["attributes"]["value"] for f in form["body"] if f["type"] == "markdown")
                 self.assertIn("Do not include credentials, raw private configuration", guidance)
                 self.assertIn("names", guidance)
+
+    def test_finding_field_explains_how_to_share_a_warning_with_private_names(self):
+        form = json.loads((ROOT / ".github/ISSUE_TEMPLATE/challenge.yml").read_text())
+        finding = next(field for field in form["body"] if field.get("id") == "finding")
+        help_text = finding["attributes"]["description"]
+        before, ids, after = help_text.partition("rule ID, entry ID, and exact")
+        self.assertIn("private names", before)
+        self.assertIn("rerun stay-safe on a sample config with made-up names and use that report", before)
+        self.assertTrue(ids, help_text)
+        self.assertIn("For a missed warning, say what you expected.", after)
