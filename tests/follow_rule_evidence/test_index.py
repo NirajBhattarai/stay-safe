@@ -10,6 +10,17 @@ from tests.support import ConfigCase, ROOT
 
 REPO = 'https://github.com/chalkbadger/stay-safe'
 REVISION = '1234567890abcdef1234567890abcdef12345678'
+CODEX = '/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/'
+# Rules whose incidents need a note on what they support (#144): the rules and incidents
+# the note links, and its external sources as (path, fragment).
+NOTES = {
+    'network_access': {'rules': ['unrestricted_filesystem'], 'incidents': ['I15', 'I21'], 'external': []},
+    'commands_without_prompts': {'rules': [], 'incidents': ['I2', 'I3'], 'external': [
+        ('/chalkbadger/stay-safe/issues/141', ''),
+        (CODEX + 'core/src/exec_policy.rs', 'L857-L864'),
+        (CODEX + 'shell-command/src/command_safety/is_dangerous_command.rs', '')]},
+}
+FIELDS = ('- Settings:', '- Incidents:', '- Citations support:', '- Challenges:', '- [Challenge this rule](')
 
 
 class RuleIndexTests(ConfigCase):
@@ -30,7 +41,28 @@ class RuleIndexTests(ConfigCase):
         for rule in RULES:
             with self.subTest(rule=rule.id):
                 section = sections[rule.id]
-                self.assertCountEqual(re.findall(r'\[(I\d+)\]\(', section), rule.incidents)
+                bullets = [line for line in section.splitlines() if line.startswith('- ')]
+                fields = [next((f for f in FIELDS if line.startswith(f)), line) for line in bullets]
+                expected = [f for f in FIELDS if rule.id in NOTES or f != '- Citations support:']
+                self.assertEqual(fields, expected, 'Bullet fields in ' + rule.id)
+                incidents = next(line for line in bullets if line.startswith('- Incidents:'))
+                cited = dict(re.findall(r'\[(I\d+)\]\(([^)\n]+)\)', incidents))
+                self.assertCountEqual(re.findall(r'\[(I\d+)\]\(', incidents), rule.incidents)
+                note_sources = []
+                if rule.id in NOTES:
+                    note = next(line for line in bullets if line.startswith('- Citations support:'))
+                    links = re.findall(r'\[([^\]\n]+)\]\(([^)\n]+)\)', note)
+                    self.assertCountEqual([text for text, link in links if re.fullmatch(r'I\d+', text)],
+                                          NOTES[rule.id]['incidents'])
+                    for text, link in links:
+                        if re.fullmatch(r'I\d+', text):
+                            self.assertEqual(link, cited[text], 'Note links its incident as cited')
+                    self.assertCountEqual([link for _, link in links if link.startswith('#')],
+                                          ['#' + name for name in NOTES[rule.id]['rules']])
+                    for name in NOTES[rule.id]['rules']:
+                        self.assertIn(f'[`{name}`](#{name})', note)
+                        self.assertIn(name, ids)
+                    note_sources = NOTES[rule.id]['external']
                 if rule.id != 'saved_approval':
                     settings = next(line for line in section.splitlines() if line.startswith('- Settings:'))
                     rows = {line.split('|')[1].strip(' `') for line in meanings
@@ -46,10 +78,14 @@ class RuleIndexTests(ConfigCase):
                     target = urlsplit(link)
                     if target.scheme:
                         self.assertEqual((target.scheme, target.netloc), ('https', 'github.com'))
-                        external.append((target.path, parse_qs(target.query)))
-                        self.assertEqual(target.fragment, '')
+                        if target.path.startswith('/chalkbadger/stay-safe/issues') and target.query:
+                            external.append((target.path, parse_qs(target.query)))
+                            self.assertEqual(target.fragment, '')
+                        else:
+                            self.assertIn((target.path, target.fragment), note_sources, link)
+                            external.append((target.path, target.fragment))
                         continue
-                    file = (index.parent / target.path).resolve()
+                    file = (index.parent / target.path).resolve() if target.path else index.resolve()
                     self.assertTrue(file.is_relative_to(ROOT.resolve()) and file.is_file(), link)
                     if target.fragment:
                         headings = re.findall(r'^#+ (.+)$', file.read_text(), re.M)
@@ -60,7 +96,7 @@ class RuleIndexTests(ConfigCase):
                         f'is:issue label:challenge {rule.id} in:title,body']}),
                     ('/chalkbadger/stay-safe/issues/new', {
                         'template': ['challenge.yml'], 'finding': ['Rule ' + rule.id]}),
-                ])
+                ] + note_sources)
 
     def test_saved_approval_links_to_both_incident_entries_in_the_report_and_index(self):
         rules = self.config('prefix_rule(pattern=["synthetic"], decision="allow")\n', 'default.rules')
