@@ -219,21 +219,25 @@ class Reader:
             enabled = self.boolean(server, "enabled", True, "mcp_servers")
             obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
             command, url = server.get("command"), server.get("url")
-            valid_command = isinstance(command, str) and bool(command.strip())
+            stdio = isinstance(command, str) and bool(command.strip()) and url is None
             # Codex uses HTTP for any string url without command: harnesses/codex.md [mcp-transport].
-            valid_url = isinstance(url, str)
-            valid = (valid_command and url is None) or (valid_url and command is None)
-            if valid:
-                obs.append("stdio; command withheld" if valid_command else "HTTP; endpoint withheld")
+            http = isinstance(url, str) and command is None
+            helper = server.get("http_headers_helper")
+            valid = stdio or http
+            if stdio and helper is not None:
+                valid = False
+                obs.append("Codex rejects this stdio configuration")
+                self.gap(f"Codex cannot load this configuration because stdio MCP server {name} sets http_headers_helper.")
+            elif valid:
+                obs.append("stdio; command withheld" if stdio else "HTTP; endpoint withheld")
             else:
                 obs.append("transport unknown")
                 self.gap("An MCP transport is missing, conflicting or invalid.")
             policy, facts = self.mcp_tools(server, parts, enabled is True and valid)
-            helper = server.get("http_headers_helper")
             valid_helper = isinstance(helper, str) and bool(helper.strip())
-            if helper is not None and not valid_helper:
+            if helper is not None and not stdio and not valid_helper:
                 self.gap("An MCP header-helper command is invalid; its value was withheld.")
-            facts["configured_program"] = enabled is True and valid and (valid_command or valid_helper)
+            facts["configured_program"] = enabled is True and valid and (stdio or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
     def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason):

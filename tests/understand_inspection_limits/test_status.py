@@ -35,7 +35,7 @@ class StatusTests(ConfigCase):
                     human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
                     explanation = section(human.stdout, "Not checked")
                     self.assertIn("Codex can't load this configuration", explanation)
-                    self.assertIn("the `docs.local` server".lower(), explanation.lower())
+                    self.assertIn("the `docs.local` server", explanation.lower())
                     self.assertIn("remove `http_headers_helper`", explanation.lower())
                     self.assertNotIn("starts a program on your computer", section(human.stdout, "Your setup"))
                     for private in ("private-server", "private-helper"):
