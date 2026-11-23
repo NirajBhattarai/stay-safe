@@ -1,6 +1,10 @@
 # Stay safe
 
-Check your Codex files for risky settings. See what each warning means and what you can do about it.
+Check your Codex settings and saved approvals with three questions in mind.
+
+- **What have I allowed Codex to do?**
+- **Which actions do my settings let Codex take on its own, and which need my approval?**
+- **What should I change if that’s more access than I want?**
 
 stay-safe reads settings and saved approvals from files. Only some settings are covered. The report names the defaults it uses and the checks it could not complete. It does not test live connections or what Codex will actually allow. See the [full scope](docs/report.md#full-scope).
 
@@ -71,13 +75,36 @@ again". If Codex can't download, see [Usage](docs/usage.md#if-codex-cant-downloa
 
 ## What it checks and what it can't see
 
+A saved approval may cover more than the action you remember. For example, an
+approval for every use of a program you used to download a file can cover uploads
+too. Check what the rule covers and whether that program has network access.
+
 - It reads the files listed in [Usage](docs/usage.md) and changes nothing in your setup.
 - Each warning names its rule and the setting behind it, and links to [incident reports](incidents.md). [Reading the report](docs/report.md) explains each part.
 - The [Codex meanings table](harnesses/codex.md) lists the settings it checks and the sources it uses. The report says when it used a default or could not complete a check.
 - The [full scope](docs/report.md#full-scope) explains what it does not inspect.
-- It shows server, app and tool names as written. Check those names before sharing the report.
+- It shows server, app and tool names as written. Check those names before sharing the report. If a name is private, reproduce the finding with made-up names and share that report.
+
+## Could someone use Codex to take private data?
+
+Suppose you ask Codex to investigate a bug someone reported in a public issue.
+
+1. **How could an attacker get in?** The person who filed the issue asks for a
+   diagnostic log. Could Codex mistake their request for an instruction from you?
+2. **What could they get to that’s worth taking?** Could Codex read a private log
+   containing customer details while it investigates?
+3. **How could they get it out?** Could Codex attach that log to a public reply
+   the attacker can read? Would it ask you before posting?
+
+For someone to take data this way, all three have to line up. The report can
+show which settings matter. You know who can file issues and what your logs
+contain. If one step is unclear, check that step. If Codex only needs to read
+issues, giving its issue tool read-only access closes this way out.
 
 ## Challenge a finding
+
+Two challenges help improve the report. Show us a risk it missed, or a warning
+it gave even though the settings already block the action it describes.
 
 Use the [challenge form](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml) to submit the finding, revision, disputed claim and evidence.
 
