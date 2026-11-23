@@ -29,6 +29,7 @@ from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 import os
+import unittest
 from unittest.mock import patch
 
 from stay_safe.cli import main
@@ -185,6 +186,59 @@ class SkillsAndEnvironmentsTests(ConfigCase):
             with patch('os.listdir', lambda p: (_ for _ in ()).throw(PermissionError(13, 'x'))
                        if os.fspath(p) == os.fspath(denied_path) else real(p)):
                 self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
+
+    def test_permission_error_on_a_linked_skills_folder_reports_failure(self):
+        # Second review of #142: a folder link whose target can't be checked is not an absent folder. Path.is_dir()
+        # reports it as absent, so the walk checks the file type with os.stat and keeps other errors.
+        for where in ('skills root', 'inside skills'):
+            home = self.home(where.replace(' ', '-'))
+            outside = self.root / (where.replace(' ', '-') + '-outside')
+            target = outside / 'private-target'
+            (target / 'deploy').mkdir(parents=True)
+            (target / 'deploy' / 'SKILL.md').write_text(SKILL)
+            if where == 'skills root':
+                (home / 'skills').symlink_to(target, target_is_directory=True)
+            else:
+                (home / 'skills').mkdir()
+                (home / 'skills' / 'linked').symlink_to(target, target_is_directory=True)
+            real_stat, real_listdir = os.stat, os.listdir
+            inside = lambda path: os.path.realpath(path).startswith(str(outside.resolve()))
+
+            def denied_stat(path, *args, follow_symlinks=True, **kwargs):
+                if follow_symlinks and inside(path):
+                    raise PermissionError(13, 'private-error', str(path))
+                return real_stat(path, *args, follow_symlinks=follow_symlinks, **kwargs)
+
+            def denied_listdir(path):
+                if inside(path):
+                    raise PermissionError(13, 'private-error', str(path))
+                return real_listdir(path)
+
+            with self.subTest(where=where, access='readable'):
+                self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
+            with self.subTest(where=where, access='denied'), patch('os.stat', denied_stat), \
+                    patch('os.listdir', denied_listdir):
+                code, gaps = self.run_report(home)
+                self.assertEqual((code, gaps), (2, [SKILLS_FAILURE]))
+                self.assertNotIn('private-target', json.dumps(gaps))
+            with self.subTest(where=where, access='restored'):
+                self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
+
+    @unittest.skipIf(os.name != 'posix' or os.geteuid() == 0, 'needs a POSIX user that file permissions apply to')
+    def test_unreadable_parent_of_a_linked_skills_folder_reports_failure(self):
+        # The same check with real permissions, as in the review: deny access to the link target's parent.
+        home = self.home('chmod')
+        parent = self.root / 'chmod-outside'
+        (parent / 'target' / 'deploy').mkdir(parents=True)
+        (parent / 'target' / 'deploy' / 'SKILL.md').write_text(SKILL)
+        (home / 'skills').symlink_to(parent / 'target', target_is_directory=True)
+        self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
+        parent.chmod(0)
+        try:
+            self.assertEqual(self.run_report(home), (2, [SKILLS_FAILURE]))
+        finally:
+            parent.chmod(0o755)
+        self.assertEqual(self.run_report(home), (2, [SKILLS_GAP]))
 
     # environments.toml
 
