@@ -25,6 +25,7 @@ Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limi
 - I follow the report's scope link and see its limits on live connections, effective permissions and other unverified behavior. `test_scope.py::test_the_full_scope_holds_every_scope_line`
 - I supply an unreadable file beside a readable one and see the failure without losing valid findings. `test_selected_config_failures.py::test_each_failure_has_a_distinct_private_safe_reason_and_action_in_both_formats`
 - I get an incomplete report and an explanation of exit status 2. `test_status.py::test_reports_with_gaps_explain_exit_two_on_stderr_only`
+- I give a stdio server an HTTP header helper and see why Codex rejects the setting and how to fix it. `test_status.py::test_stdio_header_helper_names_the_rejected_setting`
 - I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.

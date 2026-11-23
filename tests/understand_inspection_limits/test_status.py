@@ -12,6 +12,35 @@ COMPLETE = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
 
 
 class StatusTests(ConfigCase):
+    def test_stdio_header_helper_names_the_rejected_setting(self):
+        # Codex rust-v0.167.0, mcp_types.rs:513-548 (linked from issue #155).
+        checkout = copy_checkout(self.root / "checkout")
+        config = COMPLETE + 'shell_environment_policy.inherit="core"\n[mcp_servers."docs.local"]\n'
+        command = 'command="private-server"\n'
+        url = 'url="https://example.invalid/mcp"\n'
+        helper = 'http_headers_helper="private-helper"\n'
+        reason = ("config-1: Codex cannot load this configuration because stdio MCP server "
+                  "docs.local sets http_headers_helper.")
+        for settings, gaps, program in ((command + helper, [reason], False), (command, [], True),
+                                        (url + helper, [], True), (url, [], False)):
+            with self.subTest(settings=settings):
+                path = str(self.config(config + settings))
+                run = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
+                report = json.loads(run.stdout)
+                self.assertEqual(report["inspection_gaps"], gaps)
+                self.assertEqual(run.returncode, 2 if gaps else 0)
+                programs = [risk["entry"] for risk in report["risks"] if risk["rule"] == "configured_program"]
+                self.assertEqual(programs, ['config-1:mcp_servers."docs.local"'] if program else [])
+                if gaps:
+                    human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
+                    explanation = section(human.stdout, "Not checked")
+                    self.assertIn("Codex can't load this configuration", explanation)
+                    self.assertIn("the `docs.local` server".lower(), explanation.lower())
+                    self.assertIn("remove `http_headers_helper`", explanation.lower())
+                    self.assertNotIn("starts a program on your computer", section(human.stdout, "Your setup"))
+                    for private in ("private-server", "private-helper"):
+                        self.assertNotIn(private, run.stdout + human.stdout)
+
     def test_aws_credentials_name_each_unchecked_command(self):
         # NirajBhattarai: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7003842313
         # openai/codex 086ccc8 codex-rs/model-provider-info/src/lib.rs L241–260, L308–324.
