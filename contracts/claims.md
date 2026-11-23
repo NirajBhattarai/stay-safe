@@ -21,7 +21,9 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I allow shell commands and web fetches in Claude Code and see each rule and the sandbox setting, without the rules' contents. `test_claude_settings.py::test_allow_rules_for_shell_commands_and_web_fetches`
 - I add Claude Code ask or deny rules and settings stay-safe doesn't read, and see them under "Not checked" without their values. `test_claude_settings.py::test_ask_and_deny_rules_and_uncovered_settings_are_gaps`
 - My Claude Code settings file is invalid, a symlink or missing, and I see that under "Not checked". `test_claude_settings.py::test_unreadable_files_give_a_gap_and_no_entries`
-- My Claude Code folder has `~/.claude.json`, remote settings, skills, plugins or agents, or managed settings exist, and I see each under "Not checked" without their contents. `test_claude_settings.py::test_folder_contents_claude_code_loads_are_named_without_their_contents`
+- I supply a malformed Claude permission or sandbox field and see the field named as a gap. `test_claude_settings.py::test_malformed_permission_lists_and_sandbox_fields_name_the_field`
+- I turn on sandboxing and see whether the file sets automatic Bash approval or leaves it to a version-dependent default. `test_claude_settings.py::test_sandbox_approval_is_version_dependent_only_when_enabled_and_unset`
+- I configure only an ask rule and see that its matches were not checked. `test_claude_settings.py::test_ask_only_rules_name_the_unchecked_list_without_a_finding`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
@@ -45,6 +47,7 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - I lose an incident citation and see the gap while the findings remain. `test_report.py::test_cli_reports_missing_incident_citation_and_preserves_safe_data`
 - I set an approval mode or `destructive_enabled = true` in `apps._default` and see its risk once, on the template, for apps my file doesn't name. `test_single_attribution.py::test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps`
 - I set Claude Code's `bypassPermissions`, or allow every shell command or web fetch, and see each warning tied to its setting and incidents. `test_claude_risks.py::test_each_claude_code_warning_names_its_rule_setting_and_incidents`
+- I see competing ask or deny rules beside the allowance in the overview, details and JSON. `test_claude_risks.py::test_competing_permission_rules_are_visible_on_each_affected_finding`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
 Issue: https://github.com/chalkbadger/stay-safe/issues/12
@@ -59,6 +62,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I combine a `danger-full-access` file with another file that sets `read-only`, and every finding on the first file suggests `read-only`. `test_what_to_do.py::test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 - I get advice for each Claude Code finding, naming the setting to change and how to check it. `test_claude_advice.py::test_each_claude_code_finding_says_what_to_change_where_and_how_to_check`
+- I allow WebFetch for every domain and see advice to narrow its scope. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
@@ -73,6 +77,7 @@ Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent
 Issue: https://github.com/chalkbadger/stay-safe/issues/82
 Tests: [tests/overview_lists_findings_first/](../tests/overview_lists_findings_first/)
 
+- I see the same two numbered lists in the Claude Markdown overview and saved page. `test_overview.py::test_claude_finding_groups_keep_numbered_lists_in_markdown_and_html`
 - I see every finding once in the documented order, with matching details. `test_overview.py::test_every_finding_appears_once_in_policy_order_with_matching_details`
 - I see how many findings concern network access, credentials, or connected tools when that group appears. `test_overview.py::test_network_credentials_and_tools_group_uses_topic_and_count`
 - I follow identical titles from different files and reach the correct details. `test_overview.py::test_two_files_with_the_same_title_keep_their_labels_and_each_link_reaches_its_own_finding`
@@ -130,6 +135,11 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/163
 Tests: [tests/check_every_installed_agent/](../tests/check_every_installed_agent/)
 
 - I have Codex and Claude Code folders and one run reports both. `test_agents.py::test_default_run_reports_every_installed_agent`
+- I have only a Claude Code home and get only its report, even with account and extension files present. `test_agents.py::test_claude_only_home_keeps_just_its_report_even_with_account_and_extensions`
+- I configure a missing or invalid Claude folder and still see my Codex findings beside the Claude gap. `test_agents.py::test_bad_configured_claude_home_keeps_codex_findings_and_reports_gap`
+- I have an inaccessible Claude folder and see its gap alongside my Codex findings. `test_agents.py::test_inaccessible_claude_directory_keeps_the_other_report`
+- I have neither agent folder and see the Codex default assessment. `test_agents.py::test_neither_home_keeps_codex_defaults_and_any_explicit_claude_gap`
+- I select the Claude account file and see it excluded before it is opened. `test_agents.py::test_selected_account_file_never_reaches_the_opener`
 - I have no Claude Code folder and see the same report as `--agent codex`. `test_agents.py::test_without_a_claude_folder_the_default_run_is_the_codex_report`
 - I choose `--agent claude` and see only the Claude Code report. `test_agents.py::test_agent_claude_reports_only_claude_code`
 - I set `CLAUDE_CONFIG_DIR` and see the settings in that folder. `test_agents.py::test_claude_config_dir_selects_the_claude_folder`

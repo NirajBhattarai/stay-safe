@@ -28,7 +28,7 @@ class RevisionTests(GitCase):
         # Every module of the package, found in the checkout rather than copied from SOURCE_FILES.
         modules = sorted(p.relative_to(checkout).as_posix() for p in (checkout / "stay_safe").glob("*.py"))
         self.assertIn("stay_safe/save.py", modules)
-        paths = (*modules, "harnesses/codex.md", "incidents.md")
+        paths = (*modules, "harnesses/codex.md", "harnesses/claude-code.md", "incidents.md")
         hashes = {p: hashlib.sha256((checkout / p).read_bytes()).hexdigest() for p in paths}
         expected_tool = "sha256:" + hashlib.sha256(json.dumps(hashes, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         expected_rules = "sha256:" + hashes["stay_safe/rules.py"]
@@ -65,7 +65,8 @@ class RevisionTests(GitCase):
         checkout = self.checkout()
         original = identify(checkout)
         self.assertEqual(self.git(checkout, "status", "--porcelain"), "")
-        for name in ("stay_safe/rules.py", "stay_safe/codex.py", "stay_safe/codex_rules.py", "incidents.md"):
+        for name in ("stay_safe/rules.py", "stay_safe/codex.py", "stay_safe/codex_rules.py", "incidents.md",
+                     "harnesses/claude-code.md"):
             path = checkout / name
             before = path.read_bytes()
             path.write_bytes(before + b"\n# local edit\n")

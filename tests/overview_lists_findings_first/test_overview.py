@@ -12,7 +12,7 @@ import sys
 
 from stay_safe.report import inspect, render
 from tests.support import without_rule_links
-from tests.support import INCOMPLETE, ROOT, ConfigCase, section
+from tests.support import INCOMPLETE, REPORT, ROOT, ConfigCase, copy_checkout, run_checkout, section
 
 GROUP_1 = "**Nothing stands between a mistaken or injected instruction and your computer**"
 GROUP_2 = "**Network access, credentials, and connected tools**"
@@ -122,6 +122,17 @@ class Targets(HTMLParser):
 
 
 class OverviewTests(ConfigCase):
+    def test_claude_finding_groups_keep_numbered_lists_in_markdown_and_html(self):
+        path = self.config(json.dumps({"permissions": {"defaultMode": "default",
+                                                      "allow": ["Bash", "Bash(git status)", "WebFetch"]}}))
+        checkout = copy_checkout(self.root / "checkout")
+        run = run_checkout(checkout, "--agent", "claude", "--config", str(path), "--format", "markdown",
+                           "--save", cwd=checkout)
+        self.assertEqual(run.returncode, 0)
+        self.assertRegex(run.stdout, r"(?m)^2\. .*\n\n\*\*Network access\*\*\n\n3\. ")
+        page = (checkout / REPORT).read_text()
+        self.assertEqual(re.findall(r'<ol start="(\d+)">', page), ["1", "3"])
+
     def report(self, *texts, rules=None):
         paths = [self.config(text, f"config-{index}.toml") for index, text in enumerate(texts, 1)]
         return inspect(paths, rules_path=self.config(rules, "selected.rules") if rules is not None else None)

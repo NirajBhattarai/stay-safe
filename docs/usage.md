@@ -61,7 +61,7 @@ output and nothing is written. Redirect it to a new file to share it; never redi
 
 ## How files are found
 
-With no file arguments, the reader opens `config.toml` and `rules/default.rules`
+For a Codex report with no file arguments, the reader opens `config.toml` and `rules/default.rules`
 under `$CODEX_HOME`, falling back to `~/.codex` when it is unset or empty, as
 Codex does. Other `.rules` files in that `rules/` directory are not read; their
 presence, or a `rules/` directory that cannot be listed, is an inspection gap.
@@ -80,10 +80,15 @@ settings remain unknown, so this assessment still exits `2`. See the
 
 ## Claude Code: `--agent`
 
-A run with no `--agent` checks Codex, and also Claude Code when its folder exists:
-`$CLAUDE_CONFIG_DIR`, or `~/.claude` under `$HOME`. Each agent gets its own report, one
-after the other; with `--format json` they are listed under `"reports"`. A run that finds
-no Claude Code folder prints the Codex report exactly as before.
+With no file or agent selected, stay-safe checks each agent whose settings folder it
+finds. A Claude-only home gets a Claude Code report. If neither folder exists, you
+get the usual Codex default assessment. A nonempty `CODEX_HOME` or `CLAUDE_CONFIG_DIR`
+selects that folder even when it cannot be inspected. That report names the gap and
+the command exits 2, alongside any findings for the other agent.
+
+With `--format json`, a single report is an object with a `harness` field. For two
+agents the outer object contains a `reports` array, with Codex first and Claude Code
+second.
 
 ```sh
 python3 -m stay_safe --agent claude
@@ -91,13 +96,14 @@ python3 -m stay_safe --agent codex
 python3 -m stay_safe --agent claude --config /path/to/settings.json
 ```
 
-For Claude Code the reader opens `settings.json` in that folder and reads the permission
-mode, allow rules for `Bash` and `WebFetch`, and `sandbox.enabled`. It names, without
-opening, `~/.claude.json`, `remote-settings.json`, the `agents`, `commands`, `plugins` and
-`skills` folders when they hold anything, and managed settings. Project settings
-(`.claude/settings.json`, `.claude/settings.local.json`) are not read. `--config` with
-more than one `--agent` is an error, and `--rules` reads Codex files only. The
-[Claude Code meanings table](../harnesses/claude-code.md) lists each meaning and its source.
+Claude Code discovery reads `settings.json` under `$CLAUDE_CONFIG_DIR` or
+`~/.claude`. To inspect another settings file, pass `--agent claude --config FILE`.
+Each selected file is a separate snapshot. Account data, managed settings and
+extension folders are outside discovery. The [Claude Code meanings table](../harnesses/claude-code.md)
+lists the supported settings and their sources.
+
+Without `--agent`, `--config` and `--rules` select Codex. Select one agent when
+passing `--config`. Only Codex accepts `--rules`.
 
 ## Save the report as a page: `--save`
 

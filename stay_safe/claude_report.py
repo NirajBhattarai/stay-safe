@@ -8,8 +8,8 @@ from .rules import evaluate
 
 HARNESS = "Claude Code"
 SCOPE = [
-    "Only the user settings file, or the files selected with --config, are read; project settings "
-    "(.claude/settings.json, .claude/settings.local.json), managed settings and command-line flags are not.",
+    "Discovery reads the user settings file. You can also select settings files with --config. Account files, "
+    "managed settings, extension folders and command-line flags are outside this check.",
     "Files are independent snapshots; Claude Code combines allow rules from every settings file it loads.",
     "Ask and deny rules, which Claude Code checks before allow rules, are not inspected.",
     "Commands, addresses, paths and other values in rules and settings are withheld, except a first word on "
@@ -20,7 +20,7 @@ SCOPE = [
 WHAT = {
     ("commands_without_prompts", None):
         "Set `permissions.defaultMode` to `default`, so Claude Code asks before most edits, shell commands and network "
-        "requests. Commands your allow rules match still run without asking.",
+        "requests. Review any separate allow rules for actions you want to approve yourself.",
     ("saved_approval", "broad"):
         "Remove this rule and allow only the commands you run often, for example `Bash(npm run test *)`.",
     ("saved_approval", None):
@@ -28,21 +28,21 @@ WHAT = {
     ("network_access", "broad"):
         "Remove this rule, or limit it to the domains you need, for example `WebFetch(domain:example.com)`.",
     ("network_access", None):
-        "Check that you trust every page on that domain, and remove the rule if you no longer need it.",
+        "Check that you trust the domains this rule covers, and remove the rule if you no longer need it.",
 }
 HEADLINES = {
-    ("commands_without_prompts", None): "With these settings, Claude Code runs commands and edits files without asking you.",
-    ("saved_approval", "broad"): "An allow rule lets Claude Code run every shell command without asking you.",
-    ("saved_approval", None): "An allow rule lets Claude Code run matching shell commands without asking you.",
-    ("network_access", "broad"): "An allow rule lets Claude Code fetch any web address without asking you.",
-    ("network_access", None): "An allow rule lets Claude Code fetch pages from a domain without asking you.",
+    ("commands_without_prompts", None): "This file selects bypassPermissions, which can skip permission prompts.",
+    ("saved_approval", "broad"): "This file has an allow rule for every Bash command.",
+    ("saved_approval", None): "This file has an allow rule for matching Bash commands.",
+    ("network_access", "broad"): "This file has a WebFetch allow rule for every web address.",
+    ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
 }
 WHY = {
     "commands_without_prompts": "`bypassPermissions` skips permission prompts, so injected or mistaken instructions "
-                                "could make it run code you didn't want.",
-    "saved_approval": "A rule can cover more than the command you remember: an approval for a program you used to "
-                      "download a file can cover uploads too. A deny or ask rule can override it, and stay-safe "
-                      "doesn't check whether one does.",
+                                "could make it run code you didn't want if this mode applies. From v2.1.257, project "
+                                "and local settings cannot enable this mode.",
+    "saved_approval": "An allow rule can cover more than the command you remember. A rule for a program you use to "
+                      "download a file can cover uploads too. Sandbox restrictions still apply when the command runs sandboxed.",
     "network_access": "Injected instructions could send your private data out in a request.",
 }
 NOTE = ("*Before you change anything:* Claude Code combines settings from several files, and a `--permission-mode` "
@@ -72,11 +72,6 @@ GAPS = {
     "permissions.allow is not a list; its rules were not evaluated.": (
         "**Not checked: `permissions.allow`.** It isn't a list.",
         "Review `permissions.allow` yourself."),
-    "permissions.ask or permissions.deny contains rules; Claude Code checks them before allow rules, and they were "
-    "not inspected.": (
-        "**Not checked: ask and deny rules.** Claude Code checks them before allow rules, so they can block or ask "
-        "about commands an allow rule matches.",
-        "Review `permissions.ask` and `permissions.deny` together with each allow-rule finding."),
     "permissions contains fields outside reader coverage; their values were withheld.": (
         "**Not checked: other `permissions` settings,** such as extra directories Claude Code may reach.",
         "Review the `permissions` block yourself."),
@@ -94,19 +89,7 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
-    "Claude Code home: ~/.claude.json exists and was not inspected; it holds MCP servers and per-project trust "
-    "decisions.": (
-        "**Not checked: `~/.claude.json`.** It holds your MCP servers, per-project trust decisions and account "
-        "details, so stay-safe doesn't open it.",
-        "Run `claude mcp list` to review your MCP servers."),
-    "Claude Code home: remote-settings.json exists; settings your organization manages remotely were not inspected.": (
-        "**Not checked: remotely managed settings.** Your organization's settings override yours.",
-        "Ask your administrator what they allow."),
-    "Managed settings: a Claude Code managed settings file exists and was not inspected.": (
-        "**Not checked: managed settings.** Settings deployed to this computer override yours.",
-        "Ask your administrator what they allow."),
 }
-FOLDERS = {"agents": "subagents", "commands": "custom commands", "plugins": "plugins", "skills": "skills"}
 UNKNOWN = ("**Not checked:** {}", "Review this part of your setup yourself.")
 WORDS = {"default": "`default` (asks before most actions)", "manual": "`manual` (asks before most actions)",
          "acceptEdits": "`acceptEdits` (accepts file edits without asking)", "plan": "`plan` (doesn't edit files)",
@@ -131,6 +114,7 @@ def inspect(paths, *, discovered=False, gaps=()):
     by_id = {entry["id"]: entry for entry in entries}
     for risk in risks:
         risk["configured_evidence"] = list(by_id[risk["entry"]]["observations"])
+        risk["explanation"] = headline(risk)
         risk["rule_source"] = source_link(revision, "stay_safe/rules.py")
         risk["interpretation_source"] = source_link(revision, "harnesses/claude-code.md")
     from .report import INCIDENT_STATUS, incident_links
@@ -158,16 +142,28 @@ def heading_id(heading):
 
 def scope(risk):
     observations = risk["configured_evidence"]
-    return "broad" if {"broad: every command", "every address"} & set(observations) else None
+    return "broad" if {"broad: every command", "every address", "every domain"} & set(observations) else None
+
+
+def headline(risk):
+    observations = risk["configured_evidence"]
+    if "every domain" in observations:
+        lead = "This file has a WebFetch allow rule for every domain, including for sandbox network access."
+    else:
+        lead = HEADLINES[risk["rule"], scope(risk)]
+    overrides = [key for key in ("deny", "ask") if f"{key} rules present" in observations]
+    if overrides:
+        effect = {"deny": "block this action", "ask": "require approval"}
+        effects = " or ".join(effect[key] for key in overrides)
+        lead += f" This file also has {' and '.join(overrides)} rules that could {effects}. Their matches were not checked."
+    return lead
 
 
 def finding(risk, path, number):
     """Lead, What to do, Change it and Check for one finding."""
     from .report import FINDINGS
-    rule, key = risk["rule"], (risk["rule"], None if risk["rule"] == "commands_without_prompts" else scope(risk))
-    headline, what = HEADLINES.get(key), WHAT.get(key)
-    if headline is None:
-        return (risk["explanation"], "See the cited incidents.", "*What to do:* Review this setting yourself.")
+    rule = risk["rule"]
+    what = WHAT[rule, scope(risk)]
     if rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
                   f"`permissions.defaultMode` to `default`; show only what you change.\"")
@@ -177,7 +173,7 @@ def finding(risk, path, number):
         change = (f"*Change it:* rule {number} of `permissions.allow` in {path}, or ask Claude Code: \"Show me rule "
                   f"{number} of `permissions.allow` in {path} and remove it; show only what you change.\"")
         check = f"*Check:* Look at `permissions.allow` in {path}."
-    return (f"**{headline}** {WHY[rule]}", FINDINGS[rule]["how"],
+    return (f"**{risk['explanation']}** {WHY[rule]}", FINDINGS[rule]["how"],
             "\n\n".join([f"*What to do:* {what}", change, check]))
 
 
@@ -186,18 +182,12 @@ def gap(text, files):
     if not (separator and source.startswith("settings-")):
         source, message = None, text
     lead_step = GAPS.get(message)
-    folder = message.removeprefix("Claude Code home: ").removesuffix(" holds items that were not inspected.")
-    if lead_step is None and folder in FOLDERS:
-        lead_step = (f"**Not checked: {FOLDERS[folder]}.** Your Claude Code folder has {FOLDERS[folder]} in "
-                     f"`{folder}`, which Claude Code loads and stay-safe doesn't inspect.",
-                     f"Review the {FOLDERS[folder]} you installed.")
     if lead_step is None and message.startswith("Settings outside reader coverage were not evaluated: "):
         names = message.removeprefix("Settings outside reader coverage were not evaluated: ").removesuffix(".")
         lead_step = (f"**Not checked: other settings.** stay-safe doesn't yet read these settings: {names}.",
                      "Review them yourself; settings such as `hooks`, `env` and `apiKeyHelper` can run programs or "
                      "pass values to them.")
-    if lead_step is None and message.startswith("Claude Code home: ") and message.endswith(
-            "was not found; no Claude Code files were inspected."):
+    if lead_step is None and message.startswith("Claude Code home: ") and message.endswith("no Claude Code files were inspected."):
         lead_step = (f"**Not checked: Claude Code.** {message.removeprefix('Claude Code home: ')}",
                      "Check that Claude Code is installed, or select a settings file with `--config`.")
     lead, step = lead_step or (UNKNOWN[0].format(message), UNKNOWN[1])
@@ -212,12 +202,13 @@ def setup_line(entry):
         tool, rest = words[0], words[1:]
         return f"- Allow rule {keys[2]}: `{tool}`" + (f", {', '.join(rest)}" if rest else " (details left out)")
     label = {"permissions.defaultMode": "Permission mode", "sandbox.enabled": "Sandbox",
+             "sandbox.autoAllowBashIfSandboxed": "Auto-allow sandboxed Bash commands",
              "settings": "Settings file"}.get(entry["name"], f"`{entry['name']}`")
     return f"- {label}: {', '.join(words)}"
 
 
 def markdown(report, files=None):
-    from .report import GROUPS, PLACE, count, made_by, ordered
+    from .report import PLACE, count, made_by, ordered
     files = {source: path for source, path in (files or {}).items() if path is not None}
     risks, gaps = ordered(report["risks"]), report["inspection_gaps"]
     sources = sorted({entry["source"] for entry in report["catalog"]} - {
@@ -250,8 +241,13 @@ def markdown(report, files=None):
     for number, (risk, title) in enumerate(zip(risks, titles), 1):
         if PLACE[risk["rule"]][0] != group:
             group = PLACE[risk["rule"]][0]
-            lines += [f"**{GROUPS[group][0]}**", ""]
-        lines.insert(len(lines) - 1, f"{number}. [{title}](#{heading_id(f'{HARNESS} finding {number}')})")
+            if number > 1:
+                lines.append("")
+            label = "Shell commands and permission mode" if group == 0 else "Network access"
+            lines += [f"**{label}**", ""]
+        lines.append(f"{number}. [{title}](#{heading_id(f'{HARNESS} finding {number}')})")
+    if risks:
+        lines.append("")
     if gaps:
         lines += [f"{count(len(gaps), 'thing', 'things')} not checked: see [Not checked]"
                   f"(#{heading_id(f'{HARNESS} not checked')}).", ""]

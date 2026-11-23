@@ -13,7 +13,7 @@ class FingerprintTests(GitCase):
     def test_missing_fingerprinted_file_is_a_named_gap_and_findings_remain(self):
         """Each fingerprinted file the diagnostic can run without gives a gap naming its path when missing."""
         config = self.config('approval_policy="never"\nsandbox_mode="read-only"')
-        for path, other_gaps in (("harnesses/codex.md", []), ("incidents.md", [INCIDENT_GAP]),
+        for path, other_gaps in (("harnesses/codex.md", []), ("harnesses/claude-code.md", []), ("incidents.md", [INCIDENT_GAP]),
                                  ("stay_safe/__init__.py", [])):
             with self.subTest(path):
                 checkout = self.checkout(path.replace("/", "-"))

@@ -1,45 +1,35 @@
 # Claude Code configuration meanings
 
-This is the interpretation table for the Claude Code reader (`stay_safe/claude.py`, issue #163). Like the
-[Codex table](codex.md), it describes a selected settings-file snapshot. It does not establish a session's
-effective permissions or whether an incident will occur. Command-line flags, project and local settings files,
-managed and remotely managed settings, and runtime state are not inspected. Claude Code combines list settings such
-as `permissions.allow` from every file it loads, so one file's rules are not the whole set.
+Each report describes a settings file. Claude Code combines rules across its settings files and can apply session overrides. See [settings precedence] and [permission modes].
 
-`documented` means the meaning is supported by the linked Claude Code documentation, read on 2026-11-23. `open`
-means the reader does not handle it; the report names it under Not checked.
+| Input | What the report can establish | Evidence |
+|---|---|---|
+| Settings file | The user settings file lives at `~/.claude/settings.json`. `CLAUDE_CONFIG_DIR` moves the folder. Explicitly selected settings are independent snapshots. The account and credential files are excluded. | [Settings locations], [account and credential files] |
+| `permissions.defaultMode` | Lists the configured mode. `manual` is an alias for `default`. The built-in mode depends on surface and version. The reader leaves an absent mode and the decisions of the `auto` classifier unchecked. | [Modes], [starting mode] |
+| `bypassPermissions` | Requests a mode that skips prompts. From v2.1.257, project and project-local settings cannot enable it. The file alone cannot establish the session mode. | [Default mode], [mode exceptions] |
+| `permissions.allow` with `Bash` or `Bash(*)` | Both match all Bash commands. A more specific rule matches the commands covered by its pattern. A Bash allowance does not lift sandbox restrictions. | [Tool-wide rules], [Bash patterns], [sandbox and permissions] |
+| Bare `WebFetch` | Covers all fetch requests. A bare allowance leaves the sandbox domain list unchanged. | [WebFetch rules] |
+| `WebFetch(domain:…)` | Matches the specified domain pattern. `domain:*` covers every domain and also contributes to sandbox network allowances on supporting versions. Only the scope is shown. | [WebFetch rules], [sandbox network isolation] |
+| `permissions.ask` and `permissions.deny` | A matching deny rule can block an allowed action. A matching ask rule can require approval. The report identifies the lists and leaves their matches unchecked. | [Rule order], [sandbox exceptions] |
+| `sandbox.enabled` | A boolean configures Bash sandboxing. When omitted, the documented default is off. | [Sandbox default] |
+| `sandbox.autoAllowBashIfSandboxed` | With sandboxing enabled, true requests automatic approval for eligible sandboxed Bash commands. False selects the regular permission flow. The omitted default changed from true to false in v2.1.324. | [Sandbox Bash approval] |
+| Other fields | Unsupported settings are inspection gaps. Only recognized field names appear in the report. | [Settings index] |
 
-## Files
-
-| Setting | Meaning | Status | Source |
-|---|---|---|---|
-| `~/.claude/settings.json` | User settings, read by a default run. `CLAUDE_CONFIG_DIR` moves the folder. A run without `--agent` looks for it only through `$HOME` or `CLAUDE_CONFIG_DIR`. | documented | [settings], "Settings files and who they affect", "Find or create your settings files" |
-| `~/.claude.json` | Holds account details, MCP server configurations and per-project trust decisions. Named, never opened. | documented; open | [settings], "Find or create your settings files" |
-| Managed settings (`/Library/Application Support/ClaudeCode/`, `/etc/claude-code/`) | Organization settings that take precedence over user settings. Named when present, not read. | documented; open | [managed], "Deploy a managed settings file"; [settings], "Settings precedence" |
-| `remote-settings.json`, `agents/`, `commands/`, `plugins/`, `skills/` in the Claude Code folder | Loaded by Claude Code; named when present, not read. | open | — |
-| `.claude/settings.json`, `.claude/settings.local.json` | Project settings. Not read: stay-safe runs from its own folder, not your project. | documented; open | [settings], "Settings files and who they affect" |
-
-## Settings
-
-| Setting | Value | Meaning | Risk | Status | Source |
-|---|---|---|---|---|---|
-| `permissions.defaultMode` | `bypassPermissions` | Skips permission prompts, except for the actions no mode approves automatically. | `commands_without_prompts` | documented | [permissions], "Permission modes" |
-| `permissions.defaultMode` | `default`, `manual`, `acceptEdits`, `plan`, `dontAsk` | Prompts, or refuses, before shell commands; `acceptEdits` accepts file edits and common filesystem commands only. `manual` is an alias for `default`. | none | documented | [permissions], "Permission modes"; [modes], "Available modes" |
-| `permissions.defaultMode` | `auto` | Runs without routine prompts; a classifier checks each action. The classifier's decisions are a gap. | none; gap | documented; open | [permissions], "Permission modes" |
-| `permissions.defaultMode` | absent | The built-in mode depends on the surface and version (`auto` in a terminal from v2.1.283). Not inferred; a gap. | none; gap | documented | [modes], "Which mode a session starts in" |
-| `permissions.allow` | `Bash`, `Bash(*)` | Matches every Bash command. | `saved_approval` (broad) | documented | [permissions], "Match all uses of a tool" |
-| `permissions.allow` | `Bash(<specifier>)` | Matches commands the specifier covers; `Bash(git:*)` and `Bash(git *)` match the same commands. Only a first word on the [program list](codex.md) is shown. | `saved_approval` | documented | [permissions], "Wildcard patterns" |
-| `permissions.allow` | `WebFetch` | Matches all web fetch requests. | `network_access` | documented | [permissions], "Match all uses of a tool" |
-| `permissions.allow` | `WebFetch(domain:<domain>)` | Matches fetch requests to that domain; the domain is withheld. | `network_access` | documented | [permissions], "Use specifiers for fine-grained control" |
-| `permissions.allow` | other tools | Not evaluated; a gap. | none; gap | open | — |
-| `permissions.ask`, `permissions.deny` | any rule | Checked before allow rules; the first match decides. Not evaluated; a gap. | none; gap | documented; open | [permissions], "Manage permissions" |
-| `sandbox.enabled` | absent | The sandbox is off by default. | none | documented | [sandboxing], "What the sandbox restricts" |
-| `sandbox.enabled` | `true`, `false` | Turns Bash sandboxing on or off. | none | documented | [reference], "Settings index" |
-| other `permissions` and `sandbox` fields, other settings | any | Not evaluated; documented setting names are shown, others withheld. | none; gap | open | [reference], "Settings index" |
-
-[settings]: https://code.claude.com/docs/en/settings
-[permissions]: https://code.claude.com/docs/en/permissions
-[modes]: https://code.claude.com/docs/en/permission-modes
-[sandboxing]: https://code.claude.com/docs/en/sandboxing
-[managed]: https://code.claude.com/docs/en/managed-settings
-[reference]: https://code.claude.com/docs/en/settings-reference
+[Settings locations]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L21-L65
+[account and credential files]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#L556
+[settings precedence]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L211-L231
+[permission modes]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1144-L1168
+[Modes]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L70-L84
+[starting mode]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permission-modes.md#L63-L87
+[Default mode]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1144-L1168
+[mode exceptions]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permission-modes.md#L32-L46
+[Tool-wide rules]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L95-L105
+[Bash patterns]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L155-L183
+[sandbox and permissions]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#L673-L705
+[WebFetch rules]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L544-L567
+[sandbox network isolation]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#network-isolation
+[Rule order]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L52-L60
+[sandbox exceptions]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L764-L775
+[Sandbox default]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#L21-L27
+[Sandbox Bash approval]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1371
+[Settings index]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md

@@ -12,10 +12,11 @@ from unittest.mock import patch
 FEEDBACK = "Report a problem or suggest an idea: https://github.com/chalkbadger/stay-safe/issues/new/choose\n"
 
 ROOT = Path(__file__).resolve().parents[1]
-# Default runs check Claude Code when its folder exists (issue #163). Point every test that inherits this environment at
-# a Claude Code folder that doesn't exist, so a developer's own ~/.claude never reaches a test; tests of Claude Code
-# discovery pass their own environment.
-os.environ["CLAUDE_CONFIG_DIR"] = str(ROOT / "tests" / "no-claude-code-folder")
+# Tests that inherit the process environment see an empty home. Discovery fixtures set their own.
+_TEST_HOME = tempfile.TemporaryDirectory()
+os.environ["HOME"] = _TEST_HOME.name
+for variable in ("CLAUDE_CONFIG_DIR", "CODEX_HOME"):
+    os.environ.pop(variable, None)
 # The file name archived issue #106 fixes for the saved report.
 REPORT = "stay-safe-report.html"
 # A commit the copied checkout's .git/HEAD names, so its report has source and incident links.
@@ -188,7 +189,7 @@ def copy_checkout(destination):
     """
     destination.mkdir(parents=True)
     shutil.copytree(ROOT / "stay_safe", destination / "stay_safe", ignore=shutil.ignore_patterns("__pycache__"))
-    for name in ("incidents.md", "harnesses/codex.md"):
+    for name in ("incidents.md", "harnesses/codex.md", "harnesses/claude-code.md"):
         (destination / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, destination / name)
     (destination / ".git").mkdir()

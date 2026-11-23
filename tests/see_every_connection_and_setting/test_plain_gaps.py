@@ -200,7 +200,7 @@ PLAIN = {
     **{f"Incomplete fingerprint: {name} could not be read.":
        f"**Not checked: stay-safe's own file `{name}`.** stay-safe couldn't read it, so the fingerprint that "
        "identifies this version of stay-safe is incomplete."
-       for name in ("stay_safe/__init__.py", "harnesses/codex.md", "incidents.md")},
+       for name in ("stay_safe/__init__.py", "harnesses/codex.md", "harnesses/claude-code.md", "incidents.md")},
     "Revision unknown; checkout source links are withheld.":
         "**Not checked: which version of stay-safe made this report.** stay-safe couldn't tell which commit it's "
         "running from, so links to its rules, evidence and incidents are left out.",

@@ -1,4 +1,4 @@
-"""The command line: read the selected Codex files and print the report."""
+"""Read the selected agent settings and print their reports."""
 import argparse
 import os
 from pathlib import Path
@@ -6,7 +6,7 @@ import stat
 import sys
 
 from . import claude_report
-from .report import inspect, render, render_all
+from .report import inspect, render_all
 from .save import NAME, save
 from .provenance import INSTALLED
 
@@ -26,9 +26,6 @@ def open_command(path, platform=None):
     return f"Saved the formatted report. Open it with: {opener} {quoted}\n"
 
 SYSTEM = Path("/etc/codex")
-# Where Claude Code's managed settings live on macOS and on Linux (https://code.claude.com/docs/en/managed-settings,
-# "Deploy a managed settings file").
-MANAGED = (Path("/Library/Application Support/ClaudeCode"), Path("/etc/claude-code"))
 AGENTS = ("codex", "claude")
 # The command --help names: the same for `python3 -m stay_safe` and `python3 stay_safe` (issue #48), in the form
 # Python 3.14's argparse gives `-m` itself.
@@ -179,76 +176,64 @@ def system_config():
         return True
 
 
-def claude_home(chosen=True):
-    """The folder Claude Code keeps user settings in, and how the report names it; None when it can't be found.
-
-    CLAUDE_CONFIG_DIR moves it from ~/.claude (https://code.claude.com/docs/en/settings, "Find or create your
-    settings files"). Unless Claude Code was chosen with --agent, a run looks for ~/.claude only through $HOME, so a
-    run without HOME checks Codex alone, as it did before Claude Code support."""
-    value = os.environ.get("CLAUDE_CONFIG_DIR", "")
-    if value:
-        home, label = Path(value), "$CLAUDE_CONFIG_DIR"
-    elif os.environ.get("HOME") != "" and (chosen or os.environ.get("HOME")):
-        try:
-            home, label = Path.home() / ".claude", "~/.claude"
-        except RuntimeError:
-            return None, "~/.claude"
-    else:
-        return None, "~/.claude"
+def directory_status(path):
+    """Only a missing directory can be skipped during default discovery."""
     try:
-        return (home if home.is_dir() else None), label
+        return "directory" if stat.S_ISDIR(path.stat().st_mode) else "not a directory"
+    except FileNotFoundError:
+        return "missing"
     except OSError:
-        return None, label
+        return "unreadable"
 
 
-def claude_gaps(home, managed=MANAGED):
-    """What Claude Code loads beside its user settings that stay-safe names without opening."""
-    gaps = []
-    try:
-        account = [Path.home() / ".claude.json", home / ".claude.json"]
-    except RuntimeError:
-        account = [home / ".claude.json"]
-    if any(path.is_file() for path in account):
-        gaps.append("Claude Code home: ~/.claude.json exists and was not inspected; it holds MCP servers and "
-                    "per-project trust decisions.")
-    if (home / "remote-settings.json").is_file():
-        gaps.append("Claude Code home: remote-settings.json exists; settings your organization manages remotely "
-                    "were not inspected.")
-    for name in ("agents", "commands", "plugins", "skills"):
+def claude_home(chosen):
+    override = os.environ.get("CLAUDE_CONFIG_DIR")
+    label = "$CLAUDE_CONFIG_DIR" if override else "~/.claude"
+    home = None
+    if override:
+        home = Path(override)
+    elif os.environ.get("HOME") or (chosen and "HOME" not in os.environ):
         try:
-            if any(not item.startswith(".") for item in os.listdir(home / name)):
-                gaps.append(f"Claude Code home: {name} holds items that were not inspected.")
-        except (FileNotFoundError, NotADirectoryError):
+            home = Path.home() / ".claude"
+        except RuntimeError:
             pass
-        except OSError:
-            gaps.append(f"Claude Code home: Could not check {name}.")
-    names = ("managed-settings.json", "managed-settings.d", "managed-mcp.json")
-    if any((folder / name).is_file() or (folder / name).is_dir() for folder in managed for name in names):
-        gaps.append("Managed settings: a Claude Code managed settings file exists and was not inspected.")
-    return gaps
+    status = directory_status(home) if home is not None else "missing"
+    return home, label, status
 
 
-def claude_run(args, chosen):
-    """The Claude Code report and its file labels, or None when the default run finds no Claude Code folder."""
-    if args.config:
-        return claude_report.inspect([Path(p) for p in args.config]), {}
-    home, label = claude_home(chosen)
-    if home is None:
-        if not chosen:
-            return None
+def claude_run(home, label, status):
+    if status != "directory":
+        reason = {"missing": "was not found", "not a directory": "is not a directory",
+                  "unreadable": "could not be checked"}[status]
         return claude_report.inspect([], gaps=[
-            f"Claude Code home: {label} was not found; no Claude Code files were inspected."]), {}
-    result = claude_report.inspect([home / "settings.json"], discovered=True, gaps=claude_gaps(home))
-    return result, {"settings-1": f"{label}/settings.json"}
+            f"Claude Code home: {label} {reason}; no Claude Code files were inspected."]), {}
+    return claude_report.inspect([home / "settings.json"], discovered=True), {"settings-1": f"{label}/settings.json"}
+
+
+def discover_runs(args, agents):
+    if agents == ["codex"]:
+        return [codex_run(args)]
+    home, label, status = claude_home(chosen=bool(agents))
+    if agents:
+        include_claude, include_codex = "claude" in agents, "codex" in agents
+    else:
+        include_claude = status != "missing" or bool(os.environ.get("CLAUDE_CONFIG_DIR"))
+        include_codex = True
+        if status == "directory" and not os.environ.get("CODEX_HOME"):
+            codex, _ = codex_home()
+            include_codex = codex is not None and directory_status(codex) != "missing"
+    runs = [codex_run(args)] if include_codex else []
+    if include_claude:
+        runs.append(claude_run(home, label, status))
+    return runs
 
 
 def main(argv=None):
-    parser = Parser(prog=PROG, description="Read Codex configuration files and print a shareable report.")
+    parser = Parser(prog=PROG, description="Read Codex and Claude Code settings and print a shareable report.")
     parser.add_argument("--config", action="append", metavar="FILE", help="Inspect this file independently; repeat for more files.")
     parser.add_argument("--rules", action="append", metavar="FILE", help="Inspect one saved-rules file independently.")
     parser.add_argument("--agent", action="append", choices=AGENTS,
-                        help="Check this coding agent; repeat for both. By default stay-safe checks Codex, and "
-                             "Claude Code when its folder exists.")
+                        help="Check this coding agent; repeat for both. With no files selected, inspect the agent folders found.")
     parser.add_argument("--format", choices=("markdown", "json"))
     parser.add_argument("--save", action="store_true",
                         help=f"Also save the report as a formatted page, {NAME}, in {SAVE_FOLDER}, and end with a command "
@@ -268,15 +253,13 @@ def main(argv=None):
         parser.exit(2, "--config needs one --agent: choose codex or claude.\n")
     if args.rules and "claude" in agents:
         parser.exit(2, "--rules reads Codex files only.\n")
-    if not agents:
-        agents = ["codex"] if args.config or args.rules else ["codex", "claude"]
-    runs = []
-    if "codex" in agents:
-        runs.append(codex_run(args))
-    if "claude" in agents:
-        run = claude_run(args, chosen="claude" in (args.agent or []))
-        if run is not None:
-            runs.append(run)
+    if args.config or args.rules:
+        if "claude" in agents:
+            runs = [(claude_report.inspect([Path(p) for p in args.config]), {})]
+        else:
+            runs = [codex_run(args)]
+    else:
+        runs = discover_runs(args, agents)
     status = 2 if any(result["inspection_gaps"] for result, _ in runs) else 0
     path = save(render_all(runs, "html")) if args.save else None
     if args.save and path is None:

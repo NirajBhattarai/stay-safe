@@ -13,8 +13,6 @@ Expected meanings come from the Claude Code docs, not the reader:
 """
 
 import json
-import os
-from unittest.mock import patch
 
 from tests.support import ConfigCase
 
@@ -24,10 +22,6 @@ def read_file(*args, **kwargs):
     from stay_safe import claude
     return claude.read_file(*args, **kwargs)
 
-
-def claude_gaps(*args, **kwargs):
-    from stay_safe import cli
-    return cli.claude_gaps(*args, **kwargs)
 
 ALLOW = ["Bash", "Bash(*)", "Bash(git push:*)", "Bash(seed-private-command --token sk-seed)",
          "WebFetch", "WebFetch(domain:seed-private-host.example)"]
@@ -44,7 +38,7 @@ class ClaudeSettingsTests(ConfigCase):
     def test_each_permission_mode_is_listed_and_only_bypass_runs_without_asking(self):
         for mode in ("default", "manual", "acceptEdits", "plan", "dontAsk", "bypassPermissions", "auto"):
             with self.subTest(mode=mode):
-                entries, gaps = self.read({"permissions": {"defaultMode": mode}, "sandbox": {"enabled": True}})
+                entries, gaps = self.read({"permissions": {"defaultMode": mode}, "sandbox": {"enabled": False}})
                 facts = {"commands_without_prompts"} if mode == "bypassPermissions" else set()
                 self.assertEqual(self.catalog(entries)["permissions.defaultMode"], ([mode], facts))
                 self.assertEqual(gaps, ["settings-1: permissions.defaultMode is auto; a classifier decides which "
@@ -57,7 +51,8 @@ class ClaudeSettingsTests(ConfigCase):
         invalid = "settings-1: permissions.defaultMode is unsupported or invalid; its value was withheld."
         for settings, gap in (({}, absent), ({"permissions": {}}, absent),
                               ({"permissions": {"defaultMode": "yolo"}}, invalid),
-                              ({"permissions": {"defaultMode": True}}, invalid)):
+                              ({"permissions": {"defaultMode": True}}, invalid),
+                              ({"permissions": {"defaultMode": None}}, invalid)):
             with self.subTest(settings=settings):
                 entries, gaps = self.read(settings)
                 self.assertNotIn("permissions.defaultMode", self.catalog(entries))
@@ -88,8 +83,7 @@ class ClaudeSettingsTests(ConfigCase):
         self.assertEqual(self.catalog(entries)["sandbox.enabled"], (["false (default)"], set()))
         self.assertEqual(gaps, sorted([
             "settings-1: permissions contains fields outside reader coverage; their values were withheld.",
-            "settings-1: permissions.ask or permissions.deny contains rules; Claude Code checks them before allow "
-            "rules, and they were not inspected.",
+            "settings-1: permissions.deny contains rules that can take precedence over allow. Their matches were not checked.",
             "settings-1: Settings outside reader coverage were not evaluated: env, hooks and other fields whose "
             "names were withheld.",
         ]))
@@ -108,28 +102,37 @@ class ClaudeSettingsTests(ConfigCase):
         entries, gaps = read_file(self.root / "missing.json", "settings-1", discovered=True)
         self.assertEqual(self.catalog(entries)["settings"], (["absent"], set()))
 
-    def test_folder_contents_claude_code_loads_are_named_without_their_contents(self):
-        home = self.root / "home"
-        claude = home / ".claude"
-        for name in ("skills/seed-skill", "plugins/seed-plugin", "agents", "commands"):
-            (claude / name).mkdir(parents=True)
-        (claude / "agents" / "seed-agent.md").write_text("seed", encoding="utf-8")
-        (claude / "remote-settings.json").write_text("{}", encoding="utf-8")
-        (home / ".claude.json").write_text('{"oauthAccount": "seed-account"}', encoding="utf-8")
-        with patch.dict(os.environ, {"HOME": str(home)}, clear=True):
-            gaps = claude_gaps(claude, managed=[self.root / "no-managed-folder"])
-        self.assertEqual(gaps, [
-            "Claude Code home: ~/.claude.json exists and was not inspected; it holds MCP servers and per-project "
-            "trust decisions.",
-            "Claude Code home: remote-settings.json exists; settings your organization manages remotely were not "
-            "inspected.",
-            "Claude Code home: agents holds items that were not inspected.",
-            "Claude Code home: plugins holds items that were not inspected.",
-            "Claude Code home: skills holds items that were not inspected.",
-        ])
-        managed = self.root / "managed"
-        managed.mkdir()
-        (managed / "managed-settings.json").write_text("{}", encoding="utf-8")
-        with patch.dict(os.environ, {"HOME": str(self.root / "empty")}, clear=True):
-            self.assertEqual(claude_gaps(self.root / "empty", managed=[managed]),
-                             ["Managed settings: a Claude Code managed settings file exists and was not inspected."])
+
+    def test_malformed_permission_lists_and_sandbox_fields_name_the_field(self):
+        for group, key, value in (("permissions", "ask", False), ("permissions", "deny", {}),
+                                  ("permissions", "ask", [None]), ("sandbox", "enabled", None)):
+            with self.subTest(key=key, value=value):
+                settings = {"permissions": {"defaultMode": "default"}, "sandbox": {}}
+                settings[group][key] = value
+                entries, gaps = self.read(settings)
+                self.assertEqual(len(gaps), 1)
+                self.assertIn(f"{group}.{key}", gaps[0])
+                self.assertNotIn(f"{group}.{key}", self.catalog(entries))
+
+    def test_sandbox_approval_is_version_dependent_only_when_enabled_and_unset(self):
+        for value in (None, True, False):
+            with self.subTest(value=value):
+                sandbox = {"enabled": True}
+                if value is not None:
+                    sandbox["autoAllowBashIfSandboxed"] = value
+                entries, gaps = self.read({"permissions": {"defaultMode": "default"}, "sandbox": sandbox})
+                self.assertEqual(self.catalog(entries)["sandbox.enabled"], (["true"], set()))
+                if value is None:
+                    self.assertEqual(len(gaps), 1)
+                    self.assertIn("v2.1.324", gaps[0])
+                    self.assertIn("sandbox.autoAllowBashIfSandboxed", gaps[0])
+                else:
+                    self.assertEqual(gaps, [])
+                    self.assertEqual(self.catalog(entries)["sandbox.autoAllowBashIfSandboxed"],
+                                     ([str(value).lower()], set()))
+
+    def test_ask_only_rules_name_the_unchecked_list_without_a_finding(self):
+        entries, gaps = self.read({"permissions": {"defaultMode": "default", "ask": ["Bash(git status)"]}})
+        self.assertFalse(any(any(entry["facts"].values()) for entry in entries))
+        self.assertEqual(gaps, ["settings-1: permissions.ask contains rules that can take precedence over allow. "
+                                "Their matches were not checked."])

@@ -14,7 +14,7 @@ SOURCE_FILES = (
     "stay_safe/cli.py", "stay_safe/codex.py",
     "stay_safe/codex_rules.py", "stay_safe/provenance.py", "stay_safe/report.py", "stay_safe/rules.py",
     "stay_safe/save.py",
-    "harnesses/codex.md", "incidents.md",
+    "harnesses/codex.md", "harnesses/claude-code.md", "incidents.md",
 )
 # Holds the commit in release archives (.gitattributes export-subst). It names the commit rather than running code,
 # so it is not fingerprinted: a clone and a zip of one commit keep the same tool_revision.
