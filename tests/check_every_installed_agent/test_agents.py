@@ -46,8 +46,7 @@ class AgentSelectionTests(ConfigCase):
         self.assertEqual((run.returncode, run.stderr), (status, INCOMPLETE if status else ""))
         self.assertEqual([line for line in run.stdout.splitlines() if line.startswith("# ")],
                          ["# Codex configuration diagnostic", "# Claude Code configuration diagnostic"])
-        self.assertIn("**This file selects bypassPermissions, which can skip permission prompts.**",
-                      run.stdout)
+        self.assertIn(f"**{claude['risks'][0]['explanation']}**", run.stdout)
 
     def test_without_a_claude_folder_the_default_run_is_the_codex_report(self):
         home = agent_home(self.root, codex=CODEX)

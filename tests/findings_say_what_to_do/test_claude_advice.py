@@ -43,8 +43,8 @@ class ClaudeAdviceTests(ConfigCase):
         steps = [[p for p in item.split("\n\n") if p.startswith(("*What to do:*", "*Change it:*", "*Check:*"))]
                  for item in found]
         self.assertEqual(steps, [
-            ["*What to do:* Set `permissions.defaultMode` to `default` to leave bypass mode. Review any separate allow "
-             "rules for actions you want to approve yourself.",
+            ["*What to do:* Set `permissions.defaultMode` to `default` to stop requesting bypass in this file. "
+             "Review any separate allow rules for actions you want to approve yourself.",
              "*Change it:* `permissions.defaultMode` in `~/.claude/settings.json`, or ask Claude Code: \"Edit "
              "`~/.claude/settings.json` to set `permissions.defaultMode` to `default`; show only what you change.\"",
              "*Check:* Look for `defaultMode` under `permissions` in `~/.claude/settings.json`. A `--permission-mode` "

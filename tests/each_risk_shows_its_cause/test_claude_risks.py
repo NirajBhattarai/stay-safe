@@ -13,6 +13,9 @@ from tests.support import ConfigCase, ReportRuns, items, section, without_rule_l
 
 SETTINGS = {"permissions": {"defaultMode": "bypassPermissions", "allow": ["Bash", "Bash(git push:*)", "WebFetch"]},
             "sandbox": {"enabled": False}}
+# Scope of permissions.defaultMode:
+# https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1148
+BYPASS_SCOPE = "From v2.1.257, project and project-local settings cannot enable this mode."
 
 
 class ClaudeRiskTests(ConfigCase, ReportRuns):
@@ -38,7 +41,7 @@ class ClaudeRiskTests(ConfigCase, ReportRuns):
         self.assertTrue(all(re.match(r"### Claude Code finding \d+\n\n", item) for item in found))
         heads = [item.split("\n\n")[1].split("** ", 1)[0] + "**" for item in found]
         self.assertEqual(heads, [
-            "**This file selects bypassPermissions, which can skip permission prompts.**",
+            f"**This file selects bypassPermissions, which can skip permission prompts. {BYPASS_SCOPE}**",
             "**This file has an allow rule for every Bash command.**",
             "**This file has an allow rule for matching Bash commands.**",
             "**This file has a WebFetch allow rule for every web address.**",
@@ -47,6 +50,24 @@ class ClaudeRiskTests(ConfigCase, ReportRuns):
                               ("saved_approval", "settings-1:permissions.allow.2"),
                               ("network_access", "settings-1:permissions.allow.3")):
             self.assertIn(f"*Rule `{rule}` · setting `{setting}`", text)
+
+    def test_bypass_finding_explains_file_scope_and_version_in_json_and_markdown(self):
+        project = self.root / "project/.claude"
+        project.mkdir(parents=True)
+        path = project / "settings.json"
+        args = ("--agent", "claude", "--config", str(path))
+        path.write_text('{"permissions":{"defaultMode":"bypassPermissions"}}')
+        data = self.run_cli(*args, "--format", "json")
+        self.assertEqual((data.returncode, data.stderr), (0, ""))
+        risk, = json.loads(data.stdout)["risks"]
+        self.assertIn(BYPASS_SCOPE, risk["explanation"])
+        markdown = self.run_cli(*args, "--format", "markdown")
+        self.assertEqual((markdown.returncode, markdown.stderr), (0, ""))
+        self.assertIn(risk["explanation"], section(markdown.stdout, "Claude Code findings"))
+
+        path.write_text('{"permissions":{"defaultMode":"default"}}')
+        self.assertEqual(json.loads(self.run_cli(*args, "--format", "json").stdout)["risks"], [])
+        self.assertNotIn(BYPASS_SCOPE, self.run_cli(*args, "--format", "markdown").stdout)
 
     def test_competing_permission_rules_are_visible_on_each_affected_finding(self):
         for key in ("ask", "deny"):

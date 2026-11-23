@@ -19,8 +19,8 @@ SCOPE = [
 # permissions.allow. Each sentence follows a meaning in harnesses/claude-code.md.
 WHAT = {
     ("commands_without_prompts", None):
-        "Set `permissions.defaultMode` to `default` to leave bypass mode. Review any separate allow rules for actions "
-        "you want to approve yourself.",
+        "Set `permissions.defaultMode` to `default` to stop requesting bypass in this file. "
+        "Review any separate allow rules for actions you want to approve yourself.",
     ("saved_approval", "broad: every command"):
         "Remove this rule and allow only the commands you run often, for example `Bash(npm run test *)`.",
     ("saved_approval", None):
@@ -33,7 +33,9 @@ WHAT = {
         "Check that you trust the domains this rule covers, and remove the rule if you no longer need it.",
 }
 HEADLINES = {
-    ("commands_without_prompts", None): "This file selects bypassPermissions, which can skip permission prompts.",
+    ("commands_without_prompts", None):
+        "This file selects bypassPermissions, which can skip permission prompts. "
+        "From v2.1.257, project and project-local settings cannot enable this mode.",
     ("saved_approval", "broad: every command"): "This file has an allow rule for every Bash command.",
     ("saved_approval", None): "This file has an allow rule for matching Bash commands.",
     ("network_access", "every address"): "This file has a WebFetch allow rule for every web address.",
@@ -43,9 +45,8 @@ HEADLINES = {
     ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
 }
 WHY = {
-    "commands_without_prompts": "`bypassPermissions` skips permission prompts, so injected or mistaken instructions "
-                                "could make it run code you didn't want if this mode applies. From v2.1.257, project "
-                                "and local settings cannot enable this mode.",
+    "commands_without_prompts": "If this mode applies, injected or mistaken instructions could make Claude Code "
+                                "run code you didn't want.",
     "saved_approval": "An allow rule can cover more than the command you remember. A rule for a program you use to "
                       "download a file can cover uploads too. Sandbox restrictions still apply when the command runs sandboxed.",
     "network_access": "Injected instructions could send your private data out in a request.",

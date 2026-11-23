@@ -48,6 +48,7 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - I lose an incident citation and see the gap while the findings remain. `test_report.py::test_cli_reports_missing_incident_citation_and_preserves_safe_data`
 - I set an approval mode or `destructive_enabled = true` in `apps._default` and see its risk once, on the template, for apps my file doesn't name. `test_single_attribution.py::test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps`
 - I set Claude Code's `bypassPermissions`, or allow every shell command or web fetch, and see each warning tied to its setting and incidents. `test_claude_risks.py::test_each_claude_code_warning_names_its_rule_setting_and_incidents`
+- I see which Claude Code versions and file scopes limit the bypass setting in both JSON and Markdown. `test_claude_risks.py::test_bypass_finding_explains_file_scope_and_version_in_json_and_markdown`
 - I see competing ask or deny rules beside the allowance in the overview, details and JSON. `test_claude_risks.py::test_competing_permission_rules_are_visible_on_each_affected_finding`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
