@@ -37,3 +37,24 @@ class NamedAppValidationTests(ConfigCase):
                     self.assertIn("calendar", gap)
                     self.assertIn("open_world_enabled", gap)
                     self.assertIn("bool", gap.lower())
+
+    def test_invalid_flag_on_a_disabled_app_keeps_the_off_reason_and_only_the_validation_gap(self):
+        checkout = copy_checkout(self.root / "checkout")
+        base = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
+        settings = ('open_world_enabled="false"\nlinks={example={default_tools_approval_mode="prompt"}}\n'
+                    '[apps.notes]\ndestructive_enabled=false\ndefault_tools_approval_mode="approve"\n')
+        for route, config, reason, expected_risks in (
+            ("named App off", '[apps.calendar]\nenabled=false\n', "disabled", [("config-1:apps.notes", "automatic_tools")]),
+            ("Apps off", 'features.apps=false\n[apps.calendar]\n', "disabled by features.apps = false", []),
+        ):
+            with self.subTest(route=route):
+                path = self.config(base + config + settings)
+                run = run_checkout(checkout, "--agent", "codex", "--config", str(path),
+                                   "--format", "json", cwd=self.root)
+                report = json.loads(run.stdout)
+                calendar = next(entry for entry in report["catalog"] if entry["name"] == "apps.calendar")
+                self.assertIn(reason, calendar["observations"])
+                self.assertEqual(run.returncode, 2)
+                self.assertEqual(report["inspection_gaps"],
+                                 ["config-1: App calendar sets open_world_enabled to a non-boolean value."])
+                self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]], expected_risks)

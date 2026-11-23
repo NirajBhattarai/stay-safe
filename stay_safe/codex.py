@@ -275,8 +275,8 @@ class Reader:
             self.unknown(app, allowed, "apps._default" if template else "apps")
             enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
             # Codex types this field on a named App before it evaluates the App's tool policy.
-            if not template and type(app.get("open_world_enabled", True)) is not bool:
-                self.gap(f"App {name} sets open_world_enabled to a non-boolean value.")
+            invalid_open_world = not template and type(app.get("open_world_enabled", True)) is not bool
+            if invalid_open_world and enabled is not False:
                 enabled = None
                 off_reason = "Codex rejects this App configuration"
             tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
@@ -303,9 +303,11 @@ class Reader:
             if "links" in app:
                 self.gap("Per-account app policy is not evaluated; account identifiers were withheld.")
             if enabled is False and not template:
-                # Codex disables every tool of a disabled app whatever else it sets (app_tool_policy.rs
-                # L272-L277 at 086ccc8), so its other settings can't change a finding and give no gap.
+                # Codex disables every tool of a disabled app (app_tool_policy.rs L272-L277 at 086ccc8).
+                # Discard its tool-policy gaps; field-type errors still prevent Codex from loading the file.
                 self.gaps = before
+            if invalid_open_world:
+                self.gap(f"App {name} sets open_world_enabled to a non-boolean value.")
             if template:
                 # Codex gives apps this file does not name the template's approval mode and destructive_enabled
                 # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.
