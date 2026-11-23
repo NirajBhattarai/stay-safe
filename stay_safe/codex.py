@@ -219,11 +219,11 @@ class Reader:
             enabled = self.boolean(server, "enabled", True, "mcp_servers")
             obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
             command, url = server.get("command"), server.get("url")
-            stdio = isinstance(command, str) and bool(command.strip()) and url is None
+            stdio = isinstance(command, str) and url is None
             # Codex uses HTTP for any string url without command: harnesses/codex.md [mcp-transport].
             http = isinstance(url, str) and command is None
             helper = server.get("http_headers_helper")
-            valid = stdio or http
+            valid = (stdio and bool(command.strip())) or http
             if stdio and helper is not None:
                 valid = False
                 obs.append("Codex rejects this stdio configuration")

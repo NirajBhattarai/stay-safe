@@ -21,7 +21,8 @@ class StatusTests(ConfigCase):
         helper = 'http_headers_helper="private-helper"\n'
         reason = ("config-1: Codex cannot load this configuration because stdio MCP server "
                   "docs.local sets http_headers_helper.")
-        for settings, gaps, program in ((command + helper, [reason], False), (command, [], True),
+        for settings, gaps, program in ((command + helper, [reason], False), ('command=""\n' + helper, [reason], False),
+                                        (command + helper + 'enabled=false\n', [reason], False), (command, [], True),
                                         (url + helper, [], True), (url, [], False)):
             with self.subTest(settings=settings):
                 path = str(self.config(config + settings))
