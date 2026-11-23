@@ -38,7 +38,7 @@
 
 ## destructive_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `apps._default.destructive_enabled`, `apps._default.enabled`, `apps.*.default_tools_enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.tools.*.enabled`, `apps.*.destructive_enabled`, `apps.*.links`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `apps._default.destructive_enabled`, `apps._default.enabled`, `apps.*.default_tools_enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.tools.*.enabled`, `apps.*.destructive_enabled`, `apps.*.links`, `apps.*.approvals_reviewer`
 - Incidents: [I7](../incidents.md#i7-production-volumes-deleted-with-a-found-token), [I8](../incidents.md#i8-database-changes-after-an-order-to-stop)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+destructive_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+destructive_tools)
@@ -53,7 +53,7 @@
 
 ## self_described_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.command`, `mcp_servers.*.url`, `mcp_servers.*.http_headers_helper`, `mcp_servers.*.default_tools_approval_mode`, `apps.*.default_tools_enabled`, `apps.*.destructive_enabled`, `apps.*.links`, `apps.*.default_tools_approval_mode`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.command`, `mcp_servers.*.url`, `mcp_servers.*.http_headers_helper`, `mcp_servers.*.default_tools_approval_mode`, `apps.*.default_tools_enabled`, `apps.*.destructive_enabled`, `apps.*.links`, `apps.*.approvals_reviewer`, `apps.*.default_tools_approval_mode`
 - Incidents: [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+self_described_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+self_described_tools)

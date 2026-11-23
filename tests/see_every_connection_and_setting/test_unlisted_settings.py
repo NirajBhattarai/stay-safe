@@ -47,7 +47,9 @@ class UnlistedSettingTests(ConfigCase):
                  for value in values]
         base = ON_REQUEST + 'sandbox_mode="read-only"\n'
         app_settings = [("open_world_enabled", value) for value in ("true", "false", '"yes"')]
-        app_settings += [("approvals_reviewer", value) for value in ('"user"', '"auto_review"', '"guardian_subagent"', '"human"', "7")]
+        # `auto_review` and `guardian_subagent` let automatic review decide app tool calls, so they are named as
+        # unchecked (test_meanings, row apps.*.approvals_reviewer); `user` asks you, and other values Codex rejects.
+        app_settings += [("approvals_reviewer", value) for value in ('"user"', '"human"', "7")]
         for key, value in app_settings:
             cases.append((base + f"[apps.files]\n{key}={value}\n", APP_CATALOG, APP_RISKS))
             cases.append((base + f"[apps._default]\n{key}={value}\n[apps.files]\n",

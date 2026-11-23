@@ -124,6 +124,10 @@ PLAIN = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "**Not checked: an app's approval reviewer.** An app sets `approvals_reviewer` (in `[apps.<name>]` or "
+        "`[apps._default]`), which can let a reviewer such as automatic review decide its tool calls instead of "
+        "asking you. stay-safe doesn't assess it.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
@@ -283,6 +287,8 @@ STEPS = {
     "apps has an invalid destructive_enabled flag.": "Set `destructive_enabled` to `true` or `false`.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "Review `approvals_reviewer` in your `[apps]` settings yourself; without it, the app uses your main reviewer setting.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
     "notify is not a command list with a nonempty program.":

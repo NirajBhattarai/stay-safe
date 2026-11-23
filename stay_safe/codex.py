@@ -297,6 +297,11 @@ class Reader:
                 facts["destructive_tools"] = destructive
             if "links" in app:
                 self.gap("Per-account app policy is not evaluated; account identifiers were withheld.")
+            # A per-app or apps._default reviewer replaces the default reviewer for that app's tool calls (openai/codex
+            # 086ccc8, core/src/connectors.rs L525-L545). `user` asks you, as the default does; `auto_review` (alias
+            # `guardian_subagent`) lets automatic review decide (protocol/src/config_types.rs L183-L190).
+            if app.get("approvals_reviewer") in ("auto_review", "guardian_subagent"):
+                self.gap("App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.")
             if enabled is False and not template:
                 # Codex disables every tool of a disabled app whatever else it sets (app_tool_policy.rs
                 # L272-L277 at 086ccc8), so its other settings can't change a finding and give no gap.

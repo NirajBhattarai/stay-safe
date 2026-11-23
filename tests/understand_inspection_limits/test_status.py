@@ -97,6 +97,30 @@ class StatusTests(ConfigCase):
         output = section(run_checkout(checkout, *args, cwd=self.root).stdout, "Not checked")
         self.assertIn("**Not checked: your `aws` settings.**", output)
 
+    def test_app_auto_reviewer_is_named_as_unchecked(self):
+        # NirajBhattarai: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7094703327
+        # An app's approvals_reviewer replaces the default reviewer for its tool calls (openai/codex 086ccc8,
+        # core/src/connectors.rs L525-L545); auto_review sends on-request prompts to automatic review
+        # (ext/guardian-reviewer/src/routing.rs L58-L66). `user` asks, as the default does.
+        app = COMPLETE + 'shell_environment_policy={inherit="none"}\n[apps.calendar]\ndefault_tools_approval_mode="prompt"\n'
+        gap = ("config-1: App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls "
+               "instead of asking you.")
+        cases = [(app + 'approvals_reviewer="auto_review"\n', [gap]),
+                 (app + 'approvals_reviewer="guardian_subagent"\n', [gap]),
+                 (app.replace("[apps.calendar]", '[apps._default]\napprovals_reviewer="auto_review"\n[apps.calendar]'), [gap]),
+                 (app + 'approvals_reviewer="user"\n', []),
+                 (app, [])]
+        checkout = copy_checkout(self.root / "checkout")
+        for text, expected in cases:
+            with self.subTest(config=text):
+                path = str(self.config(text))
+                human = run_checkout(checkout, "--config", path, cwd=self.root)
+                report = json.loads(run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root).stdout)
+                self.assertEqual(report["inspection_gaps"], expected)
+                self.assertEqual((human.returncode, human.stderr), (2, EXPLANATION) if expected else (0, ""))
+                if expected:
+                    self.assertIn("**Not checked: an app's approval reviewer.**", section(human.stdout, "Not checked"))
+
     def test_reports_with_gaps_explain_exit_two_on_stderr_only(self):
         checkout = copy_checkout(self.root / "checkout")
         private = self.config('private_key = "secret-value"\n', "private-input-name.toml")
