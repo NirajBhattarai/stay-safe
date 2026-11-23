@@ -12,7 +12,7 @@
     {"type": "textarea", "id": "finding",
      "attributes": {
        "label": "Finding",
-       "description": "Copy the rule ID, entry ID, and exact finding text. For a missed risk, say what was missing."
+       "description": "Check the entry ID and warning text for private names. If you see one, rerun stay-safe on a sample config with made-up names and use that report. Paste the rule ID, entry ID, and exact warning text. For a missed warning, say what you expected."
      }, "validations": {"required":true}
     },
     {"type": "textarea", "id": "revision",
