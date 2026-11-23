@@ -219,6 +219,13 @@ COMMANDS = {
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
+    # As above, when another inspected file sets `read-only`: `workspace-write` would be looser.
+    "full-on-request-read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
+                "(commands can't write files; Codex decides when to ask you first). But " + SAVED_STILL,
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
+        "check": COMMANDS_CHECK},
     None: {
         "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
                 "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
@@ -241,13 +248,21 @@ SANDBOX = {
 # never with danger-full-access can let MCP and app tool calls run without asking (issue #141; harnesses/codex.md row approval_policy
 # `never with danger-full-access`); with a sandbox, each tool's approval mode applies again, and never refuses a call
 # that needs approval (openai/codex 086ccc8, core/src/mcp_tool_call.rs L1691-L1699).
+# With `read-only` in another inspected file, `workspace-write` would be looser, so only `read-only` is offered, as
+# for SANDBOX.
 FULL_ACCESS_TOOLS = {
-    "what": "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and "
-            "Codex refuses calls that need approval instead of asking), and review any extra folders in "
-            "`writable_roots`. Stricter: `sandbox_mode = \"read-only\"` "
-            "(commands can't write files).",
-    "where": "`sandbox_mode` " + TOP,
-    "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`"}
+    "read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (each server's and app's tool approval mode then "
+                "applies, Codex refuses calls that need approval instead of asking, and commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`"},
+    None: {
+        "what": "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and "
+                "Codex refuses calls that need approval instead of asking), and review any extra folders in "
+                "`writable_roots`. Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`"}}
 FULL_ACCESS_HEADLINES = {
     "commands_without_prompts": ("With these settings, Codex runs most commands without asking you.",
                                  "With `sandbox_mode = \"danger-full-access\"`, ordinary commands can run without "
@@ -402,15 +417,14 @@ def pick_spec(spec, context):
     """The commands and sandbox advice depend on the sandbox the finding's file and the other files set."""
     if spec is COMMANDS:
         if context.get("full_access") == "on-request":
-            return COMMANDS["full-on-request"]
+            return COMMANDS["full-on-request-read-only" if context.get("other") else "full-on-request"]
         if context.get("profile"):
             return COMMANDS["profile"]
         if context.get("sandbox") in STRICTNESS:
             return COMMANDS[context["sandbox"]]
         return COMMANDS["other"] if context.get("other") else COMMANDS[None]
-    if spec is SANDBOX:
-        other = context.get("other")
-        return SANDBOX["read-only"] if other else SANDBOX[None]
+    if spec is SANDBOX or spec is FULL_ACCESS_TOOLS:
+        return spec["read-only"] if context.get("other") else spec[None]
     return spec
 
 
