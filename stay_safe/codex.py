@@ -447,10 +447,10 @@ EXCLUDED_ACCOUNT = "Claude Code account and credential files are excluded. Check
 
 def exclude_account_files(read_file):
     """Refuse reserved Claude file names before dispatching a path to any settings or rules reader."""
-    def checked(path, source, *, discovered=False):
+    def checked(path, source, **options):
         if Path(path).name.casefold() in {".claude.json", ".credentials.json"}:
             return [], [f"{source}: {EXCLUDED_ACCOUNT}"]
-        return read_file(path, source, discovered=discovered)
+        return read_file(path, source, **options)
     return checked
 
 

@@ -21,6 +21,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I allow shell commands and web fetches in Claude Code and see each rule and the sandbox setting, without the rules' contents. `test_claude_settings.py::test_allow_rules_for_shell_commands_and_web_fetches`
 - I add Claude Code ask or deny rules and settings stay-safe doesn't read, and see them under "Not checked" without their values. `test_claude_settings.py::test_ask_and_deny_rules_and_uncovered_settings_are_gaps`
 - My Claude Code settings file is invalid, a symlink or missing, and I see that under "Not checked". `test_claude_settings.py::test_unreadable_files_give_a_gap_and_no_entries`
+- I see which Claude Code files were read even when every field in a parsed file is invalid. `test_claude_settings.py::test_read_summary_counts_parsed_files_even_when_all_fields_are_invalid`
 - I supply a malformed Claude permission or sandbox field and see the field named as a gap. `test_claude_settings.py::test_malformed_permission_lists_and_sandbox_fields_name_the_field`
 - I turn on sandboxing and see whether the file sets automatic Bash approval or leaves it to a version-dependent default. `test_claude_settings.py::test_sandbox_approval_is_version_dependent_only_when_enabled_and_unset`
 - I configure only an ask rule and see that its matches were not checked. `test_claude_settings.py::test_ask_only_rules_name_the_unchecked_list_without_a_finding`
@@ -65,6 +66,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I see how to remove broad WebFetch access without adding sandbox hosts, with the versions that honor a domain wildcard. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
 - I leave bypass mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
 - I read the advice for leaving auto mode and see which sandboxed Bash commands can still run without a prompt. `test_claude_advice.py::test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit`
+- I see that the auto-mode edit applies to user settings when I select a Claude Code settings file. `test_claude_advice.py::test_auto_mode_edit_is_conditional_on_user_settings`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3

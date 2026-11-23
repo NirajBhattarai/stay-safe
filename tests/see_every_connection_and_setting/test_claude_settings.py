@@ -14,7 +14,7 @@ Expected meanings come from the Claude Code docs, not the reader:
 
 import json
 
-from tests.support import ConfigCase
+from tests.support import ConfigCase, agent_home, run_home
 
 
 def read_file(*args, **kwargs):
@@ -28,6 +28,25 @@ ALLOW = ["Bash", "Bash(*)", "Bash(git push:*)", "Bash(seed-private-command --tok
 
 
 class ClaudeSettingsTests(ConfigCase):
+    def test_read_summary_counts_parsed_files_even_when_all_fields_are_invalid(self):
+        home = agent_home(self.root)
+        broken_fields = self.config('{"permissions":{"defaultMode":"unknown"},"sandbox":null}', "fields.json")
+        bad_json = self.config("{", "syntax.json")
+        good = self.config('{"permissions":{"defaultMode":"default"}}', "valid.json")
+        for paths, expected in (
+            ([broken_fields], "stay-safe read your Claude Code settings (`settings-1`)."),
+            ([bad_json], "stay-safe read no Claude Code settings file."),
+            ([bad_json, broken_fields, good], "stay-safe read your Claude Code settings (`settings-2`, `settings-3`)."),
+        ):
+            with self.subTest(paths=paths):
+                args = [arg for path in paths for arg in ("--config", str(path))]
+                run = run_home(home, "--agent", "claude", *args)
+                self.assertEqual(run.returncode, 2, run.stderr)
+                self.assertIn(expected, run.stdout)
+                if broken_fields in paths:
+                    self.assertIn("**Not checked: `permissions.defaultMode`.**", run.stdout)
+                    self.assertIn("**Not checked: `sandbox`.**", run.stdout)
+
     def read(self, settings, discovered=False):
         path = self.config(json.dumps(settings) if not isinstance(settings, str) else settings, "settings.json")
         return read_file(path, "settings-1", discovered=discovered)
@@ -41,8 +60,9 @@ class ClaudeSettingsTests(ConfigCase):
                 entries, gaps = self.read({"permissions": {"defaultMode": mode}, "sandbox": {"enabled": False}})
                 facts = {"commands_without_prompts"} if mode == "bypassPermissions" else set()
                 self.assertEqual(self.catalog(entries)["permissions.defaultMode"], ([mode], facts))
-                self.assertEqual(gaps, ["settings-1: permissions.defaultMode is auto; a classifier decides which "
-                                        "actions run without asking, and its decisions are not assessed."]
+                self.assertEqual(gaps, ["settings-1: permissions.defaultMode is auto. Claude Code ignores auto in project "
+                                        "and project-local settings. Where auto applies, the classifier's decisions "
+                                        "are not assessed."]
                                  if mode == "auto" else [])
 
     def test_absent_and_invalid_modes_are_gaps_not_guesses(self):

@@ -5,7 +5,7 @@ Each report describes a settings file. Claude Code combines rules across its set
 | Input | What the report can establish | Evidence |
 |---|---|---|
 | Settings file | The user settings file lives at `~/.claude/settings.json`. `CLAUDE_CONFIG_DIR` moves the folder. Explicitly selected settings are independent snapshots. The account and credential files are excluded. | [Settings locations], [account and credential files] |
-| `permissions.defaultMode` | Lists the configured mode. `manual` is an alias for `default`. The built-in mode depends on surface and version. The reader leaves an absent mode and the decisions of the `auto` classifier unchecked. | [Modes], [starting mode] |
+| `permissions.defaultMode` | Lists the configured mode. `manual` is an alias for `default`. The built-in mode depends on surface and version. Project and project-local settings cannot enable `auto`. The reader leaves an absent mode and the decisions of the `auto` classifier unchecked. | [Modes], [starting mode], [Default mode] |
 | `bypassPermissions` | Requests a mode that skips prompts. From v2.1.257, project and project-local settings cannot enable it. The file alone cannot establish the session mode. | [Default mode], [mode exceptions] |
 | `permissions.allow` with `Bash` or `Bash(*)` | Both match all Bash commands. A more specific rule matches the commands covered by its pattern. A Bash allowance does not lift sandbox restrictions. | [Tool-wide rules], [Bash patterns], [sandbox and permissions] |
 | Bare `WebFetch` | Covers all fetch requests. A bare allowance leaves the sandbox domain list unchanged. | [WebFetch rules] |

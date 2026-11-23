@@ -63,10 +63,11 @@ GAPS = {
         "start it.",
         "Set `permissions.defaultMode` to the mode you want, such as `default`, so the report can check it."),
     AUTO_MODE_GAP: (
-        "**Not checked: auto mode.** In `auto` mode Claude Code runs without routine prompts, and a classifier "
-        "decides which actions may run. stay-safe can't assess those decisions.",
-        "Set `permissions.defaultMode` to `default` to leave auto mode. Review any Bash allow rules for commands "
-        "you want to approve yourself."),
+        "**Not checked: auto mode.** Claude Code accepts `auto` in user settings (usually `~/.claude/settings.json`) "
+        "and ignores `auto` in project and project-local settings. When this mode applies, a classifier decides "
+        "which actions may run without asking. stay-safe can't assess those decisions.",
+        "If this is your user settings file, set `permissions.defaultMode` to `default` to stop requesting auto "
+        "mode here. Review any Bash allow rules for commands you want to approve yourself."),
     "permissions.defaultMode is unsupported or invalid; its value was withheld.": (
         "**Not checked: `permissions.defaultMode`.** Its value isn't one stay-safe recognizes.",
         "Set it to one of the modes in Claude Code's permission docs."),
@@ -107,11 +108,11 @@ WORDS = {"default": "`default` (asks before most actions)", "manual": "`manual` 
 
 
 def inspect(paths, *, discovered=False, gaps=()):
-    entries, gaps = [], list(gaps)
+    entries, gaps, sources_read = [], list(gaps), []
     hashes = fingerprints()
     provenance = identify(hashes=hashes)
     for index, path in enumerate(paths, 1):
-        found, missing = read_file(path, f"settings-{index}", discovered=discovered)
+        found, missing = read_file(path, f"settings-{index}", discovered=discovered, sources_read=sources_read)
         entries.extend(found)
         gaps.extend(missing)
     risks = evaluate(entries)
@@ -137,7 +138,7 @@ def inspect(paths, *, discovered=False, gaps=()):
     if revision is None:
         gaps.append(GAP)
     return {"format_version": 3, "harness": HARNESS, "provenance": provenance, "scope": list(SCOPE),
-            "file_inspection": "incomplete" if gaps else "complete for supported fields",
+            "file_inspection": "incomplete" if gaps else "complete for supported fields", "sources_read": sources_read,
             "catalog": [{k: v for k, v in entry.items() if k != "facts"} for entry in entries],
             "risks": risks, "incident_status": INCIDENT_STATUS,
             "incident_links": {i: links[i] for i in cited if links.get(i)}, "inspection_gaps": gaps}
@@ -238,8 +239,7 @@ def markdown(report, files=None):
     from .report import PLACE, count, made_by, ordered
     files = {source: path for source, path in (files or {}).items() if path is not None}
     risks, gaps = ordered(report["risks"]), report["inspection_gaps"]
-    sources = sorted({entry["source"] for entry in report["catalog"]} - {
-        entry["source"] for entry in report["catalog"] if entry["kind"] == "settings file"})
+    sources = report["sources_read"]
     lines = [f"# {HARNESS} configuration diagnostic", "",
              f"{count(len(risks), 'finding', 'findings')}, {count(len(gaps), 'thing', 'things')} not checked.", ""]
     if sources:

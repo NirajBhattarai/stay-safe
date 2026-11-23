@@ -17,6 +17,24 @@ SETTINGS = ('{"permissions": {"defaultMode": "bypassPermissions", "allow": ["Bas
 
 
 class ClaudeAdviceTests(ConfigCase):
+    def test_auto_mode_edit_is_conditional_on_user_settings(self):
+        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1144-L1151
+        settings = '{"permissions":{"defaultMode":"auto"}}'
+        home = agent_home(self.root, claude=settings)
+        project = self.root / "project" / ".claude"
+        project.mkdir(parents=True)
+        for name in ("settings.json", "settings.local.json"):
+            (project / name).write_text(settings)
+        for path in (home / ".claude/settings.json", project / "settings.json", project / "settings.local.json"):
+            with self.subTest(path=path):
+                run = run_home(home, "--agent", "claude", "--config", str(path))
+                self.assertEqual(run.returncode, 2, run.stderr)
+                gap = section(run.stdout, "Claude Code not checked")
+                self.assertIn("ignores `auto` in project and project-local settings", gap)
+                advice = gap.split("*What to do:* ", 1)[1]
+                self.assertTrue(advice.startswith("If this is your user settings file, set `permissions.defaultMode` "
+                                                  "to `default`"), advice)
+
     def test_each_claude_code_finding_says_what_to_change_where_and_how_to_check(self):
         home = agent_home(self.root, claude=SETTINGS)
         run = run_home(home, "--agent", "claude")

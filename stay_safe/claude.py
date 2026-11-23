@@ -35,8 +35,8 @@ RULE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)(?:\((.*)\))?", re.DOTALL)
 UNREADABLE = "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld."
 
 
-AUTO_MODE_GAP = ("permissions.defaultMode is auto; a classifier decides which actions run without asking, "
-                 "and its decisions are not assessed.")
+AUTO_MODE_GAP = ("permissions.defaultMode is auto. Claude Code ignores auto in project and project-local settings. "
+                 "Where auto applies, the classifier's decisions are not assessed.")
 AUTO_APPROVAL_UNSET = ("sandbox.autoAllowBashIfSandboxed is unset. Its default changed from true to false in "
                       "v2.1.324. Check your Claude Code version to determine how sandboxed Bash approvals work.")
 
@@ -136,7 +136,7 @@ def invalid_json_constant(token):
 
 
 @exclude_account_files
-def read_file(path, source, *, discovered=False):
+def read_file(path, source, *, discovered=False, sources_read=None):
     reader = SettingsReader(source)
     try:
         fd = open_input(path)
@@ -159,4 +159,6 @@ def read_file(path, source, *, discovered=False):
     except (OSError, RecursionError, ValueError):
         reader.gap(UNREADABLE)
         return [], sorted(reader.gaps)
+    if sources_read is not None:
+        sources_read.append(source)
     return reader.read(data)
