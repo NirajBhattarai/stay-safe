@@ -533,6 +533,27 @@ class WhatToDoTests(ConfigCase):
                 for key, text in expected.items():
                     self.assertEqual(found[key], text, key)
 
+    def test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only(self):
+        # Second review of #141: with `read-only` in another inspected file, every finding on the full-access file
+        # suggests `read-only`, as the unrestricted-filesystem finding does; the control without that file keeps
+        # `workspace-write` first.
+        first = passed("config-1")
+        read_only = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
+        for approval, key in (("on-request", ("commands_without_prompts", "config-1:approval_policy")),
+                              ("never", ("automatic_tools", "config-1:approval_policy"))):
+            full = f'approval_policy = "{approval}"\nsandbox_mode = "danger-full-access"\n'
+            with self.subTest(approval=approval, files="with read-only"):
+                found = self.findings(*self.files(full, read_only))
+                self.assertEqual(found[("unrestricted_filesystem", "config-1:sandbox_mode")], sandbox(first, other="config-2"))
+                what = found[key]
+                self.assertTrue(what.startswith('*What to do:* Set `sandbox_mode = "read-only"`, as `config-2` does'), what)
+                self.assertIn(f'ask Codex: "Edit {first} to set `sandbox_mode = "read-only"` without changing '
+                              '`approval_policy`', what)
+                self.assertNotIn("workspace-write", what)
+            with self.subTest(approval=approval, files="alone"):
+                what = self.findings(*self.files(full))[key]
+                self.assertTrue(what.startswith('*What to do:* Set `sandbox_mode = "workspace-write"`'), what)
+
     def test_a_selected_permission_profile_gets_no_sandbox_mode_advice(self):
         for mode in (None, "read-only", "danger-full-access"):
             with self.subTest(sandbox_mode=mode):

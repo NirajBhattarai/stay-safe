@@ -44,6 +44,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I see that configured approvals do not establish what Codex will allow. `test_what_to_do.py::test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy`
 - I use `danger-full-access` with `on-request` or `never` and the advice tells me to change the sandbox. `test_what_to_do.py::test_full_access_findings_on_the_approval_policy_say_to_change_the_sandbox`
 - I follow the sandbox advice in a file with extra writable folders and see that the advice and the new report both tell me to review `writable_roots`. `test_what_to_do.py::test_following_the_sandbox_advice_with_writable_roots_leaves_them_to_review`
+- I combine a `danger-full-access` file with another file that sets `read-only`, and every finding on the first file suggests `read-only`. `test_what_to_do.py::test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
