@@ -20,7 +20,7 @@ BANNED_NAMES = {"exec", "eval", "compile", "__import__", "open", "getattr", "imp
                 "__builtins__", "globals", "vars"}
 PATHLIB_ARGPARSE = set(dir(pathlib.Path)) | set(dir(argparse)) | set(dir(argparse.ArgumentParser))
 # The pathlib and argparse names the package uses; any other name of theirs is reported.
-USED_NAMES = {"Path", "home", "resolve", "parents", "is_dir", "is_file", "stat", "read_text", "read_bytes", "as_uri",
+USED_NAMES = {"Path", "home", "resolve", "parents", "name", "is_dir", "is_file", "stat", "read_text", "read_bytes", "as_uri",
               "ArgumentParser", "add_argument", "parse_known_args", "error", "exit"}
 # The save step may also create a temporary file beside the report, write it, move it into place or remove it.
 WRITER = "stay_safe/save.py"

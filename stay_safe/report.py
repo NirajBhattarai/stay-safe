@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-from .codex import read_file
+from .codex import EXCLUDED_ACCOUNT, read_file
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
@@ -1070,7 +1070,7 @@ def files_read(report, files):
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
-               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input "))}
+               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input ", EXCLUDED_ACCOUNT))}
     sources = {source for source in listed | set(files) | {text.partition(": ")[0] for text in report["inspection_gaps"]}
                if re.fullmatch(r"(config|rules)-\d+", source)}
     return sorted((source for source in sources - absent - refused
@@ -1136,6 +1136,9 @@ def findings_list(report, risks, titles, labelled):
 
 
 def markdown(report, files=None):
+    if report.get("harness") == "Claude Code":
+        from .claude_report import markdown as claude_markdown
+        return claude_markdown(report, files)
     files = files or {}
     risks, gaps = ordered(report["risks"]), report["inspection_gaps"]
     read = files_read(report, files)
@@ -1230,7 +1233,7 @@ def markdown(report, files=None):
 # The saved page is the Markdown report as a Markdown previewer shows it (archived issue #106): the same lines, read with
 # the few Markdown forms markdown() writes. All text is escaped; links are kept only for https targets and for the
 # report's own findings and Not checked section (issue #82). A link's text may hold code spans.
-INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked)\)|\*\*|\*")
+INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked|#claude-code-finding-\d+|#claude-code-not-checked)\)|\*\*|\*")
 NUMBERED = re.compile(r"(\d+)\. (.*)")
 STYLE = """body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
 p, li { overflow-wrap: anywhere; }
@@ -1281,12 +1284,14 @@ def inline(line):
     return "".join(out)
 
 
-def page(report, files=None):
+def page(report, files=None, text=None, title=None):
     """Headings, horizontal rules, then paragraphs and lists: a run of `- ` lines is a list, a run of numbered lines
     a numbered list that starts at its first number, other lines a paragraph. Section and finding headings carry
     the anchor GitHub gives them, so the report's own links work on the page."""
     body = []
-    for block in markdown(report, files).rstrip("\n").split("\n\n"):
+    text = markdown(report, files) if text is None else text
+    title = title or text.split("\n", 1)[0].removeprefix("# ")
+    for block in text.rstrip("\n").split("\n\n"):
         if block.startswith("# "):
             body.append(f"<h1>{inline(block[2:])}</h1>")
         elif block.startswith("## "):
@@ -1315,7 +1320,7 @@ def page(report, files=None):
     return ("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-            f"<title>Codex configuration diagnostic</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
+            f"<title>{escape(title, quote=False)}</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
             + "\n".join(body) + "\n</body>\n</html>\n")
 
 
@@ -1358,3 +1363,17 @@ def render(report, format_name="markdown", files=None):
     if format_name == "html":
         return page(report, files)
     return markdown(report, files)
+
+
+def render_all(runs, format_name="markdown"):
+    """runs holds (report, files) pairs, one per coding agent. One report renders exactly as render() does; several
+    follow each other, and JSON lists them under "reports" (issue #163)."""
+    if len(runs) == 1:
+        return render(runs[0][0], format_name, runs[0][1])
+    if format_name == "json":
+        return json.dumps({"reports": [report for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
+    if format_name == "html":
+        text = "\n".join(markdown(report, files) for report, files in runs)
+        return page(None, text=text, title=" and ".join(report["harness"] for report, _ in runs)
+                    + " configuration diagnostic")
+    return "\n".join(render(report, format_name, files) for report, files in runs)

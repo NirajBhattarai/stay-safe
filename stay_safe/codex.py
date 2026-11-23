@@ -442,11 +442,24 @@ class Reader:
                 approval["facts"]["automatic_tools"] = True
 
 
+EXCLUDED_ACCOUNT = "Claude Code account and credential files are excluded. Check which input file you selected."
+
+
+def exclude_account_files(read_file):
+    """Refuse reserved Claude file names before dispatching a path to any settings or rules reader."""
+    def checked(path, source, **options):
+        if Path(path).name.casefold() in {".claude.json", ".credentials.json"}:
+            return [], [f"{source}: {EXCLUDED_ACCOUNT}"]
+        return read_file(path, source, **options)
+    return checked
+
+
 def open_input(path):
     """Open a file read-only; O_NOFOLLOW refuses a symlink as the final component."""
     return os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
 
 
+@exclude_account_files
 def read_file(path: Path, source: str, *, discovered=False):
     reader = Reader(source)
     try:

@@ -1,11 +1,12 @@
-"""The command line: read the selected Codex files and print the report."""
+"""Read the selected agent settings and print their reports."""
 import argparse
 import os
 from pathlib import Path
 import stat
 import sys
 
-from .report import inspect, render
+from . import claude_report
+from .report import inspect, render_all
 from .save import NAME, save
 from .provenance import INSTALLED
 
@@ -25,6 +26,7 @@ def open_command(path, platform=None):
     return f"Saved the formatted report. Open it with: {opener} {quoted}\n"
 
 SYSTEM = Path("/etc/codex")
+AGENTS = ("codex", "claude")
 # The command --help names: the same for `python3 -m stay_safe` and `python3 stay_safe` (issue #48), in the form
 # Python 3.14's argparse gives `-m` itself.
 PROG = (sys.executable.rsplit("/", 1)[-1] or "python3") + " -m stay_safe"
@@ -174,10 +176,64 @@ def system_config():
         return True
 
 
+def directory_status(path):
+    """Only a missing directory can be skipped during default discovery."""
+    try:
+        return "directory" if stat.S_ISDIR(path.stat().st_mode) else "not a directory"
+    except FileNotFoundError:
+        return "missing"
+    except OSError:
+        return "unreadable"
+
+
+def claude_home(chosen):
+    override = os.environ.get("CLAUDE_CONFIG_DIR")
+    label = "$CLAUDE_CONFIG_DIR" if override else "~/.claude"
+    home = None
+    if override:
+        home = Path(override)
+    elif os.environ.get("HOME") or (chosen and "HOME" not in os.environ):
+        try:
+            home = Path.home() / ".claude"
+        except RuntimeError:
+            pass
+    status = directory_status(home) if home is not None else "missing"
+    return home, label, status
+
+
+def claude_run(home, label, status):
+    if status != "directory":
+        reason = {"missing": "was not found", "not a directory": "is not a directory",
+                  "unreadable": "could not be checked"}[status]
+        return claude_report.inspect([], gaps=[
+            f"Claude Code home: {label} {reason}; no Claude Code files were inspected."]), {}
+    return claude_report.inspect([home / "settings.json"], discovered=True), {"settings-1": f"{label}/settings.json"}
+
+
+def discover_runs(args, agents):
+    if agents == ["codex"]:
+        return [codex_run(args)]
+    home, label, status = claude_home(chosen=bool(agents))
+    if agents:
+        include_claude, include_codex = "claude" in agents, "codex" in agents
+    else:
+        include_claude = status != "missing" or bool(os.environ.get("CLAUDE_CONFIG_DIR"))
+        include_codex = True
+        if status == "directory" and not os.environ.get("CODEX_HOME"):
+            codex, _ = codex_home()
+            include_codex = codex is not None and directory_status(codex) != "missing"
+    runs = [codex_run(args)] if include_codex else []
+    if include_claude:
+        runs.append(claude_run(home, label, status))
+    return runs
+
+
 def main(argv=None):
-    parser = Parser(prog=PROG, description="Read Codex configuration files and print a shareable report.")
+    parser = Parser(prog=PROG, description="Read Codex and Claude Code settings and print a shareable report.")
     parser.add_argument("--config", action="append", metavar="FILE", help="Inspect this file independently; repeat for more files.")
     parser.add_argument("--rules", action="append", metavar="FILE", help="Inspect one saved-rules file independently.")
+    parser.add_argument("--agent", action="append", choices=AGENTS,
+                        help="Check this coding agent; repeat for both. With no files selected, inspect the agent folders found.")
     parser.add_argument("--format", choices=("markdown", "json"))
     parser.add_argument("--save", action="store_true",
                         help=f"Also save the report as a formatted page, {NAME}, in {SAVE_FOLDER}, and end with a command "
@@ -192,6 +248,38 @@ def main(argv=None):
     if args.save and args.format == "json":
         # A fixed message: it names the options, never a value the user typed.
         parser.exit(2, "--save can't be combined with --format json. Use --help.\n")
+    agents = list(dict.fromkeys(args.agent or []))
+    if args.config and len(agents) > 1:
+        parser.exit(2, "--config needs one --agent: choose codex or claude.\n")
+    if args.rules and "claude" in agents:
+        parser.exit(2, "--rules reads Codex files only.\n")
+    if args.config or args.rules:
+        if "claude" in agents:
+            runs = [(claude_report.inspect([Path(p) for p in args.config]), {})]
+        else:
+            runs = [codex_run(args)]
+    else:
+        runs = discover_runs(args, agents)
+    status = 2 if any(result["inspection_gaps"] for result, _ in runs) else 0
+    path = save(render_all(runs, "html")) if args.save else None
+    if args.save and path is None:
+        sys.stderr.write(NOT_SAVED)
+        sys.stderr.flush()
+    terminal = args.format is None and sys.stdout.isatty()
+    sys.stdout.write(render_all(runs, args.format or ("plain" if terminal else "markdown")))
+    if path is not None:
+        sys.stdout.write(open_command(path))
+    if terminal and not args.save:
+        sys.stdout.flush()
+        sys.stderr.write("Use --save to save a formatted HTML report.\n")
+    if status == 2:
+        sys.stdout.flush()
+        sys.stderr.write("Inspection incomplete (exit 2). See the report for what wasn't checked.\n")
+    return status
+
+
+def codex_run(args):
+    """The Codex report and its file labels, exactly as before --agent existed."""
     paths = [Path(p) for p in args.config or []]
     rules = Path(args.rules[0]) if args.rules else None
     defaults = not args.config and not args.rules
@@ -216,21 +304,4 @@ def main(argv=None):
             gaps.extend(gap for gap in (skills(home), environments_toml(home)) if gap)
             if system_config():
                 gaps.append("System config folder: /etc/codex holds Codex configuration that was not inspected.")
-    result = inspect(paths, rules_path=rules, discovered=defaults, gaps=gaps)
-    status = 2 if result["inspection_gaps"] else 0
-    path = save(render(result, "html", files)) if args.save else None
-    if args.save and path is None:
-        sys.stderr.write(NOT_SAVED)
-        sys.stderr.flush()
-    terminal = args.format is None and sys.stdout.isatty()
-    sys.stdout.write(render(result, args.format or ("plain" if terminal else "markdown"), files))
-    if path is not None:
-        sys.stdout.write(open_command(path))
-    if terminal and not args.save:
-        sys.stdout.flush()
-        sys.stderr.write("Use --save to save a formatted HTML report.\n")
-    if status == 2:
-        sys.stdout.flush()
-        sys.stderr.write("Inspection incomplete (exit 2). See the report for what wasn't checked.\n")
-    return status
-
+    return inspect(paths, rules_path=rules, discovered=defaults, gaps=gaps), files
