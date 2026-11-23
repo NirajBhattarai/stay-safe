@@ -46,12 +46,15 @@ class UnlistedSettingTests(ConfigCase):
                                      ("exclude_tmpdir_env_var", ("true", "false", '"yes"')))
                  for value in values]
         base = ON_REQUEST + 'sandbox_mode="read-only"\n'
-        app_settings = [("open_world_enabled", value) for value in ("true", "false", '"yes"')]
+        app_settings = [("open_world_enabled", value) for value in ("true", "false")]
         app_settings += [("approvals_reviewer", value) for value in ('"user"', '"auto_review"', '"guardian_subagent"', '"human"', "7")]
         for key, value in app_settings:
             cases.append((base + f"[apps.files]\n{key}={value}\n", APP_CATALOG, APP_RISKS))
             cases.append((base + f"[apps._default]\n{key}={value}\n[apps.files]\n",
                           {**APP_CATALOG, "apps._default": ["configured enabled", "tool approval: auto (default)"]}, APP_RISKS))
+        # #173 validates the named App field. The template's interpretation is outside that change.
+        cases.append((base + '[apps._default]\nopen_world_enabled="yes"\n[apps.files]\n',
+                      {**APP_CATALOG, "apps._default": ["configured enabled", "tool approval: auto (default)"]}, APP_RISKS))
         for text, expected_catalog, expected_risks in cases:
             with self.subTest(config=text):
                 report = inspect([self.config(text)])

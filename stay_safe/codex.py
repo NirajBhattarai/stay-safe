@@ -274,6 +274,11 @@ class Reader:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
             enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
+            # Codex types this field on a named App before it evaluates the App's tool policy.
+            if not template and type(app.get("open_world_enabled", True)) is not bool:
+                self.gap(f"App {name} sets open_world_enabled to a non-boolean value.")
+                enabled = None
+                off_reason = "Codex rejects this App configuration"
             tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
             obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
