@@ -2,7 +2,7 @@
 
 import re
 
-from .claude import read_file
+from .claude import AUTO_APPROVAL_UNSET, read_file
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
@@ -19,22 +19,27 @@ SCOPE = [
 # permissions.allow. Each sentence follows a meaning in harnesses/claude-code.md.
 WHAT = {
     ("commands_without_prompts", None):
-        "Set `permissions.defaultMode` to `default`, so Claude Code asks before most edits, shell commands and network "
-        "requests. Review any separate allow rules for actions you want to approve yourself.",
-    ("saved_approval", "broad"):
+        "Set `permissions.defaultMode` to `default` to leave bypass mode. Review any separate allow rules for actions "
+        "you want to approve yourself.",
+    ("saved_approval", "broad: every command"):
         "Remove this rule and allow only the commands you run often, for example `Bash(npm run test *)`.",
     ("saved_approval", None):
         "Check that this rule covers only the commands you meant, and remove it if you no longer need it.",
-    ("network_access", "broad"):
-        "Remove this rule, or limit it to the domains you need, for example `WebFetch(domain:example.com)`.",
+    ("network_access", "every address"):
+        "Remove this rule to stop allowing every fetch through this entry.",
+    ("network_access", "every domain"):
+        "Remove the wildcard rule to withdraw its all-domain allowance.",
     ("network_access", None):
         "Check that you trust the domains this rule covers, and remove the rule if you no longer need it.",
 }
 HEADLINES = {
     ("commands_without_prompts", None): "This file selects bypassPermissions, which can skip permission prompts.",
-    ("saved_approval", "broad"): "This file has an allow rule for every Bash command.",
+    ("saved_approval", "broad: every command"): "This file has an allow rule for every Bash command.",
     ("saved_approval", None): "This file has an allow rule for matching Bash commands.",
-    ("network_access", "broad"): "This file has a WebFetch allow rule for every web address.",
+    ("network_access", "every address"): "This file has a WebFetch allow rule for every web address.",
+    ("network_access", "every domain"):
+        "This wildcard covers every WebFetch domain from Claude Code v2.1.172. From v2.1.186 it also adds every "
+        "host to the sandbox network allowlist.",
     ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
 }
 WHY = {
@@ -113,8 +118,11 @@ def inspect(paths, *, discovered=False, gaps=()):
     revision = provenance["source_revision"]
     by_id = {entry["id"]: entry for entry in entries}
     for risk in risks:
-        risk["configured_evidence"] = list(by_id[risk["entry"]]["observations"])
+        entry = by_id[risk["entry"]]
+        risk["configured_evidence"] = list(entry["observations"])
         risk["explanation"] = headline(risk)
+        if risk["rule"] == "commands_without_prompts":
+            risk["explanation"] += sandbox_mode_change(entry["source"], by_id, gaps)
         risk["rule_source"] = source_link(revision, "stay_safe/rules.py")
         risk["interpretation_source"] = source_link(revision, "harnesses/claude-code.md")
     from .report import INCIDENT_STATUS, incident_links
@@ -141,22 +149,38 @@ def heading_id(heading):
 
 
 def scope(risk):
-    observations = risk["configured_evidence"]
-    return "broad" if {"broad: every command", "every address", "every domain"} & set(observations) else None
+    return next((value for value in risk["configured_evidence"]
+                 if value in ("broad: every command", "every address", "every domain")), None)
 
 
 def headline(risk):
     observations = risk["configured_evidence"]
-    if "every domain" in observations:
-        lead = "This file has a WebFetch allow rule for every domain, including for sandbox network access."
-    else:
-        lead = HEADLINES[risk["rule"], scope(risk)]
+    lead = HEADLINES[risk["rule"], scope(risk)]
     overrides = [key for key in ("deny", "ask") if f"{key} rules present" in observations]
     if overrides:
         effect = {"deny": "block this action", "ask": "require approval"}
         effects = " or ".join(effect[key] for key in overrides)
         lead += f" This file also has {' and '.join(overrides)} rules that could {effects}. Their matches were not checked."
     return lead
+
+
+def sandbox_mode_change(source, entries, gaps):
+    """What switching out of bypass mode leaves in this snapshot, using only validated booleans."""
+    enabled = entries.get(f"{source}:sandbox.enabled")
+    if not enabled or enabled["observations"] != ["true"]:
+        return ""
+    auto = entries.get(f"{source}:sandbox.autoAllowBashIfSandboxed")
+    if auto is None:
+        if f"{source}: {AUTO_APPROVAL_UNSET}" in gaps:
+            return (" This file omits sandbox.autoAllowBashIfSandboxed. After switching to default, eligible "
+                    "sandboxed Bash commands can still run without a prompt before v2.1.324. From v2.1.324, "
+                    "the default uses regular permission checks.")
+        return (" This file has an invalid sandbox.autoAllowBashIfSandboxed value. Check this setting before "
+                "relying on the mode change for Bash approval.")
+    if auto["observations"] == ["true"]:
+        return (" Changing the mode to default leaves sandbox.autoAllowBashIfSandboxed set to true, so eligible "
+                "sandboxed Bash commands can still run without a prompt.")
+    return ""
 
 
 def finding(risk, path, number):

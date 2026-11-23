@@ -25,8 +25,8 @@ class ClaudeAdviceTests(ConfigCase):
         steps = [[p for p in item.split("\n\n") if p.startswith(("*What to do:*", "*Change it:*", "*Check:*"))]
                  for item in found]
         self.assertEqual(steps, [
-            ["*What to do:* Set `permissions.defaultMode` to `default`, so Claude Code asks before most edits, shell "
-             "commands and network requests. Review any separate allow rules for actions you want to approve yourself.",
+            ["*What to do:* Set `permissions.defaultMode` to `default` to leave bypass mode. Review any separate allow "
+             "rules for actions you want to approve yourself.",
              "*Change it:* `permissions.defaultMode` in `~/.claude/settings.json`, or ask Claude Code: \"Edit "
              "`~/.claude/settings.json` to set `permissions.defaultMode` to `default`; show only what you change.\"",
              "*Check:* Look for `defaultMode` under `permissions` in `~/.claude/settings.json`. A `--permission-mode` "
@@ -51,14 +51,65 @@ class ClaudeAdviceTests(ConfigCase):
 
     def test_all_domain_rule_gets_broad_advice_and_distinct_evidence(self):
         home = agent_home(self.root)
-        for rule, scope, advice in (("WebFetch", "every address", "limit it to the domains"),
-                                    ("WebFetch(domain:*)", "every domain", "limit it to the domains"),
-                                    ("WebFetch(domain:private.example)", "addresses withheld", "trust")):
+        for rule, scope in (("WebFetch", "every address"), ("WebFetch(domain:*)", "every domain"),
+                            ("WebFetch(domain:private.example)", "addresses withheld")):
             with self.subTest(rule=rule):
                 path = self.config(json.dumps({"permissions": {"defaultMode": "default", "allow": [rule]}}))
                 args = ("--agent", "claude", "--config", str(path))
                 report = json.loads(run_home(home, *args, "--format", "json").stdout)
-                self.assertIn(scope, report["risks"][0]["configured_evidence"])
+                risk, = report["risks"]
+                self.assertIn(scope, risk["configured_evidence"])
                 text = run_home(home, *args).stdout
-                self.assertIn(advice, section(text, "Claude Code findings"))
+                finding = section(text, "Claude Code findings")
+                advice = next(p for p in finding.split("\n\n") if p.startswith("*What to do:*"))
+                if rule == "WebFetch":
+                    self.assertIn("Remove", advice)
+                    self.assertNotIn("domain:", advice)
+                elif rule == "WebFetch(domain:*)":
+                    self.assertIn("Remove", advice)
+                    self.assertNotIn("limit it to", advice)
+                    self.assertNotIn("domain:", advice)
+                    for version in ("v2.1.172", "v2.1.186"):
+                        self.assertIn(version, risk["explanation"])
+                    self.assertIn(risk["explanation"], finding)
+                else:
+                    self.assertIn("trust", advice)
                 self.assertNotIn("private.example", text)
+
+    def test_switching_mode_explains_the_sandbox_approval_left_in_each_file(self):
+        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1368
+        home = agent_home(self.root)
+        args = ["--agent", "claude"]
+        paths = []
+        for i, sandbox in enumerate(({"enabled": True, "autoAllowBashIfSandboxed": True},
+                                     {"enabled": True, "autoAllowBashIfSandboxed": False},
+                                     {"enabled": True}, {"enabled": False, "autoAllowBashIfSandboxed": True},
+                                     {"enabled": True, "autoAllowBashIfSandboxed": "bad"})):
+            path = self.config(json.dumps({"permissions": {"defaultMode": "bypassPermissions"}, "sandbox": sandbox}),
+                               f"selected-{i}.json")
+            args.extend(("--config", str(path)))
+            paths.append(path)
+        report = run_home(home, *args)
+        self.assertEqual(report.returncode, 2)  # The third file omits auto-approval and the fifth has an invalid value.
+        findings = items(section(report.stdout, "Claude Code findings").split("\n\n", 1)[1])
+        self.assertEqual(len(findings), 5)
+        self.assertIn("autoAllowBashIfSandboxed", findings[0])
+        self.assertIn("without a prompt", findings[0])
+        self.assertNotIn("autoAllowBashIfSandboxed", findings[1])
+        self.assertIn("v2.1.324", findings[2])
+        self.assertNotIn("autoAllowBashIfSandboxed", findings[3])
+        self.assertIn("autoAllowBashIfSandboxed", findings[4])
+        self.assertIn("invalid", findings[4])
+        self.assertNotIn("v2.1.324", findings[4])
+        encoded = json.loads(run_home(home, *args, "--format", "json").stdout)
+        for i, (finding, risk) in enumerate(zip(findings, encoded["risks"], strict=True)):
+            self.assertIn(f"<settings-{i + 1}>", finding)
+            self.assertIn(risk["explanation"], finding)
+        # Apply the mode edit. The same file still explicitly selects sandbox auto-approval.
+        selected = json.loads(paths[0].read_text())
+        selected["permissions"]["defaultMode"] = "default"
+        paths[0].write_text(json.dumps(selected))
+        after = json.loads(run_home(home, "--agent", "claude", "--config", str(paths[0]), "--format", "json").stdout)
+        self.assertEqual(after["risks"], [])
+        self.assertIn(("sandbox.autoAllowBashIfSandboxed", ["true"]),
+                      [(e["name"], e["observations"]) for e in after["catalog"]])

@@ -62,7 +62,8 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I combine a `danger-full-access` file with another file that sets `read-only`, and every finding on the first file suggests `read-only`. `test_what_to_do.py::test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 - I get advice for each Claude Code finding, naming the setting to change and how to check it. `test_claude_advice.py::test_each_claude_code_finding_says_what_to_change_where_and_how_to_check`
-- I allow WebFetch for every domain and see advice to narrow its scope. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
+- I see how to remove broad WebFetch access without adding sandbox hosts, with the versions that honor a domain wildcard. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
+- I change the permission mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
@@ -139,7 +140,7 @@ Tests: [tests/check_every_installed_agent/](../tests/check_every_installed_agent
 - I configure a missing or invalid Claude folder and still see my Codex findings beside the Claude gap. `test_agents.py::test_bad_configured_claude_home_keeps_codex_findings_and_reports_gap`
 - I have an inaccessible Claude folder and see its gap alongside my Codex findings. `test_agents.py::test_inaccessible_claude_directory_keeps_the_other_report`
 - I have neither agent folder and see the Codex default assessment. `test_agents.py::test_neither_home_keeps_codex_defaults_and_any_explicit_claude_gap`
-- I select the Claude account file and see it excluded before it is opened. `test_agents.py::test_selected_account_file_never_reaches_the_opener`
+- I select a Claude account or credential file as settings or saved rules and see it excluded before it is opened. `test_agents.py::test_selected_account_file_never_reaches_the_opener`
 - I have no Claude Code folder and see the same report as `--agent codex`. `test_agents.py::test_without_a_claude_folder_the_default_run_is_the_codex_report`
 - I choose `--agent claude` and see only the Claude Code report. `test_agents.py::test_agent_claude_reports_only_claude_code`
 - I set `CLAUDE_CONFIG_DIR` and see the settings in that folder. `test_agents.py::test_claude_config_dir_selects_the_claude_folder`

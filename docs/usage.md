@@ -103,7 +103,8 @@ extension folders are outside discovery. The [Claude Code meanings table](../har
 lists the supported settings and their sources.
 
 Without `--agent`, `--config` and `--rules` select Codex. Select one agent when
-passing `--config`. Only Codex accepts `--rules`.
+passing `--config`. Only Codex accepts `--rules`. Both options skip files named
+`.claude.json` or `.credentials.json` and report an inspection gap.
 
 ## Save the report as a page: `--save`
 

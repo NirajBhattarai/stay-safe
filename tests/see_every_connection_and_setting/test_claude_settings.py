@@ -95,6 +95,16 @@ class ClaudeSettingsTests(ConfigCase):
         for text in ("{not json", "[]", '"text"'):
             with self.subTest(text=text):
                 self.assertEqual(self.read(text), ([], [bad]))
+        # Claude settings use strict JSON. Python's decoder otherwise accepts these three constants.
+        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L132
+        template = '{"permissions":{"defaultMode":"default","allow":["Bash"]},"cleanupPeriodDays":%s}'
+        for token in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(token=token):
+                self.assertEqual(self.read(template % token), ([], [bad]))
+        self.assertEqual(self.read('{"permissions":{"allow":[NaN]}}'), ([], [bad]))
+        entries, gaps = self.read(template % "30")
+        self.assertEqual(gaps, [])
+        self.assertIn("permissions.allow.1", self.catalog(entries))
         link = self.root / "link.json"
         link.symlink_to(self.config("{}", "target.json"))
         self.assertEqual(read_file(link, "settings-1"), ([], [bad]))

@@ -125,15 +125,25 @@ class AgentSelectionTests(ConfigCase):
 
     def test_selected_account_file_never_reaches_the_opener(self):
         home = agent_home(self.root)
-        with patch.dict(os.environ, {"HOME": str(home)}, clear=True), \
-             patch("stay_safe.claude.open_input", side_effect=FileNotFoundError) as opener, \
-             redirect_stdout(StringIO()) as output, redirect_stderr(StringIO()):
-            self.assertEqual(main(["--agent", "claude", "--config", str(home / ".claude.json"),
-                                   "--format", "json"]), 2)
-        opener.assert_not_called()
-        report = json.loads(output.getvalue())
-        self.assertIn("account", report["inspection_gaps"][0])
-        self.assertEqual(report["catalog"], [])
+        # The reserved names are identified before any file is opened, including on the default Codex route.
+        for args in (("--config",), ("--agent", "codex", "--config"), ("--agent", "claude", "--config"), ("--rules",)):
+            for name in (".claude.json", ".credentials.json"):
+                with self.subTest(args=args, name=name), patch("os.open", side_effect=FileNotFoundError) as opener, \
+                     redirect_stdout(StringIO()) as output, redirect_stderr(StringIO()):
+                    self.assertEqual(main([*args, str(home / name), "--format", "json"]), 2)
+                    opener.assert_not_called()
+                    report = json.loads(output.getvalue())
+                    self.assertIn("account", report["inspection_gaps"][0])
+                    self.assertEqual(report["catalog"], [])
+
+        config = self.config(CODEX)
+        status, mixed = self.json_run(home, "--config", str(home / ".claude.json"), "--config", str(config),
+                                      "--rules", str(home / ".credentials.json"))
+        self.assertEqual(status, 2)
+        self.assertEqual({g.split(":")[0] for g in mixed["inspection_gaps"]}, {"config-1", "rules-1"})
+        self.assertIn("config-2:approval_policy", [r["entry"] for r in mixed["risks"]])
+        text = run_home(home, "--rules", str(home / ".credentials.json")).stdout
+        self.assertNotIn("stay-safe read one file", text)
 
     def test_neither_home_keeps_codex_defaults_and_any_explicit_claude_gap(self):
         home = agent_home(self.root)

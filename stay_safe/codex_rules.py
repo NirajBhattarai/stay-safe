@@ -5,7 +5,7 @@ import os
 import re
 import stat
 
-from .codex import MAX_BYTES, Reader, open_input
+from .codex import MAX_BYTES, Reader, exclude_account_files, open_input
 
 
 RECORD = re.compile(r'prefix_rule\(pattern=(\[.*\]), decision="allow"\)')
@@ -29,6 +29,7 @@ def declaration(line):
     return pattern
 
 
+@exclude_account_files
 def read_file(path, source, *, discovered=False):
     reader = Reader(source)
     try:

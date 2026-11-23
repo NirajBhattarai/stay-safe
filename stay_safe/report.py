@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-from .codex import read_file
+from .codex import EXCLUDED_ACCOUNT, read_file
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
@@ -1067,7 +1067,7 @@ def files_read(report, files):
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
-               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input "))}
+               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input ", EXCLUDED_ACCOUNT))}
     sources = {source for source in listed | set(files) | {text.partition(": ")[0] for text in report["inspection_gaps"]}
                if re.fullmatch(r"(config|rules)-\d+", source)}
     return sorted((source for source in sources - absent - refused

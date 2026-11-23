@@ -8,7 +8,7 @@ import os
 import re
 import stat
 
-from .codex import MAX_BYTES, Reader, open_input
+from .codex import MAX_BYTES, Reader, exclude_account_files, open_input
 from .codex_rules import PROGRAMS
 
 # https://code.claude.com/docs/en/permissions, "Permission modes"; `manual` is the CLI's alias for `default`
@@ -33,6 +33,10 @@ NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper", 
 # A rule is a tool name with an optional specifier in parentheses (permissions page, "Permission rule syntax").
 RULE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)(?:\((.*)\))?", re.DOTALL)
 UNREADABLE = "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld."
+
+
+AUTO_APPROVAL_UNSET = ("sandbox.autoAllowBashIfSandboxed is unset. Its default changed from true to false in "
+                      "v2.1.324. Check your Claude Code version to determine how sandboxed Bash approvals work.")
 
 
 class SettingsReader(Reader):
@@ -122,15 +126,17 @@ class SettingsReader(Reader):
             if auto is not None:
                 self.add(["sandbox", key], "setting", [str(auto).lower()])
         elif enabled:
-            self.gap("sandbox.autoAllowBashIfSandboxed is unset. Its default changed from true to false in "
-                     "v2.1.324. Check your Claude Code version to determine how sandboxed Bash approvals work.")
+            self.gap(AUTO_APPROVAL_UNSET)
 
 
+def invalid_json_constant(token):
+    """NaN and infinity are accepted by Python but are not numbers in a JSON settings file."""
+    raise ValueError("Invalid JSON number")
+
+
+@exclude_account_files
 def read_file(path, source, *, discovered=False):
     reader = SettingsReader(source)
-    if path.name.casefold() in {".claude.json", ".credentials.json"}:
-        reader.gap("Claude Code account and credential files are excluded. Select a settings file instead.")
-        return [], sorted(reader.gaps)
     try:
         fd = open_input(path)
         with os.fdopen(fd, "rb") as stream:
@@ -140,7 +146,7 @@ def read_file(path, source, *, discovered=False):
         if len(content) > MAX_BYTES:
             reader.gap("Settings file exceeds the 1 MiB size limit.")
             return [], sorted(reader.gaps)
-        data = json.loads(content.decode("utf-8"))
+        data = json.loads(content.decode("utf-8"), parse_constant=invalid_json_constant)
         if not isinstance(data, dict):
             raise ValueError("not an object")
     except FileNotFoundError:
