@@ -15,7 +15,7 @@ from tests.support import without_rule_links
 from tests.support import INCOMPLETE, ROOT, ConfigCase, section
 
 GROUP_1 = "**Nothing stands between a mistaken or injected instruction and your computer**"
-GROUP_2 = "**Harm is limited to one channel or service**"
+GROUP_2 = "**Network access, credentials, and connected tools**"
 GROUP_3 = "**Something else has to be tampered with first**"
 NOT_RANKED = ("**Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. "
               "That does not make them minor.**")
@@ -194,6 +194,29 @@ class OverviewTests(ConfigCase):
         self.assertEqual(listed(render(self.report(SANDBOX_ONLY), "markdown")),
                          [(GROUP_1, 1, f"[{SANDBOX_OFF}](#finding-1)"),
                           (GROUP_1, 2, f"[{MOST_COMMANDS}](#finding-2)")])
+
+    def test_network_credentials_and_tools_group_uses_topic_and_count(self):
+        network = QUIET.replace("read-only", "workspace-write") + "[sandbox_workspace_write]\nnetwork_access = true\n"
+        cases = [
+            (SANDBOX_ONLY, None),
+            (network, "1 is about"),
+            (network.replace('inherit = "none"', 'inherit = "all"'), "2 are about"),
+        ]
+        topic = "network access, credentials, or connected tools"
+        for config, count_phrase in cases:
+            report = self.report(config)
+            for fmt in ("plain", "markdown", "html"):
+                with self.subTest(count_phrase=count_phrase, fmt=fmt):
+                    text = render(report, fmt)
+                    if fmt == "html":
+                        text = " ".join(Targets(text).words)
+                    heading = GROUP_2.strip("*")
+                    if count_phrase is None:
+                        self.assertNotIn(heading, text)
+                        self.assertNotIn(topic, text)
+                    else:
+                        self.assertIn(heading, text)
+                        self.assertIn(f"{count_phrase} {topic}.", text)
 
     def test_representative_introduction_explains_results_and_limits(self):
         # A default run, as in the issue's example: both files exist where Codex keeps them.

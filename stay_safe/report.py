@@ -1014,15 +1014,15 @@ def made_by(provenance):
     return label + " (release archive)" if provenance["source_status"] == "release archive commit" else label
 
 
-# The overview before the detailed findings (issue #82). A rule's group is fixed and says what the rule's condition
-# removes; docs/report.md, "The order of findings", gives the table with each rule's incidents. Each group: its
-# heading in the list, its sentence in the introduction for one finding and for several, and its rules in order.
+# See "The order of findings" in docs/report.md for the incidents behind each rule (issue #82).
+# Each group has a heading, singular and plural descriptions for the introduction, and its rules in order.
 GROUPS = (
     ("Nothing stands between a mistaken or injected instruction and your computer",
      ("lets commands reach your whole computer unchecked", "let commands reach your whole computer unchecked"),
      ("unrestricted_filesystem", "commands_without_prompts", "saved_approval")),
-    ("Harm is limited to one channel or service",
-     ("exposes one channel or service", "expose one channel or service"),
+    ("Network access, credentials, and connected tools",
+     ("is about network access, credentials, or connected tools",
+      "are about network access, credentials, or connected tools"),
      ("destructive_tools", "network_access", "environment_inheritance", "automatic_tools")),
     ("Something else has to be tampered with first",
      ("matters only if something else is tampered with first", "matter only if something else is tampered with first"),
