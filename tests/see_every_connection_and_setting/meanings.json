@@ -321,14 +321,19 @@
     "value": "command-backed authentication",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[model_providers.internal.auth]\ncommand=\"synthetic-command\"",
     "entry": "model_providers.internal",
-    "gaps": []
+    "gaps": [
+      "Model-provider command-backed authentication is outside reader coverage."
+    ]
   },
   {
     "setting": "model_providers.*.aws",
     "value": "credential commands",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[model_providers.amazon-bedrock.aws.credential_export]\ncommand=\"synthetic-export\"\n[model_providers.amazon-bedrock.aws.auth_refresh]\ncommand=\"aws\"",
     "entry": "model_providers.amazon-bedrock",
-    "gaps": []
+    "gaps": [
+      "Model-provider setting aws.auth_refresh was not checked for a credential command.",
+      "Model-provider setting aws.credential_export was not checked for a credential command."
+    ]
   },
   {
     "setting": "notify",

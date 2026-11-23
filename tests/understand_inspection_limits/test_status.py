@@ -67,8 +67,6 @@ class StatusTests(ConfigCase):
                     program_risk = [("configured_program", "config-1:model_providers.amazon-bedrock")] if (settings and inline is None) else []
                     for key in settings:
                         label = f"aws.{key}"
-                        if inline is None:
-                            continue
                         expected.append(f"config-1: Model-provider setting {label} was not checked for a credential command.")
                         self.assertIn(f"**Not checked: `{label}`.** Stay-safe did not check this setting for a credential "
                                       f"command.\n\n*What to do:* Review `{label}` in your config file.\n\n*File `config-1`*",
@@ -84,12 +82,13 @@ class StatusTests(ConfigCase):
                             self.assertNotIn(private, run.stdout)
         auth = self.config(quiet + '[model_providers.corp.auth]\ncommand="private-export"\n')
         control = run_checkout(checkout, "--config", str(auth), cwd=self.root)
-        self.assertEqual(control.returncode, 0)
-        self.assertIn("configured_program", control.stdout)
-        self.assertIn("config-1:model_providers.corp", control.stdout)
+        # The sign-in command is flagged as a program and still named as unchecked, so the report is incomplete.
+        self.assertEqual(control.returncode, 2)
+        self.assertIn("a model provider's sign-in command", section(control.stdout, "Not checked"))
         json_control = run_checkout(checkout, "--config", str(auth), "--format", "json", cwd=self.root)
         report = json.loads(json_control.stdout)
-        self.assertEqual(report["inspection_gaps"], [])
+        self.assertEqual(report["inspection_gaps"],
+                         ["config-1: Model-provider command-backed authentication is outside reader coverage."])
         self.assertEqual([("configured_program", "config-1:model_providers.corp")],
                          [(r["rule"], r["entry"]) for r in report["risks"]])
 
