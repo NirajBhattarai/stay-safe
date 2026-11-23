@@ -78,6 +78,27 @@ its absence and assesses documented defaults (shell environment, the ChatGPT App
 settings remain unknown, so this assessment still exits `2`. See the
 [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) for the behavior and checks.
 
+## Claude Code: `--agent`
+
+A run with no `--agent` checks Codex, and also Claude Code when its folder exists:
+`$CLAUDE_CONFIG_DIR`, or `~/.claude` under `$HOME`. Each agent gets its own report, one
+after the other; with `--format json` they are listed under `"reports"`. A run that finds
+no Claude Code folder prints the Codex report exactly as before.
+
+```sh
+python3 -m stay_safe --agent claude
+python3 -m stay_safe --agent codex
+python3 -m stay_safe --agent claude --config /path/to/settings.json
+```
+
+For Claude Code the reader opens `settings.json` in that folder and reads the permission
+mode, allow rules for `Bash` and `WebFetch`, and `sandbox.enabled`. It names, without
+opening, `~/.claude.json`, `remote-settings.json`, the `agents`, `commands`, `plugins` and
+`skills` folders when they hold anything, and managed settings. Project settings
+(`.claude/settings.json`, `.claude/settings.local.json`) are not read. `--config` with
+more than one `--agent` is an error, and `--rules` reads Codex files only. The
+[Claude Code meanings table](../harnesses/claude-code.md) lists each meaning and its source.
+
 ## Save the report as a page: `--save`
 
 `--save` also writes the report as a self-contained page, `stay-safe-report.html`, in

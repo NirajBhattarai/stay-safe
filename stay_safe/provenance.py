@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLED = (ROOT / "stay_safe/package.txt").is_file()
 REPOSITORY = "https://github.com/chalkbadger/stay-safe"
 SOURCE_FILES = (
-    "stay_safe/__init__.py", "stay_safe/__main__.py", "stay_safe/cli.py", "stay_safe/codex.py",
+    "stay_safe/__init__.py", "stay_safe/__main__.py", "stay_safe/claude.py", "stay_safe/claude_report.py",
+    "stay_safe/cli.py", "stay_safe/codex.py",
     "stay_safe/codex_rules.py", "stay_safe/provenance.py", "stay_safe/report.py", "stay_safe/rules.py",
     "stay_safe/save.py",
     "harnesses/codex.md", "incidents.md",

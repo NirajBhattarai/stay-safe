@@ -12,6 +12,10 @@ from unittest.mock import patch
 FEEDBACK = "Report a problem or suggest an idea: https://github.com/chalkbadger/stay-safe/issues/new/choose\n"
 
 ROOT = Path(__file__).resolve().parents[1]
+# Default runs check Claude Code when its folder exists (issue #163). Point every test that inherits this environment at
+# a Claude Code folder that doesn't exist, so a developer's own ~/.claude never reaches a test; tests of Claude Code
+# discovery pass their own environment.
+os.environ["CLAUDE_CONFIG_DIR"] = str(ROOT / "tests" / "no-claude-code-folder")
 # The file name archived issue #106 fixes for the saved report.
 REPORT = "stay-safe-report.html"
 # A commit the copied checkout's .git/HEAD names, so its report has source and incident links.
@@ -281,3 +285,23 @@ class ReportRuns:
 
 # Issue #18 specifies this stderr text independently of the implementation.
 INCOMPLETE = "Inspection incomplete (exit 2). See the report for what wasn't checked.\n"
+
+
+def agent_home(root, codex=None, claude=None):
+    """A home folder with ~/.codex/config.toml and ~/.claude/settings.json when their text is given (issue #163)."""
+    home = root / "home"
+    home.mkdir(exist_ok=True)
+    if codex is not None:
+        (home / ".codex").mkdir()
+        (home / ".codex" / "config.toml").write_text(codex, encoding="utf-8")
+    if claude is not None:
+        (home / ".claude").mkdir()
+        (home / ".claude" / "settings.json").write_text(claude, encoding="utf-8")
+    return home
+
+
+def run_home(home, *args, cwd=None, **env):
+    """A default run in a subprocess whose home folder is `home` and whose environment holds nothing else."""
+    return subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=cwd or home,
+                          env={"HOME": str(home), "PYTHONPATH": str(ROOT), **env},
+                          text=True, capture_output=True, timeout=10)
