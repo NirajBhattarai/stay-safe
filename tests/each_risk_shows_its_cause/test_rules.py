@@ -10,7 +10,7 @@ class RuleTests(ConfigCase):
         cases = [
             ("saved_approval", ["I26", "I30"]),
             ("commands_without_prompts", ["I2", "I3", "I24"]),
-            ("unrestricted_filesystem", ["I1", "I3"]),
+            ("unrestricted_filesystem", ["I1", "I3", "I32"]),
             ("configured_program", ["I13", "I14", "I19"]),
             ("automatic_tools", ["I15", "I20"]),
             ("destructive_tools", ["I7", "I8"]),
