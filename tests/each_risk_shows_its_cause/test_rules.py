@@ -11,7 +11,7 @@ class RuleTests(ConfigCase):
             ("saved_approval", ["I26", "I30"]),
             ("commands_without_prompts", ["I2", "I3", "I24"]),
             ("unrestricted_filesystem", ["I1", "I3", "I32"]),
-            ("configured_program", ["I13", "I14", "I19"]),
+            ("configured_program", ["I13", "I14", "I19", "I33"]),
             ("automatic_tools", ["I15", "I20"]),
             ("destructive_tools", ["I7", "I8"]),
             ("network_access", ["I15", "I21"]),

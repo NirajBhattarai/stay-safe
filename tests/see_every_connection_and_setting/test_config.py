@@ -104,8 +104,8 @@ class CatalogTests(ConfigCase):
         self.assertEqual([(r["rule"], r["entry"], r["incidents"]) for r in report["risks"]], [
             ("commands_without_prompts", "config-1:approval_policy", ["I2", "I3", "I24"]),
             ("self_described_tools", "config-1:apps.calendar", ["I15", "I21"]),
-            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19"]),
-            ("configured_program", "config-1:notify", ["I13", "I14", "I19"]),
+            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19", "I33"]),
+            ("configured_program", "config-1:notify", ["I13", "I14", "I19", "I33"]),
             ("environment_inheritance", "config-1:shell_environment_policy", ["I23"]),
         ])
         self.assertEqual(report["inspection_gaps"], [])

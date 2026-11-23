@@ -120,7 +120,8 @@ FINDINGS = {
         "headline": "{Subject} can start a program on your computer.",
         "why": PROGRAM,
         "how": "Flaws in other agents let repository settings run commands on collaborators' machines, and a worm "
-               "wrote itself into an agent's settings so its code ran at every start."},
+               "wrote itself into an agent's settings so its code ran at every start. Google reported that intruders "
+               "changed project settings so Claude Code would download a backdoor at startup."},
     "automatic_tools": {
         "headline": ("{Subject}'s tool approval mode is `approve`.", "{Subject} has approval mode `approve`."),
         "why": AUTOMATIC,

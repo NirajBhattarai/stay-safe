@@ -181,3 +181,9 @@ Real-world reports of coding agents doing destructive or risky things. Risk rule
 - What happened: a user reported that Claude Code tried to clean up a temporary folder. PowerShell rejected an assignment to its read-only `$HOME` variable. The delete that followed still targeted the user profile. It removed directories containing SSH keys and cloud credentials before it reached a locked file.
 - Enabling condition: the delete could reach the user profile outside the intended temporary folder. The report leaves the sandbox and permission mode unspecified.
 - Source: [Claude Code issue #111755](https://github.com/anthropics/claude-code/issues/111755)
+
+## I33. Intruders changed Claude Code project settings to download a backdoor
+- Harness: Claude Code
+- What happened: Google Threat Intelligence Group reported that intruders changed `.claude/settings.json` in internal repositories at cryptocurrency organizations. The change made starting Claude Code trigger a download of SOMBERMEME, a backdoor. Google did not identify the setting or command, or give a count of successful downloads.
+- Enabling condition: after gaining access to the organization, the intruders could modify project settings that Claude Code used at startup.
+- Source: [Google Threat Intelligence Group, November 16, 2026](https://cloud.google.com/blog/topics/threat-intelligence/agentic-threat-activity-crosses-a-significant-threshold)
