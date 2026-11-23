@@ -366,22 +366,12 @@ class Reader:
         if "model_providers" in data:
             for name, provider in self.named(self.table(data["model_providers"], "model_providers"), "model_providers"):
                 self.add(["model_providers", name], "model provider", ["configured; endpoint and credentials withheld"])
-                # A sign-in command is a program Codex can start, so it is flagged; its args, cwd and whether the file
-                # selects this provider are not assessed, so each command setting also stays named as unchecked
-                # (issue #118: an unchecked credential command must not leave a clean report).
-                auth = provider.get("auth")
-                if isinstance(auth, dict) and isinstance(auth.get("command"), str) and auth["command"].strip():
-                    self.entries[-1]["facts"]["configured_program"] = True
                 if "auth" in provider:
                     self.gap("Model-provider command-backed authentication is outside reader coverage.")
                 aws = self.table(provider.get("aws", {}), "aws")
-                if isinstance(aws, dict):
-                    for key in ("credential_export", "auth_refresh"):
-                        value = aws.get(key)
-                        if isinstance(value, dict) and isinstance(value.get("command"), str) and value["command"].strip():
-                            self.entries[-1]["facts"]["configured_program"] = True
-                        if key in aws:
-                            self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
+                for key in ("credential_export", "auth_refresh"):
+                    if key in aws:
+                        self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
         if "notify" in data:
             notify = data["notify"]
             # The first element is the program; later arguments may be empty.

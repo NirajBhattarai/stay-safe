@@ -14,7 +14,7 @@ Here is a finding from a run on a [test configuration](tests/runs_without_a_codi
 >
 > *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
 >
-> *What to do:* Set `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (Codex decides when to ask you first; commands still can't write files). With `on-request`, ordinary commands can still run without a prompt in a restricted sandbox; Codex asks only for dangerous commands or requests to leave it. But commands a saved approval allows still run outside the sandbox.
+> *What to do:* If you want Codex to ask before running some commands it currently blocks, choose `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (commands still can't write files). Ordinary commands can still run inside the sandbox without asking you. But commands a saved approval allows still run outside the sandbox.
 >
 > *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
 >

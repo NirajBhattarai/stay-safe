@@ -190,56 +190,49 @@ LABELS_GROUP = {
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
 PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
-# With `on-request`, Codex allows non-dangerous, non-escalated commands in a restricted sandbox rather than prompting;
-# dangerous commands and sandbox overrides still prompt
-# (https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L836-L843,
-# https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L873).
-# Every approval option must say so: otherwise the finding's "without asking" risk is presented as fixed by a change that
-# leaves it in place.
-ON_REQUEST_LIMIT = (" With `on-request`, ordinary commands can still run without a prompt in a restricted sandbox; "
-                    "Codex asks only for dangerous commands or requests to leave it.")
+ASK_FOR_BLOCKED = "If you want Codex to ask before running some commands it currently blocks, choose "
+ORDINARY_STILL_RUN = "Ordinary commands can still run inside the sandbox without asking you."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first).' + ON_REQUEST_LIMIT +
+        "what": ASK_FOR_BLOCKED + '`approval_policy = "on-request"`. ' + ORDINARY_STILL_RUN +
                 " For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
-                "ask you first; commands still can't write files)." + ON_REQUEST_LIMIT + " But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` "
+                "(commands still can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "workspace-write": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when "
-                "to ask you first; commands can still write in your workspace). Stricter: also "
-                "`sandbox_mode = \"read-only\"` (commands can't write files)." + ON_REQUEST_LIMIT + " Either way, " +
-                SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` "
+                "(commands can still write in your workspace). " + ORDINARY_STILL_RUN + " Stricter: also "
+                "`sandbox_mode = \"read-only\"` (commands can't write files). Either way, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-                "`sandbox_mode = \"{value}\"` in `{label}`." + ON_REQUEST_LIMIT + " But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` without loosening the "
+                "`sandbox_mode = \"{value}\"` in `{label}`. " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     # on-request with danger-full-access lets ordinary commands run without asking (issue #141; harnesses/codex.md
     # row approval_policy `on-request with danger-full-access`), so the sandbox is what to change.
     "full-on-request": {
         "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
-                "in your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides "
-                "when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
-                "(commands can't write files)." + ON_REQUEST_LIMIT + " Either way, " + SAVED_STILL,
+                "in your workspace and in any extra folders in `writable_roots`, so review that list). "
+                + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files). Either way, " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     # As above, when another inspected file sets `read-only`: `workspace-write` would be looser.
     "full-on-request-read-only": {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
-                "(commands can't write files; Codex decides when to ask you first)." + ON_REQUEST_LIMIT + " But " + SAVED_STILL,
+                "(commands can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
-                "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
-                "to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
-                "(commands can't write files)." + ON_REQUEST_LIMIT + " Either way, " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` "
+                "(commands can write in your workspace and in any extra folders in `writable_roots`, so review that "
+                "list). " + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
         "check": COMMANDS_CHECK}}
@@ -316,19 +309,6 @@ ADVICE = {
         "ask": "Edit {file} to remove my `{name}` hooks",
         "check": "In {where}, each `command` in the `hooks` of `[[{table}]]`, often written as `[[{table}.hooks]]` "
                  "sections, is a command they run. Find out who publishes the program it starts before you trust it."},
-    # A provider's sign-in program is `command` with `args` in its `auth`, `aws.credential_export` or `aws.auth_refresh`
-    # table; each requires `command` and rejects unknown fields (openai/codex 086ccc8,
-    # protocol/src/config_types.rs L570-L576; model-provider-info/src/lib.rs L238-L290), so removing only the
-    # `command` line leaves a file Codex refuses: the whole table goes.
-    ("configured_program", "model_providers", 2): {
-        "what": "Keep it if you trust the program it starts. Stricter: remove the sign-in command if you don't use "
-                "this provider.",
-        "where": "under `[model_providers.{name}]`, delete the `auth`, `aws.credential_export` or `aws.auth_refresh` "
-                 "table that holds the `command`, with everything in it",
-        "ask": "Edit {file} to remove the sign-in commands of my `{name}` model provider",
-        "check": "In {where}, the program is `command` with its `args` in the `auth`, `aws.credential_export` and "
-                 "`aws.auth_refresh` tables under `[model_providers.{name}]`. Find out who publishes it before you "
-                 "trust it."},
     ("automatic_tools", "mcp_servers", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "apps", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "mcp_servers", 4): TOOL_PROMPT,
@@ -838,8 +818,7 @@ def parts(name):
 
 SUBJECTS = {("mcp_servers", 2): "your {0} MCP server", ("mcp_servers", 4): "the {1} tool of your {0} MCP server",
             ("apps", 2): "your {0} app", ("apps", 4): "the {1} tool of your {0} app",
-            ("hooks", 2): "your {0} hooks", ("notify", 1): "your `notify` setting",
-            ("model_providers", 2): "your {0} model provider"}
+            ("hooks", 2): "your {0} hooks", ("notify", 1): "your `notify` setting"}
 
 
 def finding(risk, files=None, contexts=None):

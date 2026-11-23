@@ -64,7 +64,6 @@ class StatusTests(ConfigCase):
                     human = run_checkout(checkout, "--config", path, cwd=self.root)
                     machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
                     expected = [generic] if selected else []
-                    program_risk = [("configured_program", "config-1:model_providers.amazon-bedrock")] if (settings and inline is None) else []
                     for key in settings:
                         label = f"aws.{key}"
                         expected.append(f"config-1: Model-provider setting {label} was not checked for a credential command.")
@@ -72,9 +71,8 @@ class StatusTests(ConfigCase):
                                       f"command.\n\n*What to do:* Review `{label}` in your config file.\n\n*File `config-1`*",
                                       section(human.stdout, "Not checked"))
                     report = json.loads(machine.stdout)
-                    got_risks = [(r["rule"], r["entry"]) for r in report["risks"]]
                     self.assertCountEqual(report["inspection_gaps"], expected)
-                    self.assertEqual(got_risks, program_risk)
+                    self.assertEqual(report["risks"], [])
                     self.assertEqual(section(human.stdout, "Not checked").count("**Not checked:"), len(expected))
                     for run in (human, machine):
                         self.assertEqual((run.returncode, run.stderr), (2, EXPLANATION) if expected else (0, ""))
@@ -82,15 +80,8 @@ class StatusTests(ConfigCase):
                             self.assertNotIn(private, run.stdout)
         auth = self.config(quiet + '[model_providers.corp.auth]\ncommand="private-export"\n')
         control = run_checkout(checkout, "--config", str(auth), cwd=self.root)
-        # The sign-in command is flagged as a program and still named as unchecked, so the report is incomplete.
         self.assertEqual(control.returncode, 2)
         self.assertIn("a model provider's sign-in command", section(control.stdout, "Not checked"))
-        json_control = run_checkout(checkout, "--config", str(auth), "--format", "json", cwd=self.root)
-        report = json.loads(json_control.stdout)
-        self.assertEqual(report["inspection_gaps"],
-                         ["config-1: Model-provider command-backed authentication is outside reader coverage."])
-        self.assertEqual([("configured_program", "config-1:model_providers.corp")],
-                         [(r["rule"], r["entry"]) for r in report["risks"]])
 
         # The two providers in the second file each contribute a gap.
         malformed = self.config(quiet + '[model_providers.corp]\naws=false\n', "bad.toml")
