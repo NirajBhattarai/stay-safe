@@ -202,7 +202,8 @@ class SkillsAndEnvironmentsTests(ConfigCase):
                 (home / 'skills').mkdir()
                 (home / 'skills' / 'linked').symlink_to(target, target_is_directory=True)
             real_stat, real_listdir = os.stat, os.listdir
-            inside = lambda path: os.path.realpath(path).startswith(str(outside.resolve()))
+            prefix = str(outside.resolve())  # resolved before os.stat is patched
+            inside = lambda path: os.path.realpath(path).startswith(prefix)
 
             def denied_stat(path, *args, follow_symlinks=True, **kwargs):
                 if follow_symlinks and inside(path):
