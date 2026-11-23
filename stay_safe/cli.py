@@ -98,10 +98,19 @@ def skills(home):
     """
     root = home / "skills"
     failed = False
+
+    def mode(path, follow=True):
+        """The path's file type, or None when it is absent; other errors, such as PermissionError, propagate.
+        Path.is_dir() would report an unreadable folder as absent."""
+        try:
+            return stat.S_IFMT(path.stat(follow_symlinks=follow).st_mode)
+        except (FileNotFoundError, NotADirectoryError):
+            return None
+
     # Breadth-first, as Codex walks, so each folder is first reached by its shortest route and a longer link to it
     # can't hide the folders below it.
     try:
-        if not root.is_dir():
+        if mode(root) != stat.S_IFDIR:
             return None
         seen = {root.resolve()}
         queue = [(root, 0)]
@@ -114,11 +123,12 @@ def skills(home):
             for name in names:
                 path = folder / name
                 try:
-                    if stat.S_ISLNK(path.stat(follow_symlinks=False).st_mode) and not path.is_dir():
-                        continue
-                    if name == "SKILL.md" and path.is_file():
+                    kind = mode(path)
+                    if mode(path, follow=False) == stat.S_IFLNK and kind != stat.S_IFDIR:
+                        continue  # a file link or a broken link: Codex skips it
+                    if name == "SKILL.md" and kind == stat.S_IFREG:
                         return "Codex home: skills holds Codex skills that were not inspected."
-                    if path.is_dir() and depth < 6 and not name.startswith(".") and path.resolve() not in seen:
+                    if kind == stat.S_IFDIR and depth < 6 and not name.startswith(".") and path.resolve() not in seen:
                         seen.add(path.resolve())
                         queue.append((path, depth + 1))
                 except OSError:
