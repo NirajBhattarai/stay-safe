@@ -30,7 +30,7 @@
 
 ## automatic_tools
 
-- Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.default_tools_approval_mode`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
+- Settings: [Codex meanings](../harnesses/codex.md) rows `approval_policy`, `mcp_servers.*.default_tools_approval_mode`, `mcp_servers.*.tools.*.approval_mode`, `mcp_servers.*.tools.*.enabled`, `apps._default.default_tools_approval_mode`, `apps._default.enabled`, `apps._default.default_tools_enabled`, `apps.*.default_tools_approval_mode`, `apps.*.enabled_tools`, `apps.*.disabled_tools`, `apps.*.tools.*.approval_mode`, `apps.*.tools.*.enabled`
 - Incidents: [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I20](../incidents.md#i20-injected-text-turned-off-approvals)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+automatic_tools+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+automatic_tools)

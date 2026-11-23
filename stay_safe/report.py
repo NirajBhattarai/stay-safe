@@ -209,9 +209,27 @@ COMMANDS = {
         "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
                 "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
+    # on-request with danger-full-access lets ordinary commands run without asking (issue #141; harnesses/codex.md
+    # row approval_policy `on-request with danger-full-access`), so the sandbox is what to change.
+    "full-on-request": {
+        "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
+                "in your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides "
+                "when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files). Either way, " + SAVED_STILL,
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
+        "check": COMMANDS_CHECK},
+    # As above, when another inspected file sets `read-only`: `workspace-write` would be looser.
+    "full-on-request-read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
+                "(commands can't write files; Codex decides when to ask you first). But " + SAVED_STILL,
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
+        "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only "
-                "in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
+                "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
+                "to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
@@ -223,11 +241,41 @@ SANDBOX = {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"read-only\"`"},
     None: {
-        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write only in your workspace). Stricter: "
+        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write in your workspace and in any extra "
+                "folders in `writable_roots`, so review that list). Stricter: "
                 "`sandbox_mode = \"read-only\"` (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"`"}}
+# never with danger-full-access can let MCP and app tool calls run without asking (issue #141; harnesses/codex.md row approval_policy
+# `never with danger-full-access`); with a sandbox, each tool's approval mode applies again, and never refuses a call
+# that needs approval (openai/codex 086ccc8, core/src/mcp_tool_call.rs L1691-L1699).
+# With `read-only` in another inspected file, `workspace-write` would be looser, so only `read-only` is offered, as
+# for SANDBOX.
+FULL_ACCESS_TOOLS = {
+    "read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (each server's and app's tool approval mode then "
+                "applies, Codex refuses calls that need approval instead of asking, and commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`"},
+    None: {
+        "what": "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and "
+                "Codex refuses calls that need approval instead of asking), and review any extra folders in "
+                "`writable_roots`. Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`"}}
+FULL_ACCESS_HEADLINES = {
+    "commands_without_prompts": ("With these settings, Codex runs most commands without asking you.",
+                                 "With `sandbox_mode = \"danger-full-access\"`, ordinary commands can run without "
+                                 "asking, including ones that delete or change files. For commands without a matching "
+                                 "rule, Codex asks first only if it flags the command as dangerous, such as a forced "
+                                 "`rm`."),
+    "automatic_tools": ("With these settings, Codex can use MCP server and app tools without asking you.",
+                        "`approval_policy = \"never\"` with `sandbox_mode = \"danger-full-access\"` can allow MCP "
+                        "server and app tools to run without asking you, even when a tool's approval mode requests "
+                        "approval. " + AUTOMATIC)}
 ADVICE = {
     ("commands_without_prompts", "approval_policy", 1): COMMANDS,
+    ("automatic_tools", "approval_policy", 1): FULL_ACCESS_TOOLS,
     ("unrestricted_filesystem", "sandbox_mode", 1): SANDBOX,
     # Keeping a trusted program changes nothing; turning it off to see what breaks changes the setup, so it is the
     # stricter option, not the Check. A stdio server runs `command` with `args` (openai/codex 086ccc8,
@@ -343,6 +391,10 @@ def sandbox_context(report, files):
     sources |= {source for source in gaps if source.startswith("config-")}
     own = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
            if entry["name"] == "sandbox_mode" and entry["observations"]}
+    # The approval policy a file's unrestricted sandbox changes (stay_safe/codex.py, Reader.full_access).
+    full = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
+            if entry["name"] == "approval_policy" and len(entry["observations"]) == 2
+            and entry["observations"][1].startswith("with danger-full-access")}
     profiles = [source for source, messages in gaps.items()
                 if "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
                 or ("Named permission profiles are outside reader coverage; sandbox settings are not "
@@ -356,7 +408,7 @@ def sandbox_context(report, files):
         # A read-only setting still counts here when its file also selects a profile.
         others = sorted((int(other.split("-")[1]), other) for other, value in own.items()
                         if other != source and value == "read-only")
-        context[source] = {"sandbox": own.get(source), "profile": profile_files,
+        context[source] = {"sandbox": own.get(source), "profile": profile_files, "full_access": full.get(source),
                            "other": ("read-only", others[0][1]) if others else None}
     return context
 
@@ -364,14 +416,15 @@ def sandbox_context(report, files):
 def pick_spec(spec, context):
     """The commands and sandbox advice depend on the sandbox the finding's file and the other files set."""
     if spec is COMMANDS:
+        if context.get("full_access") == "on-request":
+            return COMMANDS["full-on-request-read-only" if context.get("other") else "full-on-request"]
         if context.get("profile"):
             return COMMANDS["profile"]
         if context.get("sandbox") in STRICTNESS:
             return COMMANDS[context["sandbox"]]
         return COMMANDS["other"] if context.get("other") else COMMANDS[None]
-    if spec is SANDBOX:
-        other = context.get("other")
-        return SANDBOX["read-only"] if other else SANDBOX[None]
+    if spec is SANDBOX or spec is FULL_ACCESS_TOOLS:
+        return spec["read-only"] if context.get("other") else spec[None]
     return spec
 
 
@@ -753,6 +806,11 @@ def finding(risk, files=None, contexts=None):
     headline, why, step = pick(plain["headline"]), pick(plain["why"]), advice(risk, files or {}, contexts or {})
     if keys == ["apps", "_default"]:
         headline = TEMPLATE_HEADLINES.get(risk["rule"], headline)
+    source = risk["entry"].split(":", 1)[0]
+    full_access = (contexts or {}).get(source, {}).get("full_access")
+    if keys == ["approval_policy"] and (risk["rule"], full_access) in {("commands_without_prompts", "on-request"),
+                                                                      ("automatic_tools", "never")}:
+        headline, why = FULL_ACCESS_HEADLINES[risk["rule"]]
     if "{line}" in headline:
         if shape != ("prefix_rule", 2):
             return None
@@ -822,6 +880,10 @@ SETUP_WORDS = {
     "applies to apps not named in this file": "applies to apps your file doesn't name",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
+    "with danger-full-access, ordinary commands can run without asking":
+        "but with `danger-full-access` ordinary commands can run without asking",
+    "with danger-full-access, MCP and app tool calls can run without asking":
+        "and with `danger-full-access` MCP server and app tools can run without asking",
     "read-only": "`read-only` (commands can't write files)",
     "workspace-write": "`workspace-write` (commands can write in your workspace)",
     "danger-full-access": "`danger-full-access` (no sandbox)",
