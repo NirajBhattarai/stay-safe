@@ -113,7 +113,9 @@ FINDINGS = {
         "headline": "Your config turns off Codex's sandbox.",
         "why": "Commands Codex runs aren't limited to your project, so a mistaken command could damage files "
                "elsewhere on your computer.",
-        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command."},
+        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. "
+               "A Claude Code user reported losing SSH keys and cloud credentials when a PowerShell cleanup "
+               "deleted files in their home directory."},
     "configured_program": {
         "headline": "{Subject} can start a program on your computer.",
         "why": PROGRAM,
