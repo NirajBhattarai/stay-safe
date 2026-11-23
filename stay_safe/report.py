@@ -214,7 +214,7 @@ COMMANDS = {
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
         "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-                "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
+                "`sandbox_mode = \"{value}\"` in `{label}`." + ON_REQUEST_LIMIT + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     None: {
         "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only "
@@ -266,13 +266,19 @@ ADVICE = {
         "ask": "Edit {file} to remove my `{name}` hooks",
         "check": "In {where}, each `command` in the `hooks` of `[[{table}]]`, often written as `[[{table}.hooks]]` "
                  "sections, is a command they run. Find out who publishes the program it starts before you trust it."},
+    # A provider's sign-in program is `command` with `args` in its `auth`, `aws.credential_export` or `aws.auth_refresh`
+    # table; each requires `command` and rejects unknown fields (openai/codex 086ccc8,
+    # protocol/src/config_types.rs L570-L576; model-provider-info/src/lib.rs L238-L290), so removing only the
+    # `command` line leaves a file Codex refuses: the whole table goes.
     ("configured_program", "model_providers", 2): {
-        "what": "Keep it if you trust the provider's sign-in command. Stricter: remove `auth.command` or set it to "
-                "a program you trust.",
-        "where": "under `[model_providers.{name}.auth]`",
-        "ask": "Edit {file} to review the sign-in command for my `{name}` provider",
-        "check": "Under `[model_providers.{name}.auth]` in {where}, confirm the `command` is a program you trust.",
-    },
+        "what": "Keep it if you trust the program it starts. Stricter: remove the sign-in command if you don't use "
+                "this provider.",
+        "where": "under `[model_providers.{name}]`, delete the `auth`, `aws.credential_export` or `aws.auth_refresh` "
+                 "table that holds the `command`, with everything in it",
+        "ask": "Edit {file} to remove the sign-in commands of my `{name}` model provider",
+        "check": "In {where}, the program is `command` with its `args` in the `auth`, `aws.credential_export` and "
+                 "`aws.auth_refresh` tables under `[model_providers.{name}]`. Find out who publishes it before you "
+                 "trust it."},
     ("automatic_tools", "mcp_servers", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "apps", 2): AUTOMATIC_GROUP,
     ("automatic_tools", "mcp_servers", 4): TOOL_PROMPT,
@@ -720,7 +726,8 @@ def parts(name):
 
 SUBJECTS = {("mcp_servers", 2): "your {0} MCP server", ("mcp_servers", 4): "the {1} tool of your {0} MCP server",
             ("apps", 2): "your {0} app", ("apps", 4): "the {1} tool of your {0} app",
-            ("hooks", 2): "your {0} hooks", ("notify", 1): "your `notify` setting"}
+            ("hooks", 2): "your {0} hooks", ("notify", 1): "your `notify` setting",
+            ("model_providers", 2): "your {0} model provider"}
 
 
 def finding(risk, files=None, contexts=None):

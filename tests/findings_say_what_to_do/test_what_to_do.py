@@ -198,7 +198,7 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
         value, label = other
         return block(
             f"Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-            f"`sandbox_mode = \"{value}\"` in `{label}`. But {SAVED_STILL}",
+            f"`sandbox_mode = \"{value}\"` in `{label}`." + ON_REQUEST_LIMIT + f" But {SAVED_STILL}",
             approval_only, keep, check)
     return block(
         "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only in "
