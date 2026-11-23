@@ -11,6 +11,10 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
 - I let commands in `workspace-write` mode write to extra folders and see that setting under "Not checked", without the folders' paths. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
 - I see on the ChatGPT Apps connection whether apps my file doesn't name are off and where their `destructive_enabled` comes from. `test_chatgpt_apps.py::test_chatgpt_apps_connection_says_whether_apps_not_named_can_change_data`
+- My Codex folder has skills in `skills` and an `environments.toml` file, and I see each under "Not checked" without their contents. `test_skills_and_environments.py::test_skills_and_environments_toml_each_give_their_own_gap`
+- My Codex folder reaches a skill folder by a short route and by a longer link, and I still see the skills under "Not checked". `test_skills_and_environments.py::test_a_skill_in_the_skills_folder_gives_the_gap_and_exits_2`
+- My Codex folder has an `environments.toml` that is a folder, and I see that under "Not checked". `test_skills_and_environments.py::test_environments_toml_that_is_not_a_file_gives_its_own_gap`
+- My skills folder is reached through a link I can't open, and I see that stay-safe could not check it. `test_skills_and_environments.py::test_permission_error_on_a_linked_skills_folder_reports_failure`
 - I give `apps._default` an invalid value and see that the ChatGPT Apps connection says unknown for apps my file doesn't name, next to the invalid-value gap. `test_chatgpt_apps.py::test_invalid_template_leaves_apps_not_named_unknown_and_keeps_its_gap`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
