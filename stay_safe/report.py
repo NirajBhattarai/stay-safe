@@ -562,6 +562,9 @@ GAPS = {
     "An MCP header-helper command is invalid; its value was withheld.":
         "**Not checked: an MCP header-helper command.** An `http_headers_helper` value isn't a valid command, so "
         f"stay-safe didn't assess it. {WITHHELD}",
+    "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
+        "**Codex can't load this configuration.** The `{label}` server uses `command` (stdio). "
+        "Codex accepts `http_headers_helper` only on HTTP servers.",
     "apps has an invalid destructive_enabled flag.":
         "**Not checked: an app's `destructive_enabled` setting.** It isn't true or false, so stay-safe can't tell "
         "whether that app's tools that change or delete data are turned on.",
@@ -726,6 +729,8 @@ STEPS = {
     "An MCP transport is missing, conflicting or invalid.": "Give the server either a `command` or a `url`, not both.",
     "An MCP header-helper command is invalid; its value was withheld.":
         "Set `http_headers_helper` to the command you mean to run, or remove it.",
+    "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
+        "To keep using stdio, remove `http_headers_helper` from this server's settings.",
     "apps has an invalid destructive_enabled flag.": "Set `destructive_enabled` to `true` or `false`.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
