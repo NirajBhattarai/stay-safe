@@ -63,7 +63,8 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
 - I get advice for each Claude Code finding, naming the setting to change and how to check it. `test_claude_advice.py::test_each_claude_code_finding_says_what_to_change_where_and_how_to_check`
 - I see how to remove broad WebFetch access without adding sandbox hosts, with the versions that honor a domain wildcard. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
-- I change the permission mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
+- I leave bypass mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
+- I read the advice for leaving auto mode and see which sandboxed Bash commands can still run without a prompt. `test_claude_advice.py::test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3

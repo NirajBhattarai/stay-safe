@@ -35,6 +35,8 @@ RULE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)(?:\((.*)\))?", re.DOTALL)
 UNREADABLE = "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld."
 
 
+AUTO_MODE_GAP = ("permissions.defaultMode is auto; a classifier decides which actions run without asking, "
+                 "and its decisions are not assessed.")
 AUTO_APPROVAL_UNSET = ("sandbox.autoAllowBashIfSandboxed is unset. Its default changed from true to false in "
                       "v2.1.324. Check your Claude Code version to determine how sandboxed Bash approvals work.")
 
@@ -65,8 +67,7 @@ class SettingsReader(Reader):
             self.add(["permissions", "defaultMode"], "setting", [mode],
                      {"commands_without_prompts": mode == "bypassPermissions"})
             if mode == "auto":
-                self.gap("permissions.defaultMode is auto; a classifier decides which actions run without asking, "
-                         "and its decisions are not assessed.")
+                self.gap(AUTO_MODE_GAP)
         overrides = []
         for key in ("deny", "ask"):
             value = table.get(key, [])

@@ -2,7 +2,7 @@
 
 import re
 
-from .claude import AUTO_APPROVAL_UNSET, read_file
+from .claude import AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, read_file
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
@@ -62,11 +62,11 @@ GAPS = {
         "`permissions.defaultMode`, so Claude Code uses its built-in mode, which depends on its version and how you "
         "start it.",
         "Set `permissions.defaultMode` to the mode you want, such as `default`, so the report can check it."),
-    "permissions.defaultMode is auto; a classifier decides which actions run without asking, and its decisions are "
-    "not assessed.": (
+    AUTO_MODE_GAP: (
         "**Not checked: auto mode.** In `auto` mode Claude Code runs without routine prompts, and a classifier "
         "decides which actions may run. stay-safe can't assess those decisions.",
-        "If you want to approve shell commands yourself, set `permissions.defaultMode` to `default`."),
+        "Set `permissions.defaultMode` to `default` to leave auto mode. Review any Bash allow rules for commands "
+        "you want to approve yourself."),
     "permissions.defaultMode is unsupported or invalid; its value was withheld.": (
         "**Not checked: `permissions.defaultMode`.** Its value isn't one stay-safe recognizes.",
         "Set it to one of the modes in Claude Code's permission docs."),
@@ -165,7 +165,7 @@ def headline(risk):
 
 
 def sandbox_mode_change(source, entries, gaps):
-    """What switching out of bypass mode leaves in this snapshot, using only validated booleans."""
+    """What switching to default leaves in this snapshot, using only validated booleans."""
     enabled = entries.get(f"{source}:sandbox.enabled")
     if not enabled or enabled["observations"] != ["true"]:
         return ""
@@ -179,7 +179,8 @@ def sandbox_mode_change(source, entries, gaps):
                 "relying on the mode change for Bash approval.")
     if auto["observations"] == ["true"]:
         return (" Changing the mode to default leaves sandbox.autoAllowBashIfSandboxed set to true, so eligible "
-                "sandboxed Bash commands can still run without a prompt.")
+                "sandboxed Bash commands can still run without a prompt. Set that sandbox option to false to use "
+                "regular permission checks.")
     return ""
 
 
@@ -201,7 +202,7 @@ def finding(risk, path, number):
             "\n\n".join([f"*What to do:* {what}", change, check]))
 
 
-def gap(text, files):
+def gap(text, files, entries, gaps):
     source, separator, message = text.partition(": ")
     if not (separator and source.startswith("settings-")):
         source, message = None, text
@@ -215,6 +216,8 @@ def gap(text, files):
         lead_step = (f"**Not checked: Claude Code.** {message.removeprefix('Claude Code home: ')}",
                      "Check that Claude Code is installed, or select a settings file with `--config`.")
     lead, step = lead_step or (UNKNOWN[0].format(message), UNKNOWN[1])
+    if message == AUTO_MODE_GAP:
+        step += sandbox_mode_change(source, entries, gaps)
     return f"{lead}\n\n*What to do:* {step}" + (f"\n\n*File `{files.get(source, source)}`*" if source else "")
 
 
@@ -283,7 +286,8 @@ def markdown(report, files=None):
                   "see what stay-safe didn't check and what this report can't see, below.", ""]
     lines += [f"## {HARNESS} not checked", ""]
     if gaps:
-        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, files) for text in gaps), ""]
+        by_id = {entry["id"]: entry for entry in report["catalog"]}
+        lines += [NOT_CHECKED, "", "\n\n---\n\n".join(gap(text, files, by_id, gaps) for text in gaps), ""]
     else:
         lines += ["stay-safe checked every Claude Code setting it supports in the files it read.", ""]
     lines += [f"## {HARNESS} setup", ""]

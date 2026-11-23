@@ -113,3 +113,36 @@ class ClaudeAdviceTests(ConfigCase):
         self.assertEqual(after["risks"], [])
         self.assertIn(("sandbox.autoAllowBashIfSandboxed", ["true"]),
                       [(e["name"], e["observations"]) for e in after["catalog"]])
+
+    def test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit(self):
+        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1368
+        home = agent_home(self.root)
+        settings = {"permissions": {"defaultMode": "auto"},
+                    "sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}
+        enabled = self.config(json.dumps(settings), "enabled.json")
+        regular = {**settings, "sandbox": {"enabled": True, "autoAllowBashIfSandboxed": False}}
+        disabled = self.config(json.dumps(regular), "disabled.json")
+        args = ("--agent", "claude", "--config", str(enabled))
+        before = run_home(home, *args, "--config", str(disabled))
+        self.assertEqual(before.returncode, 2, before.stderr)
+        warning, control = items(section(before.stdout, "Claude Code not checked").split("\n\n", 1)[1])
+        self.assertIn("Not checked: auto mode", warning)
+        self.assertIn("*File `settings-1`*", warning)
+        self.assertIn("`permissions.defaultMode` to `default`", warning)
+        self.assertIn("sandbox.autoAllowBashIfSandboxed", warning)
+        self.assertIn("eligible sandboxed Bash commands can still run without a prompt", warning)
+        self.assertIn("false", warning)
+        self.assertIn("regular permission checks", warning)
+        self.assertIn("Not checked: auto mode", control)
+        self.assertIn("*File `settings-2`*", control)
+        self.assertNotIn("without a prompt", control)
+
+        settings["permissions"]["defaultMode"] = "default"
+        enabled.write_text(json.dumps(settings))
+        after = run_home(home, *args, "--format", "json")
+        self.assertEqual(after.returncode, 0, after.stderr)
+        report = json.loads(after.stdout)
+        self.assertEqual(report["risks"], [])
+        self.assertEqual(report["inspection_gaps"], [])
+        self.assertIn(("sandbox.autoAllowBashIfSandboxed", ["true"]),
+                      [(entry["name"], entry["observations"]) for entry in report["catalog"]])
