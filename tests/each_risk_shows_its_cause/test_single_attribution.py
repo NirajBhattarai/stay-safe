@@ -42,7 +42,7 @@ class SingleAttributionTests(ConfigCase):
              '[apps.files.tools.read]\nenabled=true\n[apps.files.tools.write]',
              [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
             ('[apps._default]\ndefault_tools_approval_mode="approve"\n[apps.files]\n[apps.files.tools.read]\nenabled=true',
-             [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
+             [("automatic_tools", "apps._default"), ("automatic_tools", "apps.files"), ("destructive_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
         ]:
             with self.subTest(tail=tail):
                 self.assert_tool_risks(tail, expected)
@@ -77,8 +77,12 @@ class SingleAttributionTests(ConfigCase):
         self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "mcp_servers.r.tools.read"],
                          [["configured enabled", "tool approval: approve"]])
 
-    def test_app_template_risks_appear_only_on_enabled_apps_that_inherit_them(self):
+    def test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps(self):
+        # Codex gives an app the file does not name the template's approval mode and destructive_enabled
+        # (openai/codex 086ccc8, connectors/src/app_tool_policy.rs L263-L270 and L287-L294), so the template
+        # carries those risks once; a named app that inherits them carries its own.
         template = '[apps._default]\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n'
+        unnamed = [("automatic_tools", "apps._default"), ("destructive_tools", "apps._default")]
         for tail, expected in [
             ('', []),
             ('[apps.files]', [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files")]),
@@ -89,6 +93,20 @@ class SingleAttributionTests(ConfigCase):
             ('[apps.files]\nenabled=false\n[apps.mail]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false', []),
         ]:
             with self.subTest(tail=tail):
-                report = self.assert_tool_risks(template + tail, expected)
+                report = self.assert_tool_risks(template + tail, unnamed + expected)
                 self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "apps._default"],
-                                 [["configured enabled", "tool approval: approve"]])
+                                 [["configured enabled", "applies to apps not named in this file",
+                                   "destructive tools enabled by apps._default.destructive_enabled",
+                                   "tool approval: approve"]])
+
+    def test_app_template_gives_no_risk_when_unnamed_apps_are_off_or_it_sets_no_risky_value(self):
+        # Codex turns off apps the file does not name when apps._default.enabled is false (app_tool_policy.rs
+        # L174-L185), and features.apps = false removes Apps (harnesses/codex.md row features.apps false). Codex's
+        # own defaults for those apps are a setup line, not a finding.
+        for template in ['[apps._default]\nenabled=false\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n',
+                         '[features]\napps=false\n[apps._default]\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n',
+                         '[apps._default]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false\n',
+                         '[apps._default]\ndefault_tools_approval_mode="writes"\n',
+                         '[apps._default]\n']:
+            with self.subTest(template=template):
+                self.assert_tool_risks(template, [])

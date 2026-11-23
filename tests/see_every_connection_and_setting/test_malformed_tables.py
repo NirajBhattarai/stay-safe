@@ -108,7 +108,9 @@ class MalformedTableTests(ConfigCase):
         for name, (without, entries, risks, bad_entries, bad_risks) in cases.items():
             with self.subTest(name):
                 self.assert_report(without, entries, risks, [])
-                self.assert_report('[apps]\n_default=false\n' + without, bad_entries, bad_risks,
+                # The ChatGPT Apps row can't say what apps the file doesn't name get from a malformed template.
+                unknown = {"features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: settings unknown"]}
+                self.assert_report('[apps]\n_default=false\n' + without, {**bad_entries, **unknown}, bad_risks,
                                    ["apps._default must be a table."])
 
     def test_app_tool_lists_are_a_gap_and_change_nothing_else(self):

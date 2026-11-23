@@ -1,20 +1,26 @@
 # Stay safe
 
-Check your Codex files for risky settings. See what each warning means and what you can do about it.
+Check your Codex settings and saved approvals with three questions in mind.
+
+- **What have I allowed Codex to do?**
+- **Which actions do my settings let Codex take on its own, and which need my approval?**
+- **What should I change if that’s more access than I want?**
 
 stay-safe reads settings and saved approvals from files. Only some settings are covered. The report names the defaults it uses and the checks it could not complete. It does not test live connections or what Codex will actually allow. See the [full scope](docs/report.md#full-scope).
 
 Here is a finding from a run on a [test configuration](tests/runs_without_a_coding_agent/sample.toml):
 
-> **Your config turns off Codex's sandbox.** Commands Codex runs aren't limited to your project, so a mistaken command could damage files elsewhere on your computer.
+> **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
 >
-> *How it has gone wrong:* Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. [I1](https://github.com/chalkbadger/stay-safe/blob/v0.2.2/incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.2/incidents.md#i3-windows-drive-wiped) (reported, not verified).
+> *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
 >
-> *What to do:* Set `sandbox_mode = "workspace-write"` (commands can write only in your workspace). Stricter: `sandbox_mode = "read-only"` (commands can't write files).
+> *What to do:* Set `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (Codex decides when to ask you first; commands still can't write files). With `on-request`, ordinary commands can still run without a prompt in a restricted sandbox; Codex asks only for dangerous commands or requests to leave it. But commands a saved approval allows still run outside the sandbox.
 >
-> *Change it:* near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `sandbox_mode = "workspace-write"`; show only what you change."
+> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
 >
-> *Rule `unrestricted_filesystem` · setting `config-1:sandbox_mode` = `danger-full-access`*
+> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
+>
+> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
 
 It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
@@ -69,13 +75,36 @@ again". If Codex can't download, see [Usage](docs/usage.md#if-codex-cant-downloa
 
 ## What it checks and what it can't see
 
+A saved approval may cover more than the action you remember. For example, an
+approval for every use of a program you used to download a file can cover uploads
+too. Check what the rule covers and whether that program has network access.
+
 - It reads the files listed in [Usage](docs/usage.md) and changes nothing in your setup.
 - Each warning names its rule and the setting behind it, and links to [incident reports](incidents.md). [Reading the report](docs/report.md) explains each part.
 - The [Codex meanings table](harnesses/codex.md) lists the settings it checks and the sources it uses. The report says when it used a default or could not complete a check.
 - The [full scope](docs/report.md#full-scope) explains what it does not inspect.
-- It shows server, app and tool names as written. Check those names before sharing the report.
+- It shows server, app and tool names as written. Check those names before sharing the report. If a name is private, reproduce the finding with made-up names and share that report.
+
+## Could someone use Codex to take private data?
+
+Suppose you ask Codex to investigate a bug someone reported in a public issue.
+
+1. **How could an attacker get in?** The person who filed the issue asks for a
+   diagnostic log. Could Codex mistake their request for an instruction from you?
+2. **What could they get to that’s worth taking?** Could Codex read a private log
+   containing customer details while it investigates?
+3. **How could they get it out?** Could Codex attach that log to a public reply
+   the attacker can read? Would it ask you before posting?
+
+For someone to take data this way, all three have to line up. The report can
+show which settings matter. You know who can file issues and what your logs
+contain. If one step is unclear, check that step. If Codex only needs to read
+issues, giving its issue tool read-only access closes this way out.
 
 ## Challenge a finding
+
+Two challenges help improve the report. Show us a risk it missed, or a warning
+it gave even though the settings already block the action it describes.
 
 Use the [challenge form](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml) to submit the finding, revision, disputed claim and evidence.
 

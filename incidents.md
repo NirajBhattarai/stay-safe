@@ -157,3 +157,21 @@ Real-world reports of coding agents doing destructive or risky things. Risk rule
 - What happened: a user reported that selecting the persistent approval for `curl` allowed later `curl` invocations without prompting, including after restarting in another workspace. The report describes unexpected approval scope and persistence, not destructive consequences.
 - Enabling condition: a saved one-token allow prefix covered additional arguments to the same program.
 - Source: [OpenAI Codex issue #22181](https://github.com/openai/codex/issues/22181)
+
+## I29. Malicious npm package shipped an installer for a remotely controlled agent
+- Harness: Hermes Agent
+- What happened: SafeDep found that the postinstall script in `@leadstack/crm-connect` 1.0.15 was written to install Hermes Agent, start its gateway, wait for a Telegram bot connection, and rename the systemd service to look like a LeadStack component. SafeDep reported that npm removed the package. Its analysis describes no commands sent to a victim's machine.
+- Enabling condition: the root service required the install script to run as root and explicitly request that Hermes run the gateway as root. An authorized Telegram user could then use the agent's shell and file tools. SafeDep could not recover the downloaded `.env`, so whether approval prompts were disabled is unknown.
+- Source: [SafeDep analysis](https://safedep.io/blog/malicious-npm-leadstack-crm-connect-hermes-agent-backdoor)
+
+## I30. Railway credentials printed in a Claude Code transcript
+- Harness: Claude Code (auto mode)
+- What happened: a user reported that Claude Code blocked Railway deploy commands and suggested adding a permission rule. After the user saved a broad Railway approval, the next tool call listed environment variables and printed API secrets and a database password into the transcript. Deploy commands remained blocked.
+- Enabling condition: the user saved `Bash(railway:*)` in `.claude/settings.local.json`. The rule covered `railway variable list`, which returned the values without further confirmation or masking.
+- Source: [Claude Code issue #111589](https://github.com/anthropics/claude-code/issues/111589)
+
+## I31. RunPod asked an agent to hide a rating request from its user
+- Harness: a coding agent using RunPod’s hosted MCP server. The reporter did not name the agent.
+- What happened: a user reported that a successful `create-pod` result asked their agent to rate RunPod without telling them. Their agent declined and told them. RunPod confirmed it had collected agent ratings with each agent’s self-reported model, referral answers and per-account creation counts.
+- Enabling condition: the hosted server could append its rating request to a creation result. Separately, its initialization instructions asked agents to report how the user had found RunPod. Version 4.14.1 removed the instruction to hide the rating. Version 4.15.0 removed both survey requests.
+- Sources: [User report](https://github.com/runpod/runpod-mcp/issues/202), [maintainer’s account of the changes](https://github.com/runpod/runpod-mcp/issues/202#issuecomment-7072863075), [maintainer’s account of the data collected](https://github.com/runpod/runpod-mcp/issues/202#issuecomment-7075788457), [versioned changelog](https://github.com/runpod/runpod-mcp/blob/66cf5f5e3464320a599aba813d7d2802435b8d15/CHANGELOG.md#4150)

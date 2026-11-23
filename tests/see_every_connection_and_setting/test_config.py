@@ -86,7 +86,7 @@ class CatalogTests(ConfigCase):
             ("apps._default", "app policy", ["disabled", "tool approval: auto (default)"]),
             ("apps.backup", "app policy", ["disabled", "tool approval: approve"]),
             ("apps.calendar", "app policy", ["configured enabled", "destructive tools disabled by destructive_enabled", "tool approval: writes"]),
-            ("features.apps", "MCP server", CHATGPT_APPS),
+            ("features.apps", "MCP server", CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]),
             ("mcp_servers.git", "MCP server", ["configured enabled", "stdio; command withheld", "tool approval: prompt"]),
             ("mcp_servers.lookup", "MCP server", ["configured enabled", "HTTP; endpoint withheld", "tool approval: approve"]),
             ("mcp_servers.lookup.disabled_tools", "tool filter", ["configured names: delete"]),
@@ -251,7 +251,7 @@ approval_mode="approve"
         self.assertIn("Named permission profiles are outside reader coverage", " ".join(report["inspection_gaps"]))
         self.assertIn("default_permissions and sandbox_mode conflict", " ".join(report["inspection_gaps"]))
         definitions = inspect([self.config('approval_policy="on-request"\nsandbox_mode="danger-full-access"\n[permissions.example]\nextends=":read-only"')])
-        self.assertEqual([r["rule"] for r in definitions["risks"]], ["unrestricted_filesystem", "environment_inheritance"])
+        self.assertEqual([r["rule"] for r in definitions["risks"]], ["commands_without_prompts", "unrestricted_filesystem", "environment_inheritance"])
 
     def test_preapproved_tools_are_distinct_from_auto_and_keep_slash_names(self):
         path = self.config('''approval_policy="on-request"

@@ -39,6 +39,7 @@ BACKING = {
     "inherit core": [("shell_environment_policy.inherit", "core")],
     "inherit none": [("shell_environment_policy.inherit", "none")],
     "network off": [("sandbox_workspace_write.network_access", "false")],
+    "writable roots": [("sandbox_workspace_write.writable_roots", "paths under workspace-write")],
 }
 CONFIRMED = {"documented", "documented in source"}
 # A setting a report's option names, by the kind of entry the finding is on -> its BACKING key. Code text in an option
@@ -47,9 +48,9 @@ CONFIRMED = {"documented", "documented in source"}
 SETTINGS = {
     ("approval_policy", 1): {'approval_policy = "on-request"': "approval on-request", "on-request": "approval on-request",
                              'sandbox_mode = "workspace-write"': "sandbox workspace-write",
-                             'sandbox_mode = "read-only"': "sandbox read-only"},
+                             'sandbox_mode = "read-only"': "sandbox read-only", "writable_roots": "writable roots"},
     ("sandbox_mode", 1): {'sandbox_mode = "workspace-write"': "sandbox workspace-write",
-                          'sandbox_mode = "read-only"': "sandbox read-only"},
+                          'sandbox_mode = "read-only"': "sandbox read-only", "writable_roots": "writable roots"},
     ("mcp_servers", 2): {'default_tools_approval_mode = "writes"': "server writes",
                          'default_tools_approval_mode = "prompt"': "server prompt",
                          'approval_policy = "never"': "approval never", "enabled_tools": "server enabled_tools",
@@ -201,8 +202,9 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
             f"`sandbox_mode = \"{value}\"` in `{label}`." + ON_REQUEST_LIMIT + f" But {SAVED_STILL}",
             approval_only, keep, check)
     return block(
-        "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only in "
-        "your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` (commands "
+        "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in your "
+        "workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when to ask you "
+        "first). Stricter: `sandbox_mode = \"read-only\"` (commands "
         "can't write files)." + ON_REQUEST_LIMIT + f" Either way, {SAVED_STILL}",
         TOP,
         f"Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`", check)
@@ -210,13 +212,26 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
 
 # Rows: sandbox workspace-write, sandbox read-only. With `read-only` in another inspected file, `workspace-write` would
 # be looser, so only `read-only` is offered (F13).
+# Issue #141: with danger-full-access, never can let tool calls run without asking (row approval_policy `never with
+# danger-full-access`); with a sandbox each tool's mode applies again and never refuses a call that needs approval
+# (openai/codex 086ccc8, core/src/mcp_tool_call.rs L1691-L1699). Rows sandbox_mode workspace-write and read-only.
+def full_access_tools(file=FILE):
+    return block(
+        "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and Codex "
+        "refuses calls that need approval instead of asking), and review any extra folders in `writable_roots`. "
+        "Stricter: `sandbox_mode = \"read-only\"` (commands "
+        "can't write files).",
+        "`sandbox_mode` " + TOP, f"Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`")
+
+
 def sandbox(file=FILE, other=None):
     if other:
         return block(
             f"Set `sandbox_mode = \"read-only\"`, as `{other}` does (commands can't write files).",
             TOP, f"Edit {file} to set `sandbox_mode = \"read-only\"`")
     return block(
-        "Set `sandbox_mode = \"workspace-write\"` (commands can write only in your workspace). Stricter: "
+        "Set `sandbox_mode = \"workspace-write\"` (commands can write in your workspace and in any extra folders in "
+        "`writable_roots`, so review that list). Stricter: "
         "`sandbox_mode = \"read-only\"` (commands can't write files).",
         TOP, f"Edit {file} to set `sandbox_mode = \"workspace-write\"`")
 
@@ -287,6 +302,7 @@ SECOND_FILE = passed("config-2")
 EXPECTED = {
     ("commands_without_prompts", "config-1:approval_policy"): commands("danger-full-access"),
     ("unrestricted_filesystem", "config-1:sandbox_mode"): sandbox(),
+    ("automatic_tools", "config-1:approval_policy"): full_access_tools(),
     ("configured_program", "config-1:notify"): notify(),
     ("configured_program", "config-1:mcp_servers.github"): program_server("github"),
     ("self_described_tools", "config-1:mcp_servers.github"): labels_group("MCP server", "github", "mcp_servers.github"),
@@ -398,6 +414,35 @@ class WhatToDoTests(ConfigCase):
             with self.subTest(rule=key[0], entry=key[1]):
                 self.assertEqual(found[key], expected)
 
+    def test_app_template_findings_cover_apps_the_file_does_not_name(self):
+        # Issue #139: Codex gives apps the file does not name apps._default's approval mode and destructive_enabled
+        # (harnesses/codex.md rows apps._default.default_tools_approval_mode `approve` and
+        # apps._default.destructive_enabled `true`); named apps without their own mode inherit it too (row
+        # apps.*.default_tools_approval_mode `approve inherited from _default`). enabled = false turns off apps the
+        # file does not name and no named app (row apps._default.enabled).
+        text = ('approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
+                '[apps._default]\ndefault_tools_approval_mode = "approve"\ndestructive_enabled = true\n')
+        args = self.files(text)
+        found = self.findings(*args)
+        self.assertEqual(found[("automatic_tools", "config-1:apps._default")], block(
+            'Set `default_tools_approval_mode = "writes"` (uses server hints). Stricter: '
+            '`default_tools_approval_mode = "prompt"`. Apps you name without their own mode change too.',
+            "under `[apps._default]`",
+            f'Edit {FILE} to set `default_tools_approval_mode = "writes"` under `[apps._default]`'))
+        self.assertEqual(found[("destructive_tools", "config-1:apps._default")], block(
+            "Set `destructive_enabled = false` (tools marked as not destructive stay on; tools marked destructive, or "
+            "not marked, turn off). Stricter: `enabled = false` (apps your config doesn't name turn off; apps you "
+            "name stay on).",
+            "under `[apps._default]`",
+            f"Edit {FILE} to set `destructive_enabled = false` under `[apps._default]`"))
+        markdown = self.run_cli(*args).stdout
+        self.assertIn("**Apps your config doesn't name use tool approval mode `approve`, set in `apps._default`.** "
+                      "Untrusted tool content could lead to unwanted actions.", markdown)
+        self.assertIn("**Apps your config doesn't name have tools that can change or delete data turned on, set in "
+                      "`apps._default`.** A mistaken operation could change or delete data in the connected service.",
+                      markdown)
+        self.assertNotIn("`_default` app", markdown)
+
     def test_shared_note_keeps_approval_outcomes_unassessed_for_each_policy(self):
         never = 'approval_policy = "never"\n'
         on_request = 'approval_policy = "on-request"\n'
@@ -432,6 +477,45 @@ class WhatToDoTests(ConfigCase):
                 advice = found[("commands_without_prompts", "config-1:approval_policy")]
                 self.assertIn("ordinary commands can still run without a prompt in a restricted sandbox", advice)
                 self.assertIn("Codex asks only for dangerous commands or requests to leave it", advice)
+
+    def test_full_access_findings_on_the_approval_policy_say_to_change_the_sandbox(self):
+        # Issue #141: with danger-full-access, on-request lets ordinary commands run without asking (row
+        # approval_policy `on-request with danger-full-access`), so the advice keeps on-request and changes the sandbox
+        # (rows sandbox_mode workspace-write and read-only; a saved approval still runs outside it, row prefix_rule).
+        args = ("--config", str(self.config('approval_policy = "on-request"\nsandbox_mode = "danger-full-access"\n')))
+        found = self.findings(*args)
+        self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")], block(
+            'Set `sandbox_mode = "workspace-write"` and keep `approval_policy = "on-request"` (commands can write in '
+            'your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when to '
+            'ask you first). Stricter: `sandbox_mode = "read-only"` (commands '
+            "can't write files)." + ON_REQUEST_LIMIT + " Either way, commands a saved approval allows still run "
+            "outside the sandbox.",
+            "`sandbox_mode` " + TOP,
+            f'Edit {FILE} to set `sandbox_mode = "workspace-write"` without changing `approval_policy`',
+            f"Look for `approval_policy` and `sandbox_mode` in {WHERE}."))
+        self.assertIn("**With these settings, Codex runs most commands without asking you.** With "
+                      '`sandbox_mode = "danger-full-access"`, ordinary commands can run without asking, including ones '
+                      "that delete or change files. For commands without a matching rule, Codex asks first only if it "
+                      "flags the command as dangerous, such as a forced `rm`.", self.run_cli(*args).stdout)
+        found = self.findings("--config", str(self.config('approval_policy = "never"\nsandbox_mode = "danger-full-access"\n')))
+        self.assertEqual(found[("automatic_tools", "config-1:approval_policy")], full_access_tools())
+
+    def test_following_the_sandbox_advice_with_writable_roots_leaves_them_to_review(self):
+        # Review of #141: a file with extra writable folders gets advice to review them, and after the suggested edit
+        # the report names them under "Not checked" (row sandbox_workspace_write.writable_roots).
+        roots = '[sandbox_workspace_write]\nwritable_roots = ["/outside-project"]\n'
+        gap = ("config-1: sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+               "workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.")
+        for approval, key in (("on-request", ("commands_without_prompts", "config-1:approval_policy")), ("never", ("automatic_tools", "config-1:approval_policy"))):
+            with self.subTest(approval=approval):
+                server = '[mcp_servers.search]\nurl = "https://example.invalid/mcp"\n' if approval == "never" else ""
+                before = f'approval_policy = "{approval}"\nsandbox_mode = "danger-full-access"\n' + server + roots
+                self.assertIn("`writable_roots`", self.findings("--config", str(self.config(before)))[key])
+                after = self.config(before.replace("danger-full-access", "workspace-write"))
+                report = json.loads(self.run_cli("--config", str(after), "--format", "json").stdout)
+                self.assertNotIn(key, [(r["rule"], r["entry"]) for r in report["risks"]])
+                self.assertIn(gap, report["inspection_gaps"])
+                self.assertNotIn("outside-project", json.dumps(report))
 
     def test_advice_never_loosens_a_sandbox_another_inspected_file_sets(self):
         first, second = passed("config-1"), passed("config-2")
@@ -468,6 +552,27 @@ class WhatToDoTests(ConfigCase):
                 found = self.findings(*self.files(*texts))
                 for key, text in expected.items():
                     self.assertEqual(found[key], text, key)
+
+    def test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only(self):
+        # Second review of #141: with `read-only` in another inspected file, every finding on the full-access file
+        # suggests `read-only`, as the unrestricted-filesystem finding does; the control without that file keeps
+        # `workspace-write` first.
+        first = passed("config-1")
+        read_only = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
+        for approval, key in (("on-request", ("commands_without_prompts", "config-1:approval_policy")),
+                              ("never", ("automatic_tools", "config-1:approval_policy"))):
+            full = f'approval_policy = "{approval}"\nsandbox_mode = "danger-full-access"\n'
+            with self.subTest(approval=approval, files="with read-only"):
+                found = self.findings(*self.files(full, read_only))
+                self.assertEqual(found[("unrestricted_filesystem", "config-1:sandbox_mode")], sandbox(first, other="config-2"))
+                what = found[key]
+                self.assertTrue(what.startswith('*What to do:* Set `sandbox_mode = "read-only"`, as `config-2` does'), what)
+                self.assertIn(f'ask Codex: "Edit {first} to set `sandbox_mode = "read-only"` without changing '
+                              '`approval_policy`', what)
+                self.assertNotIn("workspace-write", what)
+            with self.subTest(approval=approval, files="alone"):
+                what = self.findings(*self.files(full))[key]
+                self.assertTrue(what.startswith('*What to do:* Set `sandbox_mode = "workspace-write"`'), what)
 
     def test_a_selected_permission_profile_gets_no_sandbox_mode_advice(self):
         for mode in (None, "read-only", "danger-full-access"):
@@ -537,6 +642,7 @@ class WhatToDoTests(ConfigCase):
                     ("commands_without_prompts", "config-1:approval_policy"):
                         commands("danger-full-access", file, file),
                     ("unrestricted_filesystem", "config-1:sandbox_mode"): sandbox(file),
+                    ("automatic_tools", "config-1:approval_policy"): full_access_tools(file),
                     ("configured_program", "config-1:notify"): notify(file, file),
                     ("configured_program", "config-1:mcp_servers.github"): program_server("github", file, file),
                     ("self_described_tools", "config-1:mcp_servers.github"):

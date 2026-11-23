@@ -47,6 +47,13 @@ PLAIN = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
+    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
+        "**Not checked: extra folders commands can write to.** Your config lists folders in `writable_roots` that "
+        "commands may write to in `workspace-write` mode. Some may be outside your workspace. stay-safe doesn't "
+        "check what those folders are. Their paths are left out of this report.",
+    "sandbox_workspace_write.writable_roots is invalid; its value was withheld.":
+        "**Not checked: extra folders commands can write to.** Your `writable_roots` isn't a list of folder "
+        f"paths, so stay-safe can't tell where commands can write. {WITHHELD}",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
         "**Not checked: your sandbox setting.** Your `sandbox_mode` value isn't one stay-safe supports, so it "
         f"can't tell what commands Codex runs are allowed to do. {WITHHELD}",
@@ -176,6 +183,16 @@ PLAIN = {
     "Codex home: hooks.json exists and was not inspected.":
         "**Not checked: your `hooks.json` file.** Your Codex folder has a `hooks.json` file, which stay-safe "
         "doesn't read.",
+    # Issue #142
+    "Codex home: skills holds Codex skills that were not inspected.":
+        "**Not checked: your Codex skills.** Your Codex folder has skills in `skills`, which stay-safe doesn't read.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "**Not checked: your Codex skills.** Could not check the skills folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "**Not checked: your `environments.toml` file.** Your Codex folder has an `environments.toml` file, which "
+        "stay-safe doesn't read.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "**Not checked: your `environments.toml` file.** Could not check it.",
     # stay-safe's own files
     "Committed incident citations are incomplete; source links are unavailable.":
         "**Not checked: some cited incidents.** stay-safe couldn't find every cited incident in its incident list, "
@@ -223,6 +240,10 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
+    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
+        "Review each folder in `writable_roots` yourself, and remove any that commands shouldn't change, such as "
+        "the Docker socket (`/var/run/docker.sock`).",
+    "sandbox_workspace_write.writable_roots is invalid; its value was withheld.": "Make `writable_roots` a list of folder paths, or remove it.",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
         "Set it to `\"read-only\"`, `\"workspace-write\"` or `\"danger-full-access\"`.",
     "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.":
@@ -289,6 +310,13 @@ STEPS = {
     "Codex home: CODEX_HOME is unset and the home directory cannot be determined; no default files were inspected.":
         "Set `HOME` or `CODEX_HOME`, or select files with `--config` and `--rules`.",
     "Codex home: hooks.json exists and was not inspected.": "Review the hooks in `hooks.json` yourself.",
+    "Codex home: skills holds Codex skills that were not inspected.": "Review the skills in `skills` yourself.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "Check that you can open `skills` in your Codex folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "Review the environments in `environments.toml` yourself.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "Check that you can open `environments.toml` in your Codex folder.",
     "Codex home: plugins/cache holds Codex plugins that were not inspected.":
         "Review the plugins in `plugins/cache` yourself.",
     "features.apps has an invalid boolean; its behavior is unknown.": "Set `features.apps` to `true` or `false`.",

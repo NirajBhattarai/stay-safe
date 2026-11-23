@@ -77,3 +77,29 @@ class HookProgramTests(ConfigCase):
         ]:
             with self.subTest(handlers=handlers):
                 self.assert_hook(f'[[hooks.PreToolUse]]\nmatcher="shell"\nhooks=[{handlers}]\n', [])
+
+    # Codex reads the Windows command as `commandWindows` or its alias `command_windows`, in config.toml and
+    # hooks.json alike, and `command` itself is required (codex-rs/protocol/src/hooks.rs#L150-L155). On Windows
+    # Codex runs the Windows command when it is set, otherwise `command`, and skips the chosen command when it is
+    # empty (codex-rs/hooks/src/engine/discovery.rs#L660-L671). The file may be used on either platform, so a
+    # handler counts when either string is nonempty.
+    def test_windows_command_alone_reports_program(self):
+        for handler in [
+            '{type="command", command="", commandWindows="private-windows"}',
+            '{type="command", command="  ", command_windows="private-windows"}',
+            '{type="command", command="private-check", commandWindows=""}',
+        ]:
+            with self.subTest(handler=handler):
+                self.assert_hook(f'[[hooks.PreToolUse]]\nhooks=[{handler}]\n', [PROGRAM])
+
+    def test_empty_or_non_string_windows_command_reports_no_program(self):
+        for handler in [
+            '{type="command", command="", commandWindows=""}',
+            '{type="command", command="", command_windows="  "}',
+            '{type="command", command="", commandWindows=1}',
+            '{type="command", command="", command_windows=["private-windows"]}',
+            '{type="command", commandWindows="private-windows"}',
+            '{type="prompt", commandWindows="private-windows"}',
+        ]:
+            with self.subTest(handler=handler):
+                self.assert_hook(f'[[hooks.PreToolUse]]\nhooks=[{handler}]\n', [])

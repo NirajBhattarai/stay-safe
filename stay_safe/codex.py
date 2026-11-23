@@ -117,6 +117,15 @@ class Reader:
             table = self.table(data["sandbox_workspace_write"], "sandbox_workspace_write")
             self.unknown(table, {"network_access", "writable_roots", "exclude_tmpdir_env_var", "exclude_slash_tmp"}, "sandbox_workspace_write")
             active = mode == "workspace-write" and not profile
+            if "writable_roots" in table:
+                roots = table["writable_roots"]
+                if not (isinstance(roots, list) and all(isinstance(r, str) for r in roots)):
+                    self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
+                elif roots and active:
+                    # Codex adds each root to the folders sandboxed commands may write: harnesses/codex.md [writable-roots].
+                    self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
+                             "workspace-write mode, some possibly outside the workspace; their paths were withheld "
+                             "and were not evaluated.")
             if "network_access" in table:
                 value = self.boolean(table, "network_access", False, "sandbox_workspace_write")
                 if value is not None:
@@ -210,21 +219,25 @@ class Reader:
             enabled = self.boolean(server, "enabled", True, "mcp_servers")
             obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
             command, url = server.get("command"), server.get("url")
-            valid_command = isinstance(command, str) and bool(command.strip())
+            stdio = isinstance(command, str) and url is None
             # Codex uses HTTP for any string url without command: harnesses/codex.md [mcp-transport].
-            valid_url = isinstance(url, str)
-            valid = (valid_command and url is None) or (valid_url and command is None)
-            if valid:
-                obs.append("stdio; command withheld" if valid_command else "HTTP; endpoint withheld")
+            http = isinstance(url, str) and command is None
+            helper = server.get("http_headers_helper")
+            valid = (stdio and bool(command.strip())) or http
+            if stdio and helper is not None:
+                valid = False
+                obs.append("Codex rejects this stdio configuration")
+                self.gap(f"Codex cannot load this configuration because stdio MCP server {name} sets http_headers_helper.")
+            elif valid:
+                obs.append("stdio; command withheld" if stdio else "HTTP; endpoint withheld")
             else:
                 obs.append("transport unknown")
                 self.gap("An MCP transport is missing, conflicting or invalid.")
             policy, facts = self.mcp_tools(server, parts, enabled is True and valid)
-            helper = server.get("http_headers_helper")
             valid_helper = isinstance(helper, str) and bool(helper.strip())
-            if helper is not None and not valid_helper:
+            if helper is not None and not stdio and not valid_helper:
                 self.gap("An MCP header-helper command is invalid; its value was withheld.")
-            facts["configured_program"] = enabled is True and valid and (valid_command or valid_helper)
+            facts["configured_program"] = enabled is True and valid and (stdio or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
     def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason):
@@ -288,7 +301,36 @@ class Reader:
                 # Codex disables every tool of a disabled app whatever else it sets (app_tool_policy.rs
                 # L272-L277 at 086ccc8), so its other settings can't change a finding and give no gap.
                 self.gaps = before
-            self.add(["apps", name], "app policy", obs + policy, {} if template else facts)
+            if template:
+                # Codex gives apps this file does not name the template's approval mode and destructive_enabled
+                # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.
+                facts = {k: v for k, v in facts.items() if k == "automatic_tools"} if enabled is True and not apps_off else {}
+                explicit = default.get("destructive_enabled")
+                if enabled is True and not apps_off and type(explicit) is bool:
+                    obs.append(f"destructive tools {'enabled' if explicit else 'disabled'} by apps._default.destructive_enabled")
+                    facts["destructive_tools"] = explicit
+                if facts.get("automatic_tools") or facts.get("destructive_tools"):
+                    obs.insert(1, "applies to apps not named in this file")
+            self.add(["apps", name], "app policy", obs + policy, facts)
+
+    @staticmethod
+    def unnamed_apps(data):
+        """What an app this file does not name gets: apps._default, then Codex's defaults (harnesses/codex.md [app-enabled])."""
+        # A missing value takes Codex's default; an invalid table or value leaves its part unknown (Codex's schema
+        # requires booleans, so it does not fall back to the default).
+        apps = data.get("apps", {})
+        default = apps.get("_default", {}) if isinstance(apps, dict) else None
+        if not isinstance(default, dict) or type(default.get("enabled", True)) is not bool:
+            return "apps not named in this file: settings unknown"
+        if default.get("enabled") is False:
+            return "apps not named in this file: disabled by apps._default.enabled"
+        if "destructive_enabled" not in default:
+            return "apps not named in this file: destructive tools enabled by Codex default"
+        destructive = default["destructive_enabled"]
+        if type(destructive) is not bool:
+            return "apps not named in this file: destructive tools unknown"
+        return (f"apps not named in this file: destructive tools {'enabled' if destructive else 'disabled'} "
+                "by apps._default.destructive_enabled")
 
     def projects(self, projects):
         """Count literal declarations only; never use project keys as filesystem paths."""
@@ -317,6 +359,8 @@ class Reader:
             self.gap("Profiles are outside reader coverage; a selected profile can override the reported settings.")
         self.approval(data)
         self.sandbox(data)
+        approval = next((e for e in self.entries if e["name"] == "approval_policy"), None)
+        full = (data.get("sandbox_mode") == "danger-full-access" and "default_permissions" not in data)
         self.shell_environment(data)
         self.mcp(data)
         if "model_providers" in data:
@@ -360,9 +404,11 @@ class Reader:
                         self.gap("hooks contains an invalid handler group.")
                         continue
                     # Matchers, options and hooks.state do not stop a command: harnesses/codex.md [hooks].
+                    # Windows runs commandWindows (alias command_windows) when set: [hook-windows-choice].
                     program = program or any(
-                        isinstance(h, dict) and h.get("type") == "command"
-                        and isinstance(h.get("command"), str) and bool(h["command"].strip())
+                        isinstance(h, dict) and h.get("type") == "command" and isinstance(h.get("command"), str)
+                        and any(isinstance(h.get(key), str) and bool(h[key].strip())
+                                for key in ("command", "commandWindows", "command_windows"))
                         for h in group.get("hooks", []))
                 self.add(["hooks", name], "automation", ["contents withheld"], {"configured_program": program})
             self.gap("Hook execution policy is outside reader coverage.")
@@ -372,7 +418,7 @@ class Reader:
         apps_enabled = self.boolean(features, "apps", True, "features.apps")
         if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
-                     "which is not checked", "features.apps = false turns it off"])
+                     "which is not checked", "features.apps = false turns it off", self.unnamed_apps(data)])
         # The legacy connectors key can turn Apps back on (harnesses/codex.md, features.apps).
         self.apps(data, apps_enabled is False and features.get("connectors", False) is False)
         if "web_search" in data:
@@ -385,8 +431,26 @@ class Reader:
                                "model_providers", "notify", "hooks", "web_search", "default_permissions", "permissions",
                                "shell_environment_policy", "profile", "profiles", "features"}
         self.unknown(data, known, "Configuration")
+        if approval and full:
+            self.full_access(approval)
         self.entries.sort(key=lambda e: e["name"])
         return self.entries, sorted(self.gaps)
+
+    def full_access(self, approval):
+        """What an unrestricted sandbox adds to the approval policy (harnesses/codex.md rows approval_policy with
+        danger-full-access): on-request lets commands no execution rule matches run unless Codex flags them as
+        dangerous, and never can let MCP and app tool calls run without asking whatever their approval mode, unless
+        strict automatic review is on."""
+        if approval["observations"] == ["on-request"]:
+            approval["observations"].append("with danger-full-access, ordinary commands can run without asking")
+            approval["facts"]["commands_without_prompts"] = True
+        elif approval["observations"] == ["never"]:
+            reachable = any(e["kind"] == "MCP server" and (e["name"] == "features.apps" or "configured enabled" in e["observations"])
+                            or e["kind"] == "app policy" and e["name"] != "apps._default" and "configured enabled" in e["observations"]
+                            for e in self.entries)
+            if reachable:
+                approval["observations"].append("with danger-full-access, MCP and app tool calls can run without asking")
+                approval["facts"]["automatic_tools"] = True
 
 
 def open_input(path):

@@ -36,7 +36,8 @@ class ConfiguredConditionTests(ConfigCase):
     def test_command_prompt_and_filesystem_rules_have_independent_positive_and_negative_cases(self):
         for approval, mode, expected in [
             ("never", "read-only", [("commands_without_prompts", "approval_policy")]),
-            ("on-request", "danger-full-access", [("unrestricted_filesystem", "sandbox_mode")]),
+            ("on-request", "danger-full-access", [("commands_without_prompts", "approval_policy"),
+                                                  ("unrestricted_filesystem", "sandbox_mode")]),
         ]:
             with self.subTest(approval=approval, mode=mode):
                 self.assert_risks(f'approval_policy="{approval}"\nsandbox_mode="{mode}"', expected)
@@ -46,6 +47,46 @@ class ConfiguredConditionTests(ConfigCase):
         self.assert_silent('approval_policy="on-request"\nsandbox_mode="danger-full-access"\ndefault_permissions=":read-only"', {
             'sandbox_mode': ['danger-full-access', 'permission-profile selection is uninspected'],
         }, PROFILE_GAPS)
+
+    def test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking(self):
+        # Issue #141. With an unrestricted sandbox, on-request allows every command Codex does not flag as dangerous
+        # (openai/codex 086ccc8, core/src/exec_policy.rs L857-L864; the flag covers forced deletes,
+        # shell-command/src/command_safety/is_dangerous_command.rs), and never approves every MCP and app tool call
+        # whatever its approval mode (codex-mcp/src/mcp/mod.rs L91-L110, core/src/mcp_tool_call.rs L1577-L1588).
+        commands = "with danger-full-access, ordinary commands can run without asking"
+        tools = "with danger-full-access, MCP and app tool calls can run without asking"
+        full = 'sandbox_mode="danger-full-access"\n'
+        server = '[mcp_servers.r]\nurl="https://example.com"\n'
+        apps_off = '[features]\napps=false\n'
+        for text, expected, approval in [
+            ('approval_policy="on-request"\n' + full,
+             [("commands_without_prompts", "approval_policy"), ("unrestricted_filesystem", "sandbox_mode")],
+             ["on-request", commands]),
+            ('approval_policy="never"\n' + full,
+             [("commands_without_prompts", "approval_policy"), ("automatic_tools", "approval_policy"),
+              ("unrestricted_filesystem", "sandbox_mode")], ["never", tools]),
+            ('approval_policy="never"\n' + full + server + apps_off,
+             [("commands_without_prompts", "approval_policy"), ("automatic_tools", "approval_policy"),
+              ("self_described_tools", "mcp_servers.r"), ("unrestricted_filesystem", "sandbox_mode")], ["never", tools]),
+            # Controls: no tools to call, a disabled server, and a sandbox that is not full access.
+            ('approval_policy="never"\n' + full + apps_off,
+             [("commands_without_prompts", "approval_policy"), ("unrestricted_filesystem", "sandbox_mode")], ["never"]),
+            ('approval_policy="never"\n' + full + server + 'enabled=false\n' + apps_off,
+             [("commands_without_prompts", "approval_policy"), ("unrestricted_filesystem", "sandbox_mode")], ["never"]),
+            ('approval_policy="never"\nsandbox_mode="workspace-write"\n' + server,
+             [("commands_without_prompts", "approval_policy"), ("self_described_tools", "mcp_servers.r")], ["never"]),
+            ('approval_policy="on-request"\nsandbox_mode="workspace-write"\n', [], ["on-request"]),
+        ]:
+            with self.subTest(config=text):
+                report = self.assert_risks(text, expected)
+                self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "approval_policy"],
+                                 [approval])
+        # A selected permission profile may replace the sandbox, so neither combination is assumed.
+        for approval in ("never", "on-request"):
+            with self.subTest(approval=approval, profile=True):
+                report = self.assert_risks(f'approval_policy="{approval}"\n' + full + 'default_permissions=":read-only"\n',
+                                           [("commands_without_prompts", "approval_policy")] if approval == "never" else [])
+                self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "approval_policy"], [[approval]])
 
     def test_program_rule_requires_a_configured_enabled_command(self):
         # Event names: openai/codex@086ccc8, codex-rs/protocol/src/hooks.rs L113-L137.
@@ -105,7 +146,8 @@ class ConfiguredConditionTests(ConfigCase):
              {'apps.files': ['disabled', 'tool approval: approve']}),
             # The app's own enabled = false stops the risks it would inherit (run case B).
             (TEMPLATE_OFF + '[apps.files]\nenabled=false',
-             {'apps._default': template_off, 'apps.files': template_off}),
+             {'apps._default': template_off, 'apps.files': template_off,
+              'features.apps': CHATGPT_APPS[:3] + ['apps not named in this file: disabled by apps._default.enabled']}),
             ('[apps.files]\ndefault_tools_enabled=false\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true',
              {'apps.files': ['configured enabled', 'default tools disabled or unknown', 'tool approval: approve']}),
             ('[mcp_servers.remote]\nurl="https://example.com"\ndefault_tools_approval_mode="approve"\nenabled_tools=["write"]\ndisabled_tools=["write"]',

@@ -22,7 +22,9 @@ TOOL_HINTS = GROUP_HINTS
 # Rule -> one sentence on its cited incidents, from incidents.md (reading check, 2026-11-09).
 HOW = {
     "saved_approval": "A Codex user reported that a saved approval for `curl` let later `curl` commands run without "
-                      "asking, even after restarting in another workspace.",
+                      "asking, even after restarting in another workspace. A Claude Code user reported that a broad "
+                      "Railway approval let a command print secrets into the transcript while commands to release a new "
+                      "version stayed blocked.",
     "commands_without_prompts": "Agents running commands without approval have run a delete command aimed at a home "
                                 "directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance.",
     "unrestricted_filesystem": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete "
@@ -50,6 +52,12 @@ EXPECTED = {
     ("commands_without_prompts", "config-1:approval_policy"):
         "**With these settings, Codex runs commands without asking you.** It won't ask before any command it's "
         "allowed to run, so injected or mistaken instructions could make it run code you didn't want.",
+    # Issue #141: never with danger-full-access can let tool calls run without asking (row approval_policy `never with
+    # danger-full-access`).
+    ("automatic_tools", "config-1:approval_policy"):
+        "**With these settings, Codex can use MCP server and app tools without asking you.** "
+        "`approval_policy = \"never\"` with `sandbox_mode = \"danger-full-access\"` can allow MCP server and app tools "
+        f"to run without asking you, even when a tool's approval mode requests approval. {AUTOMATIC}",
     ("automatic_tools", "config-1:apps.calendar"):
         f"**Your `calendar` app's tool approval mode is `approve`.** {AUTOMATIC}",
     ("destructive_tools", "config-1:apps.calendar"):
