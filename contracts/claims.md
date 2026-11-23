@@ -103,6 +103,7 @@ Tests: [tests/find_feedback/](../tests/find_feedback/)
 - I find feedback links in readable reports while JSON stays machine-readable. `test_feedback.py::test_reports_link_once_and_json_stays_a_document`
 - I get an argument error and can find feedback without exposing private arguments. `test_feedback.py::test_argument_errors_link_once_without_echoing_private_arguments`
 - I can provide the context for a problem, idea or challenge without attaching a report. `test_forms.py::test_forms_collect_context_without_requiring_a_report`
+- I see how to share a warning containing a private name in the field that asks for the finding. `test_forms.py::test_finding_field_explains_how_to_share_a_warning_with_private_names`
 
 ## [follow_rule_evidence] I can follow a finding to its rule's evidence and challenges.
 Issue: https://github.com/chalkbadger/stay-safe/issues/100

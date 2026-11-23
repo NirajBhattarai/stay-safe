@@ -11,8 +11,8 @@
     },
     {"type": "textarea", "id": "finding",
      "attributes": {
-       "label": "Finding",
-       "description": "Copy the rule ID, entry ID, and exact finding text. For a missed risk, say what was missing."
+       "label": "Which warning are you challenging or missing?",
+       "description": "**If you got a warning:** Check the warning and its entry ID for names you wouldn’t post publicly, such as a client or project name. If you find one, rerun stay-safe on a sample config with made-up names. Paste the rule ID, entry ID, and exact warning text from the report you’re sharing.\n\n**If you expected a warning and didn’t get one:** Tell us what you expected stay-safe to flag."
      }, "validations": {"required":true}
     },
     {"type": "textarea", "id": "revision",
