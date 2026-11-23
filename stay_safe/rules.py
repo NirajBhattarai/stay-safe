@@ -22,7 +22,7 @@ RULES = (
          ("I1", "I3")),
     Rule("configured_program",
          "The configuration can launch a program; a compromised command or configuration could execute unwanted code.",
-         ("I13", "I14", "I19")),
+         ("I13", "I14", "I19", "I33")),
     Rule("automatic_tools",
          "Tool approval mode is approve; untrusted tool content could lead to unwanted operations.",
          ("I15", "I20")),

@@ -30,7 +30,9 @@ HOW = {
     "unrestricted_filesystem": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete "
                                "command.",
     "configured_program": "Flaws in other agents let repository settings run commands on collaborators' machines, "
-                          "and a worm wrote itself into an agent's settings so its code ran at every start.",
+                          "and a worm wrote itself into an agent's settings so its code ran at every start. "
+                          "Google reported that intruders changed project settings so Claude Code would download a "
+                          "backdoor at startup.",
     "automatic_tools": "Hidden instructions in public GitHub issues could take over agents using a GitHub MCP server, "
                        "and injected text got another agent to turn off its own approvals.",
     "destructive_tools": "Agents have deleted production data with a token they found, and changed a database after "
