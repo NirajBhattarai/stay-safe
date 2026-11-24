@@ -16,8 +16,6 @@ inherit="none"
 '''
 MODE_GAP = 'A tool approval mode is unsupported or invalid; its value was withheld.'
 OWN_MODE_GAP = 'A per-tool approval mode is unsupported or invalid; its value was withheld.'
-# Expected inheritance follows harnesses/codex.md [tool-approval] and [app-tool-policy];
-# issue #63 specifies that an inherited invalid value is reported only at its source.
 PARENTS = (
     ('mcp_servers.example', 'url="https://private-endpoint.invalid"\ndefault_tools_approval_mode="private-invalid"\n',
      'approval_mode', MODE_GAP, OWN_MODE_GAP, '"approve"', [('automatic_tools', 'mcp_servers.example.tools.lookup')]),

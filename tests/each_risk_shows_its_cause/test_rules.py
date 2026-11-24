@@ -51,8 +51,6 @@ class RuleTests(ConfigCase):
                     self.assertTrue(incident_links(revision="a" * 40)[identifier])
 
     def test_incident_anchors_follow_github_heading_links(self):
-        # GitHub lowercases a heading, removes punctuation other than hyphens and turns spaces into hyphens:
-        # https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links
         links = incident_links(revision="a" * 40)
         prefix = "https://github.com/chalkbadger/stay-safe/blob/" + "a" * 40 + "/incidents.md#"
         self.assertEqual({identifier: links[identifier] for identifier in ("I1", "I23", "I24")}, {

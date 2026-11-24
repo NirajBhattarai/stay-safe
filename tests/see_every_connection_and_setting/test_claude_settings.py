@@ -1,24 +1,9 @@
-"""The Claude Code reader's catalog and gaps, against the meanings in harnesses/claude-code.md (issue #163).
-
-Expected meanings come from the Claude Code docs, not the reader:
-- Modes: https://code.claude.com/docs/en/permissions, "Permission modes" (`default`, `acceptEdits`, `plan`, `auto`,
-  `dontAsk`, `bypassPermissions`); https://code.claude.com/docs/en/permission-modes, "Available modes" (`manual` is an
-  alias for `default`) and "Which mode a session starts in" (the built-in default depends on the surface and version).
-- Rules: https://code.claude.com/docs/en/permissions, "Match all uses of a tool" (`Bash`, `WebFetch`), "`Bash(*)` is
-  equivalent to `Bash`", "Wildcard patterns" (`Bash(ls:*)` matches the same commands as `Bash(ls *)`), and "Manage
-  permissions" (deny, then ask, then allow; the first match decides).
-- Sandbox: https://code.claude.com/docs/en/sandboxing, "The sandbox is off by default".
-- ~/.claude.json: https://code.claude.com/docs/en/settings, "It holds your account details, MCP server
-  configurations, per-project state such as trust decisions".
-"""
-
 import json
 
 from tests.support import ConfigCase, agent_home, run_home
 
 
 def read_file(*args, **kwargs):
-    # Imported when called, so on a base without the reader each test fails on its missing behavior.
     from stay_safe import claude
     return claude.read_file(*args, **kwargs)
 
@@ -115,8 +100,6 @@ class ClaudeSettingsTests(ConfigCase):
         for text in ("{not json", "[]", '"text"'):
             with self.subTest(text=text):
                 self.assertEqual(self.read(text), ([], [bad]))
-        # Claude settings use strict JSON. Python's decoder otherwise accepts these three constants.
-        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L132
         template = '{"permissions":{"defaultMode":"default","allow":["Bash"]},"cleanupPeriodDays":%s}'
         for token in ("NaN", "Infinity", "-Infinity"):
             with self.subTest(token=token):

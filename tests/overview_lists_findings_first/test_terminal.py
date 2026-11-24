@@ -19,12 +19,10 @@ class TerminalTests(ConfigCase):
     def terminal(self, *args, cwd=ROOT):
         master, slave = pty.openpty()
         try:
-            # Capture stderr separately: only stdout determines the display.
             child = subprocess.Popen([sys.executable, '-B', '-m', 'stay_safe', *args], cwd=cwd,
                                      stdout=slave, stderr=subprocess.PIPE)
             os.close(slave)
             slave = None
-            # Drain the terminal concurrently with the child to avoid filling its buffer.
             import threading
             output = []
             def read():

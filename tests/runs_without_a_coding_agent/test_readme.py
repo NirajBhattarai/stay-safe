@@ -6,15 +6,11 @@ import unittest
 
 from tests.support import ROOT, finding_items
 
-# The test configuration the README's sample finding is copied from (archived issue #137).
 SAMPLE = ROOT / "tests" / "runs_without_a_coding_agent" / "sample.toml"
-# Links in a finding name the commit that made the report; a copied sample keeps the commit of its own run.
-# The README links a release tag, which outlives any one commit; the report links its commit.
 COMMIT_LINK = re.compile(r"https://github\.com/chalkbadger/stay-safe/blob/(?:[0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+)/")
 
 
 def first_quote(text):
-    """The README's first block quote without its `>` marks, or an empty string when it has none."""
     quote, started = [], False
     for line in text.splitlines():
         if line.startswith(">"):

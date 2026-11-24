@@ -1,10 +1,3 @@
-"""Each Claude Code warning names its rule, setting and incidents (issue #163).
-
-Which settings carry which risk follows harnesses/claude-code.md: `bypassPermissions` "Skips permission prompts"
-(https://code.claude.com/docs/en/permissions, "Permission modes"), and an allow rule lets matching calls run without
-a prompt (same page, "Manage permissions"). Incident IDs are the rules' own, in stay_safe/rules.py.
-"""
-
 import json
 
 import re
@@ -13,8 +6,6 @@ from tests.support import ConfigCase, ReportRuns, items, section, without_rule_l
 
 SETTINGS = {"permissions": {"defaultMode": "bypassPermissions", "allow": ["Bash", "Bash(git push:*)", "WebFetch"]},
             "sandbox": {"enabled": False}}
-# Scope of permissions.defaultMode:
-# https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1148
 BYPASS_SCOPE = "From v2.1.257, project and project-local settings cannot enable this mode."
 
 

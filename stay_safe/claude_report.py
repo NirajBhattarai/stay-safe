@@ -1,5 +1,3 @@
-"""The Claude Code report: the same evidence chain as the Codex report, with Claude Code's own wording (issue #163)."""
-
 import re
 
 from .claude import AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, read_file
@@ -15,8 +13,6 @@ SCOPE = [
     "Commands, addresses, paths and other values in rules and settings are withheld, except a first word on "
     "stay-safe's program list.",
 ]
-# Advice for a finding, by rule; {file} names the settings file and {number} the rule's position in
-# permissions.allow. Each sentence follows a meaning in harnesses/claude-code.md.
 WHAT = {
     ("commands_without_prompts", None):
         "Set `permissions.defaultMode` to `default` to stop requesting bypass in this file. "
@@ -55,7 +51,6 @@ NOTE = ("*Before you change anything:* Claude Code combines settings from severa
         "flag or managed settings can override yours. Change the file named in each finding, then run stay-safe again.")
 NOT_CHECKED = ("stay-safe reads only Claude Code settings whose meaning it has checked against Claude Code's docs, and "
                "it skips anything it can't read or check rather than guess. Each item says what to do.")
-# Gap message, without its source label -> (lead, what to do).
 GAPS = {
     "permissions.defaultMode is absent; Claude Code's built-in mode depends on how it starts and its version, so it "
     "was not inferred.": (
@@ -146,7 +141,6 @@ def inspect(paths, *, discovered=False, gaps=()):
 
 
 def heading_id(heading):
-    """The anchor GitHub gives a heading, as report.py's anchor() computes it."""
     return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
 
 
@@ -167,7 +161,6 @@ def headline(risk):
 
 
 def sandbox_mode_change(source, entries, gaps):
-    """What switching to default leaves in this snapshot, using only validated booleans."""
     enabled = entries.get(f"{source}:sandbox.enabled")
     if not enabled or enabled["observations"] != ["true"]:
         return ""
@@ -187,7 +180,6 @@ def sandbox_mode_change(source, entries, gaps):
 
 
 def finding(risk, path, number):
-    """Lead, What to do, Change it and Check for one finding."""
     from .report import FINDINGS
     rule = risk["rule"]
     what = WHAT[rule, scope(risk)]
