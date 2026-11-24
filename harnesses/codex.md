@@ -117,24 +117,27 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 
 ## Tool approval by version
 
-The `auto` and `writes` modes use server-supplied hints for MCP and app tools.
-The hint check and its immediate approval caller were read at every stable release
-from `rust-v0.167.0` through `rust-v0.171.0` on 2026-11-21. This checked range
-applies only to that approval logic; stay-safe does not detect the installed Codex version.
+In `auto` mode, a tool can describe itself as both read-only and destructive.
+Codex changed how it handles that conflict in 0.169.0. Earlier checked versions
+gave priority to the destructive hint and required approval at this step. From
+0.169.0 through 0.171.0, the read-only hint takes priority and this step can
+allow the call without asking. Strict auto review disables that exemption.
+Permission policy and saved approvals also affect whether the user is asked.
 
-| Checked stable releases | `auto` when both `readOnlyHint` and `destructiveHint` are `true` | Pinned source |
+| Checked stable releases | Hint used when both are true | Codex source |
 | --- | --- | --- |
-| 0.167.0–0.168.0 | The hint check requires approval: the destructive hint wins. | [0.167.0][tool-approval], [0.168.0][tool-approval-0-168] |
-| 0.169.0–0.171.0 | The hint check does not require approval: the read-only hint wins. | [0.169.0][tool-approval-0-169], [0.171.0][tool-approval-0-171] |
+| 0.167.0–0.168.0 | Destructive (`destructiveHint`) | [0.167.0][tool-approval], [0.168.0][tool-approval-0-168] |
+| 0.169.0–0.171.0 | Read-only (`readOnlyHint`) | [0.169.0][tool-approval-0-169], [0.171.0][tool-approval-0-171] |
 
-At the hint check throughout these releases, `writes` requires approval unless
-`readOnlyHint` is `true`. For `auto` with a false or missing read-only hint, approval is required
-unless both the destructive and open-world hints are explicitly `false`.
+For MCP and App tools, both `auto` and `writes` use hints supplied by the server.
+When a tool omits the read-only hint or sets it to `false`, `auto` requires approval
+at this step unless both the destructive and open-world hints are explicitly `false`.
+The `writes` check requires approval unless the read-only hint is `true`.
 
-The approval caller ([0.167.0][tool-approval-caller-0-167],
-[0.171.0][tool-approval-caller-0-171]) uses the hint exemption only when strict
-auto review is off. Permission policy and remembered approvals also affect the
-outcome. This is documented in source, not observed in a live tool call.
+The source review on 2026-11-21 covered this check and the code that uses it
+at every stable release in the table ([first release][tool-approval-caller-0-167],
+[last release][tool-approval-caller-0-171]). Stay-safe does not detect the
+installed Codex version. Actual tool calls were outside this review.
 
 ## Saved approval records
 
