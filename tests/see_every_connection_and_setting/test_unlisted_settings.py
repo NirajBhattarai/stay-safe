@@ -5,7 +5,7 @@ from stay_safe.report import inspect
 from tests.support import CHATGPT_APPS, ConfigCase
 
 # Archived issues #81, #79 and #95: settings that no rule reads are not listed and give no gap of their own,
-# whatever their value. Expected results come from those issues and these harnesses/codex.md rows:
+# unless the report now validates their types (#173). Expected results also follow these harnesses/codex.md rows:
 # `approval_policy` `on-request`, `sandbox_mode` (`read-only`, `workspace-write`), the
 # `default_permissions` row, `sandbox_workspace_write.network_access` `true`,
 # `apps.*.destructive_enabled` `omitted`, `approval_policy` `granular` and
@@ -46,7 +46,7 @@ class UnlistedSettingTests(ConfigCase):
                                      ("exclude_tmpdir_env_var", ("true", "false", '"yes"')))
                  for value in values]
         base = ON_REQUEST + 'sandbox_mode="read-only"\n'
-        app_settings = [("open_world_enabled", value) for value in ("true", "false", '"yes"')]
+        app_settings = [("open_world_enabled", value) for value in ("true", "false")]
         app_settings += [("approvals_reviewer", value) for value in ('"user"', '"auto_review"', '"guardian_subagent"', '"human"', "7")]
         for key, value in app_settings:
             cases.append((base + f"[apps.files]\n{key}={value}\n", APP_CATALOG, APP_RISKS))

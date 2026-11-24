@@ -75,20 +75,19 @@ CASES = {
                        [BOOLEAN_GAP.format("apps")], {"apps.cal": ["enablement unknown", "tool approval: approve"]}, []),
     "apps.*.default_tools_enabled": ({}, APP + 'default_tools_enabled="yes"\ndefault_tools_approval_mode="approve"\n',
                                      [BOOLEAN_GAP.format("apps")], {"apps.cal": ["configured enabled", "default tools disabled or unknown", "tool approval: approve"]}, []),
-    "apps.*.destructive_enabled": ({}, APP + 'destructive_enabled="yes"\n', ["apps has an invalid destructive_enabled flag."],
-                                   {"apps.cal": ["configured enabled", "tool approval: auto (default)"]}, [("self_described_tools", "apps.cal")]),
+    "apps.*.destructive_enabled": ({}, APP + 'destructive_enabled="yes"\n', ["Codex cannot load this configuration file because apps.cal.destructive_enabled is not a boolean."],
+                                   {"apps.cal": ["Codex cannot load this configuration file", "tool approval: auto (default)"]}, []),
     # apps._default.enabled = false disables no named app (archived issue #90; openai/codex@086ccc8
     # codex-rs/connectors/src/app_tool_policy.rs L174-L185), so apps.cal is enabled and keeps the gap above.
     "apps.*.destructive_enabled under apps._default.enabled = false": ({}, '[apps._default]\nenabled=false\n[apps.cal]\ndestructive_enabled="yes"\n',
-                                                                     ["apps has an invalid destructive_enabled flag."],
+                                                                     ["Codex cannot load this configuration file because apps.cal.destructive_enabled is not a boolean."],
                                                                      {"apps._default": ["disabled", "tool approval: auto (default)"], "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"], 
-                                                                      "apps.cal": ["configured enabled", "tool approval: auto (default)"]},
-                                                                     [("self_described_tools", "apps.cal")]),
+                                                                      "apps.cal": ["Codex cannot load this configuration file", "tool approval: auto (default)"]}, []),
     # Codex rejects this file; stay-safe's rule for invalid input applies (contracts/claims.md [see_every_connection_and_setting]): the
     # invalid value gives a gap. A disabled apps._default keeps its own gaps, because it still supplies settings to
     # named apps (archived issue #90's answer to https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6727960187).
     "apps._default.destructive_enabled under apps._default.enabled = false": ({}, '[apps._default]\nenabled=false\ndestructive_enabled="yes"\n',
-                                                                             ["apps has an invalid destructive_enabled flag."],
+                                                                             ["Codex cannot load this configuration file because apps._default.destructive_enabled is not a boolean."],
                                                                              {"apps._default": ["disabled", "tool approval: auto (default)"],
                                                                               "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]}, []),
     "apps.*.default_tools_approval_mode": ({}, APP + 'default_tools_approval_mode="yes"\n',
@@ -141,12 +140,12 @@ class InvalidValueTests(ConfigCase):
 
     def test_a_disabled_app_gives_no_gap_from_its_other_settings(self):
         # Archived issue #95: Codex disables every tool of a disabled app whatever else it sets
-        # (codex-rs/connectors/src/app_tool_policy.rs L272-L277 at 086ccc8), so none can change a finding.
+        # (codex-rs/connectors/src/app_tool_policy.rs L272-L277 at 086ccc8). File load errors for App flags
+        # are checked separately in test_named_app_validation.py (issue #173).
         # Only a named app's own enabled disables it: apps._default.enabled disables no named app (archived issue #90).
         settings = {"tool enabled": ("", '[apps.cal.tools.delete]\nenabled="yes"\n'),
                     "tool approval_mode": ("", '[apps.cal.tools.delete]\napproval_mode="yes"\n'),
                     "unknown tool field": ("", "[apps.cal.tools.delete]\nsynthetic=1\n"),
-                    "destructive_enabled": ('destructive_enabled="yes"\n', ""),
                     "default_tools_approval_mode": ('default_tools_approval_mode="yes"\n', ""),
                     "default_tools_enabled": ('default_tools_enabled="yes"\n', ""),
                     "unknown app field": ("synthetic=1\n", ""),
@@ -160,7 +159,7 @@ class InvalidValueTests(ConfigCase):
 
     def test_a_disabled_app_keeps_the_gaps_of_an_app_before_it(self):
         # The enabled app's gap is the one it gives alone (CASES "apps.*.destructive_enabled").
-        tables = '[apps.a]\ndestructive_enabled="yes"\n[apps.cal]\nenabled=false\n'
+        tables = '[apps.cal]\ndestructive_enabled="yes"\n[apps.other]\nenabled=false\n'
         report = inspect([self.config(configuration({}, tables))])
         self.assertEqual(report["inspection_gaps"], [f"config-1: {gap}" for gap in CASES["apps.*.destructive_enabled"][2]])
 
