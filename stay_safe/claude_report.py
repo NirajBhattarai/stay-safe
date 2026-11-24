@@ -1,13 +1,14 @@
 import re
 
-from .claude import AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, read_file
+from .claude import AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, DECIDES, HTTP, PROJECT, read_file
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
 HARNESS = "Claude Code"
 SCOPE = [
-    "Discovery reads the user settings file. You can also select settings files with --config. Account files, "
-    "managed settings, extension folders and command-line flags are outside this check.",
+    "Discovery reads the user settings file and `.claude/settings.json` in the current folder. You can also select "
+    "settings files with --config. Account files, `.claude/settings.local.json`, `.mcp.json`, managed settings, "
+    "extension folders and command-line flags are outside this check.",
     "Files are independent snapshots; Claude Code combines allow rules from every settings file it loads.",
     "Ask and deny rules, which Claude Code checks before allow rules, are not inspected.",
     "Commands, addresses, paths and other values in rules and settings are withheld, except a first word on "
@@ -27,6 +28,11 @@ WHAT = {
         "Remove the wildcard rule to withdraw its all-domain allowance.",
     ("network_access", None):
         "Check that you trust the domains this rule covers, and remove the rule if you no longer need it.",
+    ("configured_program", None):
+        "Keep it if you trust the command it runs. Stricter: remove the setting if you don't use it.",
+    ("network_access", HTTP):
+        "Keep it if you trust the address. Stricter: remove the HTTP hook, or set `allowedHttpHookUrls` to the "
+        "addresses you trust.",
 }
 HEADLINES = {
     ("commands_without_prompts", None):
@@ -39,6 +45,14 @@ HEADLINES = {
         "This wildcard covers every WebFetch domain from Claude Code v2.1.172. From v2.1.186 it also adds every "
         "host to the sandbox network allowlist.",
     ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
+    ("configured_program", None): "This file's `{name}` setting runs a command on your computer.",
+    ("network_access", HTTP): "This file has an HTTP hook that sends hook data to a web address.",
+}
+PROGRAM_SCOPE = {
+    DECIDES: " A hook on `PreToolUse` or `PermissionRequest` can also approve tool calls without asking you and "
+             "change what they do.",
+    PROJECT: " Claude Code runs it from a project's settings in a `claude -p` run, or when you trusted only a parent "
+             "folder, without asking you to trust this folder.",
 }
 WHY = {
     "commands_without_prompts": "If this mode applies, injected or mistaken instructions could make Claude Code "
@@ -46,7 +60,11 @@ WHY = {
     "saved_approval": "An allow rule can cover more than the command you remember. A rule for a program you use to "
                       "download a file can cover uploads too. Sandbox restrictions still apply when the command runs sandboxed.",
     "network_access": "Injected instructions could send your private data out in a request.",
+    "configured_program": "If that command or this file were changed, Claude Code could run code you didn't intend.",
+    ("network_access", HTTP): "Claude Code sends each matching event's details, such as commands, file paths and "
+                              "prompts, to that address without asking you.",
 }
+GROUP_LABELS = ("Shell commands and permission mode", "Network access", "Programs Claude Code starts")
 NOTE = ("*Before you change anything:* Claude Code combines settings from several files, and a `--permission-mode` "
         "flag or managed settings can override yours. Change the file named in each finding, then run stay-safe again.")
 NOT_CHECKED = ("stay-safe reads only Claude Code settings whose meaning it has checked against Claude Code's docs, and "
@@ -91,6 +109,29 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
+    "disableAllHooks has an invalid boolean; its behavior is unknown.": (
+        "**Not checked: `disableAllHooks`.** It isn't `true` or `false`, so stay-safe treats your hooks as on.",
+        "Set it to `true` or `false`."),
+    "hooks is not an object of hook events; its hooks were not evaluated.": (
+        "**Not checked: `hooks`.** It isn't a JSON object of hook events.", "Review the `hooks` block yourself."),
+    "hooks contains an event that is not a list of matcher groups; it was not evaluated.": (
+        "**Not checked: a hook event.** An event under `hooks` isn't a list of matcher groups.",
+        "Review the `hooks` block yourself."),
+    "hooks contains a matcher group without a list of handlers; it was not evaluated.": (
+        "**Not checked: a group of hooks.** A matcher group under `hooks` has no `hooks` list.",
+        "Review the `hooks` block yourself."),
+    "hooks contains a handler that is not a valid hook; it was not evaluated.": (
+        "**Not checked: a hook.** A hook isn't an object with a known `type`, or its command is empty.",
+        "Review the `hooks` block yourself."),
+    "hooks contains MCP tool hooks, which call a tool on an MCP server without asking you; that server was not "
+    "evaluated.": (
+        "**Not checked: MCP tool hooks.** They call a tool on an MCP server without asking you, and stay-safe doesn't "
+        "read MCP servers yet.",
+        "Check which server and tool each `mcp_tool` hook calls, and remove the hook if you don't trust them."),
+    "The project's .claude folder could not be checked; its settings were not inspected.": (
+        "**Not checked: the project's `.claude` folder.** stay-safe couldn't check it, so a project settings file "
+        "may not have been inspected.",
+        "Check that `.claude/settings.json` is readable, or pass it with `--config`."),
 }
 UNKNOWN = ("**Not checked:** {}", "Review this part of your setup yourself.")
 WORDS = {"default": "`default` (asks before most actions)", "manual": "`manual` (asks before most actions)",
@@ -103,12 +144,14 @@ WORDS = {"default": "`default` (asks before most actions)", "manual": "`manual` 
          "addresses withheld": "some addresses (left out)"}
 
 
-def inspect(paths, *, discovered=False, gaps=()):
+def inspect(paths, *, discovered=False, gaps=(), scopes=()):
     entries, gaps, sources_read = [], list(gaps), []
+    scopes = list(scopes) + [None] * (len(paths) - len(scopes))
     hashes = fingerprints()
     provenance = identify(hashes=hashes)
     for index, path in enumerate(paths, 1):
-        found, missing = read_file(path, f"settings-{index}", discovered=discovered, sources_read=sources_read)
+        found, missing = read_file(path, f"settings-{index}", discovered=discovered, sources_read=sources_read,
+                                   scope=scopes[index - 1])
         entries.extend(found)
         gaps.extend(missing)
     risks = evaluate(entries)
@@ -146,12 +189,13 @@ def heading_id(heading):
 
 def scope(risk):
     return next((value for value in risk["configured_evidence"]
-                 if value in ("broad: every command", "every address", "every domain")), None)
+                 if value in ("broad: every command", "every address", "every domain", HTTP)), None)
 
 
 def headline(risk):
     observations = risk["configured_evidence"]
-    lead = HEADLINES[risk["rule"], scope(risk)]
+    lead = HEADLINES[risk["rule"], scope(risk)].format(name=risk["entry"].partition(":")[2])
+    lead += "".join(text for key, text in PROGRAM_SCOPE.items() if key in observations)
     overrides = [key for key in ("deny", "ask") if f"{key} rules present" in observations]
     if overrides:
         effect = {"deny": "block this action", "ask": "require approval"}
@@ -183,7 +227,21 @@ def finding(risk, path, number):
     from .report import FINDINGS
     rule = risk["rule"]
     what = WHAT[rule, scope(risk)]
-    if rule == "commands_without_prompts":
+    evidence = risk["configured_evidence"]
+    if risk["entry"].partition(":")[2].split(".")[0] == "hooks":
+        kind = "HTTP hooks" if HTTP in evidence else "command hooks"
+        change = (f"*Change it:* `hooks` in {path}, or ask Claude Code: \"Show me the {kind} under `hooks` in {path} "
+                  "and remove them; show only what you change.\"")
+        if HTTP in evidence:
+            check = (f"*Check:* In {path}, each HTTP hook's `url` is the address it sends to. Find out who controls it "
+                     "before you trust it.")
+        else:
+            check = (f"*Check:* In {path}, each command hook's `command` is what it runs. If it runs a script file, "
+                     f"check that file too: changes to the script don't show in {path}. Find out who wrote them before "
+                     "you trust them.")
+        if PROJECT in evidence:
+            check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
+    elif rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
                   f"`permissions.defaultMode` to `default`; show only what you change.\"")
         check = (f"*Check:* Look for `defaultMode` under `permissions` in {path}. A `--permission-mode` flag or "
@@ -192,7 +250,8 @@ def finding(risk, path, number):
         change = (f"*Change it:* rule {number} of `permissions.allow` in {path}, or ask Claude Code: \"Show me rule "
                   f"{number} of `permissions.allow` in {path} and remove it; show only what you change.\"")
         check = f"*Check:* Look at `permissions.allow` in {path}."
-    return (f"**{risk['explanation']}** {WHY[rule]}", FINDINGS[rule]["how"],
+    why = WHY.get((rule, scope(risk)), WHY[rule])
+    return (f"**{risk['explanation']}** {why}", FINDINGS[rule]["how"],
             "\n\n".join([f"*What to do:* {what}", change, check]))
 
 
@@ -204,9 +263,10 @@ def gap(text, files, entries, gaps):
     if lead_step is None and message.startswith("Settings outside reader coverage were not evaluated: "):
         names = message.removeprefix("Settings outside reader coverage were not evaluated: ").removesuffix(".")
         lead_step = (f"**Not checked: other settings.** stay-safe doesn't yet read these settings: {names}.",
-                     "Review them yourself; settings such as `hooks`, `env` and `apiKeyHelper` can run programs or "
-                     "pass values to them.")
-    if lead_step is None and message.startswith("Claude Code home: ") and message.endswith("no Claude Code files were inspected."):
+                     "Review them yourself; settings such as `apiKeyHelper` and `statusLine` can run programs, "
+                     "and `env` can pass values to them.")
+    if lead_step is None and message.startswith("Claude Code home: ") and message.endswith(
+            ("no Claude Code files were inspected.", "only the project's .claude/settings.json was inspected.")):
         lead_step = (f"**Not checked: Claude Code.** {message.removeprefix('Claude Code home: ')}",
                      "Check that Claude Code is installed, or select a settings file with `--config`.")
     lead, step = lead_step or (UNKNOWN[0].format(message), UNKNOWN[1])
@@ -263,8 +323,7 @@ def markdown(report, files=None):
             group = PLACE[risk["rule"]][0]
             if number > 1:
                 lines.append("")
-            label = "Shell commands and permission mode" if group == 0 else "Network access"
-            lines += [f"**{label}**", ""]
+            lines += [f"**{GROUP_LABELS[group]}**", ""]
         lines.append(f"{number}. [{title}](#{heading_id(f'{HARNESS} finding {number}')})")
     if risks:
         lines.append("")

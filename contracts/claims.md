@@ -35,6 +35,13 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I supply a malformed Claude permission or sandbox field and see the field named as a gap. `test_claude_settings.py::test_malformed_permission_lists_and_sandbox_fields_name_the_field`
 - I turn on sandboxing and see whether the file sets automatic Bash approval or leaves it to a version-dependent default. `test_claude_settings.py::test_sandbox_approval_is_version_dependent_only_when_enabled_and_unset`
 - I configure only an ask rule and see that its matches were not checked. `test_claude_settings.py::test_ask_only_rules_name_the_unchecked_list_without_a_finding`
+- I set a Claude Code command hook on any event in the work loop and see it listed without its command. `test_claude_programs.py::test_a_command_hook_on_any_event_is_listed_with_its_command_withheld`
+- I add HTTP, prompt or agent hooks and see the HTTP hook as network access with its address withheld, and the others listed without a finding. `test_claude_programs.py::test_http_hooks_send_data_out_and_prompt_hooks_are_listed_without_a_finding`
+- I see hooks from the project's Claude Code settings marked as project settings, with the mode left to my other settings. `test_claude_programs.py::test_project_settings_mark_hooks_and_take_the_mode_from_other_files`
+- I set `disableAllHooks` and see my hooks listed as turned off in that file. `test_claude_programs.py::test_disable_all_hooks_turns_off_hooks_in_the_same_file`
+- I supply a malformed Claude Code hook and see it named as a gap. `test_claude_programs.py::test_malformed_hooks_name_the_field`
+- I run stay-safe in a project folder and see its `.claude/settings.json` read once beside my user settings. `test_claude_programs.py::test_discovery_reads_the_project_file_in_the_current_folder_once`
+- I run in a project whose `.claude` folder can't be checked and see it named as a gap. `test_claude_programs.py::test_unreadable_project_folder_is_a_named_gap`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
@@ -60,6 +67,11 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - I set Claude Code's `bypassPermissions`, or allow every shell command or web fetch, and see each warning tied to its setting and incidents. `test_claude_risks.py::test_each_claude_code_warning_names_its_rule_setting_and_incidents`
 - I see which Claude Code versions and file scopes limit the bypass setting in both JSON and Markdown. `test_claude_risks.py::test_bypass_finding_explains_file_scope_and_version_in_json_and_markdown`
 - I see competing ask or deny rules beside the allowance in the overview, details and JSON. `test_claude_risks.py::test_competing_permission_rules_are_visible_on_each_affected_finding`
+- A project's `.claude/settings.json` holds a hook and I see a program finding tied to that file, with the command withheld. `test_claude_program_risks.py::test_project_only_hook_is_reported_from_the_project_file_with_its_command_withheld`
+- The same hook in my user settings gives the finding tied to my user file. `test_claude_program_risks.py::test_the_same_hook_in_user_settings_is_tied_to_the_user_file`
+- I add a hook on `PreToolUse` and the finding says it can approve tool calls and change what they do. `test_claude_program_risks.py::test_a_hook_that_can_approve_tool_calls_says_so_in_the_finding`
+- A project's HTTP hook gives a network finding with advice and its address withheld. `test_claude_program_risks.py::test_an_http_hook_is_a_network_finding_with_its_address_withheld`
+- I have no Claude Code folder and still see a hook from the project's settings. `test_claude_program_risks.py::test_a_project_hook_is_reported_without_a_claude_home`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
 Issue: https://github.com/chalkbadger/stay-safe/issues/12
@@ -79,6 +91,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I read the advice for leaving auto mode and see which sandboxed Bash commands can still run without a prompt. `test_claude_advice.py::test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit`
 - I see that the auto-mode edit applies to user settings when I select a Claude Code settings file. `test_claude_advice.py::test_auto_mode_edit_is_conditional_on_user_settings`
 - I run the environment Check with a variable whose value spans several lines and see only variable names. `test_what_to_do.py::test_environment_check_lists_variable_names_without_values`
+- I get advice for a Claude Code hook finding, naming the setting to remove and, for a project file, how to see who changed it. `test_claude_advice.py::test_program_settings_say_how_to_remove_them_and_where_to_look`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
@@ -109,6 +122,7 @@ Tests: [tests/share_without_exposing_secrets/](../tests/share_without_exposing_s
 - I use names containing markup and the saved page shows text, not executable content or unintended links. `test_page.py::test_names_with_html_characters_are_shown_as_written_not_as_markup`
 - I inspect Claude Code settings containing commands, domains and environment values, and none appear in the report. `test_claude_report.py::test_claude_code_report_excludes_private_values`
 - The program names my report may show from a saved approval are exactly the list in the Codex meanings document. `test_rules_file.py::test_shown_program_names_are_the_list_in_the_meanings_document`
+- A project's Claude Code settings hold hook and helper commands, and none appear in the terminal, Markdown, saved page or JSON. `test_claude_report.py::test_project_program_commands_stay_withheld_in_every_format`
 
 ## [nothing_in_my_setup_changes] Running stay-safe leaves my setup unchanged; saving writes only the report.
 Issue: https://github.com/chalkbadger/stay-safe/issues/1

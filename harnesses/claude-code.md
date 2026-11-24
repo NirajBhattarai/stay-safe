@@ -13,6 +13,11 @@ Each report describes a settings file. Claude Code combines rules across its set
 | `permissions.ask` and `permissions.deny` | A matching deny rule can block an allowed action. A matching ask rule can require approval. The report identifies the lists and leaves their matches unchecked. | [Rule order], [sandbox exceptions] |
 | `sandbox.enabled` | A boolean configures Bash sandboxing. When omitted, the documented default is off. | [Sandbox default] |
 | `sandbox.autoAllowBashIfSandboxed` | With sandboxing enabled, true requests automatic approval for eligible sandboxed Bash commands. False selects the regular permission flow. The omitted default changed from true to false in v2.1.324. | [Sandbox Bash approval] |
+| Project settings file | Discovery also reads `.claude/settings.json` in the current folder, which Claude Code reads from the session's working directory. Its findings name that file. It is read even when the Claude Code folder is missing, and then a default run includes Claude Code. A project file that leaves out `permissions.defaultMode` or `sandbox.enabled` takes them from other files, so neither is reported for it. | [Project file location] |
+| `hooks` | Each handler runs on its event in any settings file. A `command` hook runs a command; an `http` hook posts the event's data, such as commands, file paths and prompts, to a URL; an `mcp_tool` hook calls a tool on an MCP server; `prompt` and `agent` hooks ask a Claude model. Commands and URLs are withheld. MCP servers are outside reader coverage, so `mcp_tool` hooks are gaps. `allowedHttpHookUrls` can limit HTTP hooks. | [hooks setting], [Hook handler types], [HTTP hooks], [Limit HTTP hooks] |
+| Hooks on `PreToolUse` and `PermissionRequest` | A `PreToolUse` hook can approve a tool call without a prompt and replace its input. A `PermissionRequest` hook can grant a permission, replace the input, and add permission rules or change the mode. The finding says so. | [PreToolUse decisions], [PermissionRequest decisions] |
+| Project hooks before trust | Claude Code uses hooks from a repository's settings in a `claude -p` run and when only a parent folder is trusted. | [What runs before trust] |
+| `disableAllHooks` | `true` turns off hooks. The reader applies it within the same file; a higher-precedence file can set it back to `false`. | [disableAllHooks setting], [What runs before trust] |
 | Other fields | Settings that change only how Claude Code looks or which model it uses are skipped without a gap. Other unsupported settings are inspection gaps. Only documented field names appear in the report; other names are withheld. | [Settings index] |
 | File format | Settings files are JSON. `NaN`, `Infinity` and `-Infinity`, which Python's JSON reader accepts, are invalid values. | [JSON settings] |
 
@@ -35,3 +40,12 @@ Each report describes a settings file. Claude Code combines rules across its set
 [Sandbox Bash approval]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1371
 [Settings index]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md
 [JSON settings]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L132
+[Project file location]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L94
+[hooks setting]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L3720-L3725
+[What runs before trust]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L824-L844
+[disableAllHooks setting]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L3642-L3649
+[Hook handler types]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L399-L407
+[HTTP hooks]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L501-L512
+[Limit HTTP hooks]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L268-L273
+[PreToolUse decisions]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L2009-L2017
+[PermissionRequest decisions]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L2204-L2214

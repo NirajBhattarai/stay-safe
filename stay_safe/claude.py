@@ -20,6 +20,17 @@ NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper", 
          "enableAllProjectMcpServers", "enabledMcpjsonServers", "enabledPlugins", "env", "extraKnownMarketplaces",
          "gcpAuthRefresh", "hooks", "otelHeadersHelper", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
          "skipDangerousModePermissionPrompt", "sshConfigs", "sshHostCommands", "statusLine", "worktree"}
+HOOK_FIELDS = {"command": ("command",), "http": ("url",), "mcp_tool": ("server", "tool"), "prompt": ("prompt",),
+               "agent": ("prompt",)}
+DECISION_EVENTS = {"PreToolUse", "PermissionRequest"}
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks"}
+COMMAND = "command withheld"
+DISABLED = "turned off by disableAllHooks in this file"
+PROJECT = "project settings"
+HTTP = "HTTP hook"
+ADDRESS = "address withheld"
+DECIDES = "on PreToolUse or PermissionRequest: can approve or change tool calls"
+MODEL = "prompt or agent hook; prompt withheld"
 RULE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)(?:\((.*)\))?", re.DOTALL)
 UNREADABLE = "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld."
 
@@ -31,10 +42,13 @@ AUTO_APPROVAL_UNSET = ("sandbox.autoAllowBashIfSandboxed is unset. Its default c
 
 
 class SettingsReader(Reader):
+    scope = None
+
     def read(self, data):
         self.permissions(data.get("permissions", {}))
         self.sandbox(data.get("sandbox", {}))
-        others = set(data) - {"permissions", "sandbox"} - PREFERENCES
+        self.programs(data)
+        others = set(data) - {"permissions", "sandbox"} - PREFERENCES - PROGRAM_SETTINGS
         if others:
             names = sorted(others & NAMED)
             if others - NAMED:
@@ -48,8 +62,9 @@ class SettingsReader(Reader):
         self.unknown(table, PERMISSIONS, "permissions")
         mode = table.get("defaultMode")
         if "defaultMode" not in table:
-            self.gap("permissions.defaultMode is absent; Claude Code's built-in mode depends on how it starts and its "
-                     "version, so it was not inferred.")
+            if self.scope != "project":
+                self.gap("permissions.defaultMode is absent; Claude Code's built-in mode depends on how it starts "
+                         "and its version, so it was not inferred.")
         elif not isinstance(mode, str) or mode not in MODES:
             self.gap("permissions.defaultMode is unsupported or invalid; its value was withheld.")
         else:
@@ -101,13 +116,57 @@ class SettingsReader(Reader):
         else:
             self.gap("permissions.allow contains rules for tools outside reader coverage; they were not evaluated.")
 
+    def programs(self, data):
+        disabled = False
+        if "disableAllHooks" in data:
+            disabled = self.boolean(data, "disableAllHooks", False, "disableAllHooks")
+            if disabled is not None:
+                self.add(["disableAllHooks"], "setting", [str(disabled).lower()])
+        if "hooks" not in data:
+            return
+        found = self.hooks(data["hooks"])
+        tail = ([DISABLED] if disabled else []) + ([PROJECT] if self.scope == "project" else [])
+        for kind, name, observations, fact in (("command", ["hooks"], [COMMAND], "configured_program"),
+                                                ("http", ["hooks", "http"], [HTTP, ADDRESS], "network_access")):
+            if kind in found:
+                decides = [DECIDES] if found[kind] & DECISION_EVENTS else []
+                self.add(name, "hook", observations + decides + tail, {fact: not disabled})
+        if "model" in found:
+            self.add(["hooks", "prompt"], "hook", [MODEL] + tail)
+
+    def hooks(self, value):
+        if not isinstance(value, dict):
+            self.gap("hooks is not an object of hook events; its hooks were not evaluated.")
+            return {}
+        found = {}
+        for event, groups in value.items():
+            if not isinstance(groups, list):
+                self.gap("hooks contains an event that is not a list of matcher groups; it was not evaluated.")
+                continue
+            for group in groups:
+                handlers = group.get("hooks") if isinstance(group, dict) else None
+                if not isinstance(handlers, list):
+                    self.gap("hooks contains a matcher group without a list of handlers; it was not evaluated.")
+                    continue
+                for handler in handlers:
+                    kind = handler.get("type") if isinstance(handler, dict) else None
+                    field = HOOK_FIELDS.get(kind)
+                    if field is None or not all(nonempty(handler.get(name)) for name in field):
+                        self.gap("hooks contains a handler that is not a valid hook; it was not evaluated.")
+                    elif kind == "mcp_tool":
+                        self.gap("hooks contains MCP tool hooks, which call a tool on an MCP server without asking "
+                                 "you; that server was not evaluated.")
+                    else:
+                        found.setdefault("model" if kind in ("prompt", "agent") else kind, set()).add(event)
+        return found
+
     def sandbox(self, value):
         if not isinstance(value, dict):
             self.gap("sandbox must be a table.")
             return
         self.unknown(value, SANDBOX, "sandbox")
         enabled = self.boolean(value, "enabled", False, "sandbox.enabled")
-        if enabled is not None:
+        if enabled is not None and ("enabled" in value or self.scope != "project"):
             label = str(enabled).lower() if "enabled" in value else "false (default)"
             self.add(["sandbox", "enabled"], "setting", [label])
         key = "autoAllowBashIfSandboxed"
@@ -119,13 +178,18 @@ class SettingsReader(Reader):
             self.gap(AUTO_APPROVAL_UNSET)
 
 
+def nonempty(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
 def invalid_json_constant(token):
     raise ValueError("Invalid JSON number")
 
 
 @exclude_account_files
-def read_file(path, source, *, discovered=False, sources_read=None):
+def read_file(path, source, *, discovered=False, sources_read=None, scope=None):
     reader = SettingsReader(source)
+    reader.scope = scope
     try:
         fd = open_input(path)
         with os.fdopen(fd, "rb") as stream:
