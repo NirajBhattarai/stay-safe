@@ -274,11 +274,12 @@ class Reader:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
             enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
-            # Codex types this field on a named App before it evaluates the App's tool policy.
-            invalid_open_world = not template and type(app.get("open_world_enabled", True)) is not bool
-            if invalid_open_world and enabled is not False:
+            # Both AppConfig and AppsDefaultConfig require these flags to be booleans before tool policy runs.
+            invalid_flags = [field for field in ("open_world_enabled", "destructive_enabled")
+                             if field in app and type(app[field]) is not bool]
+            if invalid_flags and enabled is not False:
                 enabled = None
-                off_reason = "Codex rejects this App configuration"
+                off_reason = "Codex cannot load this configuration file"
             tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
             obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
@@ -289,10 +290,7 @@ class Reader:
             source = ("destructive_enabled" if "destructive_enabled" in app
                       else "apps._default.destructive_enabled" if "destructive_enabled" in settings else "Codex default")
             destructive = settings.get("destructive_enabled", True)
-            if destructive is UNKNOWN:
-                destructive = None
-            elif type(destructive) is not bool:
-                self.gap("apps has an invalid destructive_enabled flag.")
+            if type(destructive) is not bool:
                 destructive = None
             if not template and "default_tools_enabled" in app:
                 destructive, source = (True, "default_tools_enabled") if tools_enabled is True else (None, None)
@@ -306,8 +304,8 @@ class Reader:
                 # Codex disables every tool of a disabled app (app_tool_policy.rs L272-L277 at 086ccc8).
                 # Discard its tool-policy gaps; field-type errors still prevent Codex from loading the file.
                 self.gaps = before
-            if invalid_open_world:
-                self.gap(f"App {name} sets open_world_enabled to a non-boolean value.")
+            for field in invalid_flags:
+                self.gap(f"Codex cannot load this configuration file because apps.{name}.{field} is not a boolean.")
             if template:
                 # Codex gives apps this file does not name the template's approval mode and destructive_enabled
                 # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.
@@ -331,6 +329,8 @@ class Reader:
             return "apps not named in this file: settings unknown"
         if default.get("enabled") is False:
             return "apps not named in this file: disabled by apps._default.enabled"
+        if type(default.get("open_world_enabled", True)) is not bool:
+            return "apps not named in this file: settings unknown"
         if "destructive_enabled" not in default:
             return "apps not named in this file: destructive tools enabled by Codex default"
         destructive = default["destructive_enabled"]
