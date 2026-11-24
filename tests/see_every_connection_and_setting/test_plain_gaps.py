@@ -15,7 +15,15 @@ from tests.support import ConfigCase, ROOT, items, section, gap_items
 
 WITHHELD = "The value is left out of this report."
 # JSON gap text, without its source label -> expected Markdown lead.
+# Issue #184 names the declared App setting, including when a tool inherits it.
+APP_MODE_GAP = "Codex cannot load this configuration file because apps.example.default_tools_approval_mode is not one of auto, prompt, writes, approve."
+TOOL_MODE_GAP = "Codex cannot load this configuration file because apps.example.tools.lookup.approval_mode is not one of auto, prompt, writes, approve."
+APP_ENABLED_GAP = "Codex cannot load this configuration file because apps.example.default_tools_enabled is not a boolean."
+TOOL_ENABLED_GAP = "Codex cannot load this configuration file because apps.example.tools.lookup.enabled is not a boolean."
+
 PLAIN = {
+    **{gap: f"**{gap}** Findings for other entries describe settings written in the file."
+       for gap in (APP_MODE_GAP, TOOL_MODE_GAP, APP_ENABLED_GAP, TOOL_ENABLED_GAP)},
     'Selected config file is missing. Check the path supplied to --config.':
         '**Not checked: your config file.** The selected file is missing.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':
@@ -216,6 +224,10 @@ ABSENT = {
 }
 # JSON gap text -> the follow-up the reader can act on (reading check, 2026-11-09), from the meanings table and docs/usage.md.
 STEPS = {
+    APP_MODE_GAP: 'Set `apps.example.default_tools_approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+    TOOL_MODE_GAP: 'Set `apps.example.tools.lookup.approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+    APP_ENABLED_GAP: "Set `apps.example.default_tools_enabled` to `true` or `false`.",
+    TOOL_ENABLED_GAP: "Set `apps.example.tools.lookup.enabled` to `true` or `false`.",
     'Selected config file is missing. Check the path supplied to --config.':
         'Check the path supplied to --config.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':

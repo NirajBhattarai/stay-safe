@@ -4,7 +4,9 @@ import re
 
 from stay_safe.report import inspect, render
 from tests.support import ConfigCase, INCOMPLETE, ReportRuns, gap_items
-from tests.see_every_connection_and_setting.test_plain_gaps import gap_text
+from tests.see_every_connection_and_setting.test_plain_gaps import (
+    APP_ENABLED_GAP, APP_MODE_GAP, TOOL_ENABLED_GAP, TOOL_MODE_GAP, gap_text,
+)
 
 BASE = '''approval_policy="on-request"
 sandbox_mode="read-only"
@@ -14,17 +16,15 @@ inherit="none"
 '''
 MODE_GAP = 'A tool approval mode is unsupported or invalid; its value was withheld.'
 OWN_MODE_GAP = 'A per-tool approval mode is unsupported or invalid; its value was withheld.'
-APP_GAP = 'apps has an invalid boolean; its behavior is unknown.'
-OWN_APP_GAP = 'tools has an invalid boolean; its behavior is unknown.'
 # Expected inheritance follows harnesses/codex.md [tool-approval] and [app-tool-policy];
 # issue #63 specifies that an inherited invalid value is reported only at its source.
 PARENTS = (
     ('mcp_servers.example', 'url="https://private-endpoint.invalid"\ndefault_tools_approval_mode="private-invalid"\n',
      'approval_mode', MODE_GAP, OWN_MODE_GAP, '"approve"', [('automatic_tools', 'mcp_servers.example.tools.lookup')]),
     ('apps.example', 'destructive_enabled=false\ndefault_tools_approval_mode="private-invalid"\n',
-     'approval_mode', MODE_GAP, OWN_MODE_GAP, '"approve"', [('automatic_tools', 'apps.example.tools.lookup')]),
+     'approval_mode', APP_MODE_GAP, TOOL_MODE_GAP, '"approve"', [('automatic_tools', 'apps.example.tools.lookup')]),
     ('apps.example', 'destructive_enabled=false\ndefault_tools_approval_mode="prompt"\ndefault_tools_enabled="private-invalid"\n',
-     'enabled', APP_GAP, OWN_APP_GAP, 'true', [('destructive_tools', 'apps.example.tools.lookup')]),
+     'enabled', APP_ENABLED_GAP, TOOL_ENABLED_GAP, 'true', [('destructive_tools', 'apps.example.tools.lookup')]),
 )
 
 
