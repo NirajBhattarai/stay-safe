@@ -21,10 +21,7 @@ entries or risk facts.
 
 Codex [requires typed App and tool settings][app-config]. A named App's `default_tools_enabled` and
 each tool's `enabled` take unquoted booleans. The App's `default_tools_approval_mode` and each tool's
-`approval_mode` take a supported approval mode. If any declaration fails to load, stay-safe identifies
-the field, keeps the App and its tools in the catalog, and omits their tool risks. A disabled App keeps
-its off reason. Other Apps retain observations about their own configured settings. A malformed default
-approval mode is identified at `apps._default`.
+`approval_mode` take a supported approval mode. See the [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) for how the report handles a rejected value.
 
 For a tool of an enabled app, Codex uses the first that is set: the tool's `enabled`,
 the app's `default_tools_enabled`, then `destructive_enabled` from the app, then
