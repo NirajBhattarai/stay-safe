@@ -47,6 +47,7 @@ Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limi
 - I see the unchecked inline environment values and keep the configured-program finding when I switch to references. `test_inline_mcp.py::test_inline_env_and_reference_control_keep_the_program_finding`
 - Each populated inline table identifies its server and selected file once. `test_inline_mcp.py::test_each_populated_field_names_its_snapshot_and_server_once`
 - I see credential-review advice for enabled servers using populated tables on the matching transport. `test_inline_mcp.py::test_only_enabled_compatible_populated_tables_get_the_credentials_advice`
+- A rejected MCP tool setting keeps its diagnostic while another server's inline values remain visible for review. `test_inline_mcp.py::test_rejected_tool_settings_keep_their_diagnostic_without_credentials_advice`
 - I can identify an ill-typed inline table while still seeing the finding from the other server. `test_inline_mcp.py::test_rejected_inline_maps_keep_the_other_servers_finding`
 - I give a stdio server an HTTP header helper and see why Codex rejects the setting and how to fix it. `test_status.py::test_stdio_header_helper_names_the_rejected_setting`
 - I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`

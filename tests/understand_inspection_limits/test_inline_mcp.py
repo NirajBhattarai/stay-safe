@@ -65,6 +65,17 @@ class InlineMcpTests(ConfigCase):
         self.assertEqual(hidden["inspection_gaps"], [
             "config-1: mcp_servers contains a name that cannot be included in a shareable report."])
 
+    def test_rejected_tool_settings_keep_their_diagnostic_without_credentials_advice(self):
+        bad = BASE + '[mcp_servers.bad]\ncommand="private"\nenv={KEY="private"}\n'
+        good = '\n[mcp_servers.good]\n' + STDIO + 'env={KEY="private"}\n'
+        for field, error in (('default_tools_approval_mode="broken"', "A tool approval mode is unsupported or invalid; its value was withheld."),
+                             ('enabled_tools="broken"', "A tool allow/deny list is invalid; tool availability is unknown."),
+                             ('tools.read.approval_mode="broken"', "A per-tool approval mode is unsupported or invalid; its value was withheld.")):
+            with self.subTest(field=field):
+                report = inspect([self.config(bad + field + good)])
+                self.assertCountEqual(report["inspection_gaps"], ["config-1: " + error,
+                    "config-1: mcp_servers.good.env contains inline values. Check the entries for credentials."])
+
     def test_rejected_inline_maps_keep_the_other_servers_finding(self):
         for field, transport in (("env", STDIO), ("http_headers", HTTP)):
             for malformed in ('"private-value"', '{private_member=12}'):
