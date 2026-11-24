@@ -1,6 +1,6 @@
 import re
 
-from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+from .claude import (USER_OR_MANAGED, AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -131,6 +131,9 @@ GAPS = {
     "hooks contains a handler that is not a valid hook; it was not evaluated.": (
         "**Not checked: a hook.** A hook isn't an object with a known `type`, or its command is empty.",
         "Review the `hooks` block yourself."),
+    "processWrapper is not a nonempty command; it was not evaluated.": (
+        "**Not checked: `processWrapper`.** It isn't a nonempty command.",
+        "Review `processWrapper` yourself."),
     "hooks contains MCP tool hooks, which call a tool on an MCP server without asking you; that server was not "
     "evaluated.": (
         "**Not checked: MCP tool hooks.** They call a tool on an MCP server without asking you, and stay-safe doesn't "
@@ -254,6 +257,8 @@ def headline(risk):
         effect = {"deny": "block this action", "ask": "require approval"}
         effects = " or ".join(effect[key] for key in overrides)
         lead += f" This file also has {' and '.join(overrides)} rules that could {effects}. Their matches were not checked."
+    if USER_OR_MANAGED in observations:
+        lead += " Claude Code uses this setting only from user or managed settings."
     return lead
 
 
@@ -316,6 +321,14 @@ def finding(risk, path, number, details=None):
     why = WHY.get((rule, scope(risk)), WHY[rule])
     if details is not None:
         what, change, check, why = hook_advice(rule, details, path)
+    elif rule == "configured_program":
+        name = risk["entry"].partition(":")[2]
+        change = (f"*Change it:* `{name}` in {path}, or ask Claude Code: \"Show me the `{name}` setting in {path} and "
+                  "remove it; show only what you change.\"")
+        check = (f"*Check:* In {path}, `{name}` holds the command it runs. If it runs a script file, check that file "
+                 "too. Find out who wrote it before you trust it.")
+        if PROJECT in risk["configured_evidence"]:
+            check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
     elif rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
                   f"`permissions.defaultMode` to `default`; show only what you change.\"")
