@@ -401,6 +401,20 @@ class WhatToDoTests(ConfigCase):
         return ["--config", str(self.config(FIRST, "first.toml")), "--config", str(self.config(SECOND, "second.toml")),
                 "--rules", str(self.config(RULES, "selected.rules"))]
 
+    def test_environment_check_lists_variable_names_without_values(self):
+        found = self.findings(*self.explicit())
+        check = found[("environment_inheritance", "config-1:shell_environment_policy")].split("\n\n")[-1]
+        command = re.search(r"run `([^`]+)`", check).group(1)
+        env = {"PATH": "/usr/bin:/bin", "SAFE_NAME": "visible-value", "MULTI_LINE": "first-line\nsecret-line\nx=y"}
+        run = subprocess.run(["/bin/sh", "-c", command], env=env, text=True, capture_output=True, timeout=10)
+        self.assertEqual((run.returncode, run.stderr), (0, ""))
+        lines = run.stdout.splitlines()
+        self.assertLessEqual(set(env), set(lines))
+        for line in lines:
+            self.assertRegex(line, r"^[A-Za-z_][A-Za-z0-9_]*$")
+        for value in ("visible-value", "first-line", "secret-line", "x=y", "y"):
+            self.assertNotIn(value, lines)
+
     def test_each_finding_gives_lower_friction_then_stricter_option_then_how_to_change_it(self):
         found = self.findings(*self.explicit())
         self.assertEqual(set(found), set(EXPECTED))

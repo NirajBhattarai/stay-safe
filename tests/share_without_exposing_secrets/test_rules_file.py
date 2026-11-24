@@ -1,8 +1,11 @@
 import json
+import re
 import subprocess
 import sys
 
 from html import escape
+
+from stay_safe import codex_rules
 
 from tests.support import INCOMPLETE
 from tests.support import (ConfigCase, HARD_WORDS, NEAR_PROGRAMS, PROGRAMS, REPORT, ROOT, copy_checkout,
@@ -11,6 +14,14 @@ from tests.see_every_connection_and_setting.test_plain_gaps import gap_text
 
 
 class ShareableRulesTests(ConfigCase):
+    def test_shown_program_names_are_the_list_in_the_meanings_document(self):
+        text = (ROOT / "harnesses/codex.md").read_text(encoding="utf-8")
+        section = text.split("## Saved approval records", 1)[1].split("\n## ", 1)[0]
+        listed = re.findall(r"(?m)^`([a-z0-9 ]+)`$", section)
+        self.assertEqual(len(listed), 1)
+        self.assertEqual(listed[0].split(), list(codex_rules.PROGRAMS))
+        self.assertEqual(listed[0].split(), PROGRAMS)
+
     def test_invalid_json_escape_does_not_disclose_private_source(self):
         path = self.config(r'prefix_rule(pattern=["curl", "private\qvalue"], decision="allow")', 'warning.rules')
         gap = 'rules-1: Rules contain lines that are not inspected.'

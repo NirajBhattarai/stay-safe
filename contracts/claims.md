@@ -78,6 +78,7 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I leave bypass mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
 - I read the advice for leaving auto mode and see which sandboxed Bash commands can still run without a prompt. `test_claude_advice.py::test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit`
 - I see that the auto-mode edit applies to user settings when I select a Claude Code settings file. `test_claude_advice.py::test_auto_mode_edit_is_conditional_on_user_settings`
+- I run the environment Check with a variable whose value spans several lines and see only variable names. `test_what_to_do.py::test_environment_check_lists_variable_names_without_values`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
@@ -107,6 +108,7 @@ Tests: [tests/share_without_exposing_secrets/](../tests/share_without_exposing_s
 - I see names as written, with a reminder to check them before sharing. `test_report.py::test_names_are_shown_as_written_and_the_report_says_to_check_them`
 - I use names containing markup and the saved page shows text, not executable content or unintended links. `test_page.py::test_names_with_html_characters_are_shown_as_written_not_as_markup`
 - I inspect Claude Code settings containing commands, domains and environment values, and none appear in the report. `test_claude_report.py::test_claude_code_report_excludes_private_values`
+- The program names my report may show from a saved approval are exactly the list in the Codex meanings document. `test_rules_file.py::test_shown_program_names_are_the_list_in_the_meanings_document`
 
 ## [nothing_in_my_setup_changes] Running stay-safe leaves my setup unchanged; saving writes only the report.
 Issue: https://github.com/chalkbadger/stay-safe/issues/1
