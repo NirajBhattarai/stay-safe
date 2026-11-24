@@ -58,7 +58,9 @@ class ChatGptAppsTests(ConfigCase):
         base = CHATGPT_APPS[:3]
         for template, last, gap in [
             ('[apps._default]\ndestructive_enabled="yes"\n', "apps not named in this file: destructive tools unknown",
-             "config-1: apps has an invalid destructive_enabled flag."),
+             "config-1: Codex cannot load this configuration file because apps._default.destructive_enabled is not a boolean."),
+            ('[apps._default]\nopen_world_enabled="yes"\n', "apps not named in this file: settings unknown",
+             "config-1: Codex cannot load this configuration file because apps._default.open_world_enabled is not a boolean."),
             ('[apps._default]\nenabled="yes"\n', "apps not named in this file: settings unknown",
              "config-1: apps has an invalid boolean; its behavior is unknown."),
             ("[apps]\n_default=7\n", "apps not named in this file: settings unknown",

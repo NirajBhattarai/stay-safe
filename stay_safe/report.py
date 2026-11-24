@@ -5,13 +5,14 @@ import json
 from pathlib import Path
 import re
 
-from .codex import read_file
+from .codex import APPROVALS, EXCLUDED_ACCOUNT, INVALID_APPROVAL, INVALID_BOOLEAN, read_file
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
 
 INCIDENTS = resource("incidents.md")
 INCIDENT_STATUS = "reported, not verified"
+APPROVAL_OPTIONS = ", ".join(f'`"{mode}"`' for mode in APPROVALS[:-1]) + f' or `"{APPROVALS[-1]}"`'
 
 
 def incident_links(path=INCIDENTS, revision=None):
@@ -113,12 +114,15 @@ FINDINGS = {
         "headline": "Your config turns off Codex's sandbox.",
         "why": "Commands Codex runs aren't limited to your project, so a mistaken command could damage files "
                "elsewhere on your computer.",
-        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command."},
+        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. "
+               "A Claude Code user reported losing SSH keys and cloud credentials when a PowerShell cleanup "
+               "deleted files in their home directory."},
     "configured_program": {
         "headline": "{Subject} can start a program on your computer.",
         "why": PROGRAM,
         "how": "Flaws in other agents let repository settings run commands on collaborators' machines, and a worm "
-               "wrote itself into an agent's settings so its code ran at every start."},
+               "wrote itself into an agent's settings so its code ran at every start. Google reported that intruders "
+               "changed project settings so Claude Code would download a backdoor at startup."},
     "automatic_tools": {
         "headline": ("{Subject}'s tool approval mode is `approve`.", "{Subject} has approval mode `approve`."),
         "why": AUTOMATIC,
@@ -565,9 +569,6 @@ GAPS = {
     "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
         "**Codex can't load this configuration.** The `{label}` server uses `command` (stdio). "
         "Codex accepts `http_headers_helper` only on HTTP servers.",
-    "apps has an invalid destructive_enabled flag.":
-        "**Not checked: an app's `destructive_enabled` setting.** It isn't true or false, so stay-safe can't tell "
-        "whether that app's tools that change or delete data are turned on.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
@@ -575,6 +576,10 @@ GAPS = {
         "**Not checked: an app's approval reviewer.** An app sets `approvals_reviewer` (in `[apps.<name>]` or "
         "`[apps._default]`), which can let a reviewer such as automatic review decide its tool calls instead of "
         "asking you. stay-safe doesn't assess it.",
+    INVALID_APPROVAL: f"**{INVALID_APPROVAL}** Findings for other entries describe settings written in the file.",
+    INVALID_BOOLEAN:
+        "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
+        "Findings for other entries describe settings written in the file.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
@@ -723,9 +728,9 @@ STEPS = {
         "Review that entry yourself, since it isn't in this report.",
     "{label} contains an entry that is not a table.": "Rewrite it as a group of settings, then run stay-safe again.",
     "A tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A per-tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A tool allow/deny list contains a name that cannot be included in a shareable report.":
         "Review the full list in your config file yourself.",
     "A tool allow/deny list is invalid; tool availability is unknown.":
@@ -735,11 +740,13 @@ STEPS = {
         "Set `http_headers_helper` to the command you mean to run, or remove it.",
     "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
         "To keep using stdio, remove `http_headers_helper` from this server's settings.",
-    "apps has an invalid destructive_enabled flag.": "Set `destructive_enabled` to `true` or `false`.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
         "Review `approvals_reviewer` in your `[apps]` settings yourself; without it, the app uses your main reviewer setting.",
+    INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
+    INVALID_BOOLEAN:
+        "Set `{label}` to `true` or `false` without quotes.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
     "Model-provider setting {label} was not checked for a credential command.": "Review `{label}` in your config file.",
@@ -809,7 +816,7 @@ def lookup(table, message):
         return table[message]
     for key, text in table.items():
         if "{label}" in key:
-            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r"([\w./-]+)"), message)
+            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r'([\w./"*-]+)'), message)
             if found:
                 return text.replace("{label}", found[1])
     return None
@@ -920,7 +927,6 @@ SETUP_WORDS = {
     "workspace-write": "`workspace-write` (commands can write in your workspace)",
     "danger-full-access": "`danger-full-access` (no sandbox)",
 }
-APPROVAL_MODES = {"auto", "approve", "prompt", "writes"}
 INHERIT = {"all": "all variables passed on", "core": "only core variables passed on", "none": "none passed on"}
 ORIGIN = {"explicit": "you set this", "default": "default"}
 
@@ -934,7 +940,7 @@ def setup_words(keys, observation):
     if observation in SETUP_WORDS:
         return SETUP_WORDS[observation]
     found = re.fullmatch(r"tool approval: (\w+)( \(default\))?", observation)
-    if found and found[1] in APPROVAL_MODES:
+    if found and found[1] in APPROVALS:
         mode = f"`{found[1]}`"
         return f"tool approval left at the default, {mode}" if found[2] else f"tool approval {mode}"
     # Apps the file does not name (harnesses/codex.md row features.apps `omitted`, issue #139).
@@ -1073,7 +1079,7 @@ def files_read(report, files):
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
-               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input "))}
+               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input ", EXCLUDED_ACCOUNT))}
     sources = {source for source in listed | set(files) | {text.partition(": ")[0] for text in report["inspection_gaps"]}
                if re.fullmatch(r"(config|rules)-\d+", source)}
     return sorted((source for source in sources - absent - refused
@@ -1139,6 +1145,9 @@ def findings_list(report, risks, titles, labelled):
 
 
 def markdown(report, files=None):
+    if report.get("harness") == "Claude Code":
+        from .claude_report import markdown as claude_markdown
+        return claude_markdown(report, files)
     files = files or {}
     risks, gaps = ordered(report["risks"]), report["inspection_gaps"]
     read = files_read(report, files)
@@ -1233,7 +1242,7 @@ def markdown(report, files=None):
 # The saved page is the Markdown report as a Markdown previewer shows it (archived issue #106): the same lines, read with
 # the few Markdown forms markdown() writes. All text is escaped; links are kept only for https targets and for the
 # report's own findings and Not checked section (issue #82). A link's text may hold code spans.
-INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked)\)|\*\*|\*")
+INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked|#claude-code-finding-\d+|#claude-code-not-checked)\)|\*\*|\*")
 NUMBERED = re.compile(r"(\d+)\. (.*)")
 STYLE = """body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
 p, li { overflow-wrap: anywhere; }
@@ -1284,12 +1293,14 @@ def inline(line):
     return "".join(out)
 
 
-def page(report, files=None):
+def page(report, files=None, text=None, title=None):
     """Headings, horizontal rules, then paragraphs and lists: a run of `- ` lines is a list, a run of numbered lines
     a numbered list that starts at its first number, other lines a paragraph. Section and finding headings carry
     the anchor GitHub gives them, so the report's own links work on the page."""
     body = []
-    for block in markdown(report, files).rstrip("\n").split("\n\n"):
+    text = markdown(report, files) if text is None else text
+    title = title or text.split("\n", 1)[0].removeprefix("# ")
+    for block in text.rstrip("\n").split("\n\n"):
         if block.startswith("# "):
             body.append(f"<h1>{inline(block[2:])}</h1>")
         elif block.startswith("## "):
@@ -1318,7 +1329,7 @@ def page(report, files=None):
     return ("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-            f"<title>Codex configuration diagnostic</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
+            f"<title>{escape(title, quote=False)}</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
             + "\n".join(body) + "\n</body>\n</html>\n")
 
 
@@ -1361,3 +1372,17 @@ def render(report, format_name="markdown", files=None):
     if format_name == "html":
         return page(report, files)
     return markdown(report, files)
+
+
+def render_all(runs, format_name="markdown"):
+    """runs holds (report, files) pairs, one per coding agent. One report renders exactly as render() does; several
+    follow each other, and JSON lists them under "reports" (issue #163)."""
+    if len(runs) == 1:
+        return render(runs[0][0], format_name, runs[0][1])
+    if format_name == "json":
+        return json.dumps({"reports": [report for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
+    if format_name == "html":
+        text = "\n".join(markdown(report, files) for report, files in runs)
+        return page(None, text=text, title=" and ".join(report["harness"] for report, _ in runs)
+                    + " configuration diagnostic")
+    return "\n".join(render(report, format_name, files) for report, files in runs)

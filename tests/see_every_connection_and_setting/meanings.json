@@ -304,6 +304,15 @@
     "entry": "apps.files"
   },
   {
+    "setting": "apps.*",
+    "value": "non-boolean open_world_enabled or destructive_enabled on a named App or _default",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[apps.calendar]\nopen_world_enabled=\"false\"\n",
+    "entry": "apps.calendar",
+    "gaps": [
+      "Codex cannot load this configuration file because apps.calendar.open_world_enabled is not a boolean."
+    ]
+  },
+  {
     "setting": "apps.*.links",
     "value": "per-account policy",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[apps.files.links.private-account]\nenabled=false",

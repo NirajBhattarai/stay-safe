@@ -103,8 +103,8 @@ class RiskOutputTests(ConfigCase):
         expected = [
             ("commands_without_prompts", "config-1:approval_policy", ["I2", "I3", "I24"]),
             ("self_described_tools", "config-1:apps.calendar", ["I15", "I21"]),
-            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19"]),
-            ("configured_program", "config-1:notify", ["I13", "I14", "I19"]),
+            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19", "I33"]),
+            ("configured_program", "config-1:notify", ["I13", "I14", "I19", "I33"]),
             ("environment_inheritance", "config-1:shell_environment_policy", ["I23"]),
         ]
         for format_name in ("markdown", "json"):
@@ -117,7 +117,7 @@ class RiskOutputTests(ConfigCase):
                     report = json.loads(run.stdout)
                     actual = [(r["rule"], r["entry"], r["incidents"]) for r in report["risks"]]
                     self.assertEqual(report["incident_status"], "reported, not verified")
-                    self.assertEqual(set(report["incident_links"]), {"I2", "I3", "I13", "I14", "I15", "I19", "I21", "I23", "I24"})
+                    self.assertEqual(set(report["incident_links"]), {"I2", "I3", "I13", "I14", "I15", "I19", "I21", "I23", "I24", "I33"})
                     explanation = next(r["explanation"] for r in report["risks"] if r["rule"] == "self_described_tools")
                     self.assertIn("Documented in source, not yet observed", explanation)
                     self.assertIn("server-declared hints", explanation)

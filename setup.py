@@ -27,7 +27,7 @@ class Package(build_py):
         commit = revision()
         super().run()
         target = Path(self.build_lib) / 'stay_safe'
-        for name in ('incidents.md', 'harnesses/codex.md'):
+        for name in ('incidents.md', 'harnesses/codex.md', 'harnesses/claude-code.md'):
             dest = target / 'data' / name
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes((ROOT / name).read_bytes())

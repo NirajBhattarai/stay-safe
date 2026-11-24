@@ -99,9 +99,6 @@ class StatusTests(ConfigCase):
 
     def test_app_auto_reviewer_is_named_as_unchecked(self):
         # NirajBhattarai: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7094703327
-        # An app's approvals_reviewer replaces the default reviewer for its tool calls (openai/codex 086ccc8,
-        # core/src/connectors.rs L525-L545); auto_review sends on-request prompts to automatic review
-        # (ext/guardian-reviewer/src/routing.rs L58-L66). `user` asks, as the default does.
         app = COMPLETE + 'shell_environment_policy={inherit="none"}\n[apps.calendar]\ndefault_tools_approval_mode="prompt"\n'
         gap = ("config-1: App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls "
                "instead of asking you.")

@@ -15,7 +15,19 @@ from tests.support import ConfigCase, ROOT, items, section, gap_items
 
 WITHHELD = "The value is left out of this report."
 # JSON gap text, without its source label -> expected Markdown lead.
+# Issue #184 names the declared App setting, including when a tool inherits it.
+APP_MODE_GAP = "Codex cannot load this configuration file because apps.example.default_tools_approval_mode is not one of auto, prompt, writes, approve."
+TOOL_MODE_GAP = "Codex cannot load this configuration file because apps.example.tools.lookup.approval_mode is not one of auto, prompt, writes, approve."
+APP_ENABLED_GAP = "Codex cannot load this configuration file because apps.example.default_tools_enabled is not a boolean."
+TOOL_ENABLED_GAP = "Codex cannot load this configuration file because apps.example.tools.lookup.enabled is not a boolean."
+
 PLAIN = {
+    **{gap: f"**{gap}** Findings for other entries describe settings written in the file."
+       for gap in (APP_MODE_GAP, TOOL_MODE_GAP)},
+    **{gap: f"**Codex cannot load this configuration file.** `{field}` must be `true` or `false` without quotes. "
+            "Findings for other entries describe settings written in the file."
+       for gap, field in ((APP_ENABLED_GAP, "apps.example.default_tools_enabled"),
+                          (TOOL_ENABLED_GAP, "apps.example.tools.lookup.enabled"))},
     'Selected config file is missing. Check the path supplied to --config.':
         '**Not checked: your config file.** The selected file is missing.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':
@@ -118,9 +130,9 @@ PLAIN = {
     "An MCP header-helper command is invalid; its value was withheld.":
         "**Not checked: an MCP header-helper command.** An `http_headers_helper` value isn't a valid command, so "
         f"stay-safe didn't assess it. {WITHHELD}",
-    "apps has an invalid destructive_enabled flag.":
-        "**Not checked: an app's `destructive_enabled` setting.** It isn't true or false, so stay-safe can't tell "
-        "whether that app's tools that change or delete data are turned on.",
+    "Codex cannot load this configuration file because apps.team.destructive_enabled is not a boolean.":
+        "**Codex cannot load this configuration file.** `apps.team.destructive_enabled` must be `true` or `false` without quotes. "
+        "Findings for other entries describe settings written in the file.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
@@ -204,7 +216,7 @@ PLAIN = {
     **{f"Incomplete fingerprint: {name} could not be read.":
        f"**Not checked: stay-safe's own file `{name}`.** stay-safe couldn't read it, so the fingerprint that "
        "identifies this version of stay-safe is incomplete."
-       for name in ("stay_safe/__init__.py", "harnesses/codex.md", "incidents.md")},
+       for name in ("stay_safe/__init__.py", "harnesses/codex.md", "harnesses/claude-code.md", "incidents.md")},
     "Revision unknown; checkout source links are withheld.":
         "**Not checked: which version of stay-safe made this report.** stay-safe couldn't tell which commit it's "
         "running from, so links to its rules, evidence and incidents are left out.",
@@ -220,6 +232,10 @@ ABSENT = {
 }
 # JSON gap text -> the follow-up the reader can act on (reading check, 2026-11-09), from the meanings table and docs/usage.md.
 STEPS = {
+    APP_MODE_GAP: 'Set `apps.example.default_tools_approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+    TOOL_MODE_GAP: 'Set `apps.example.tools.lookup.approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+    APP_ENABLED_GAP: "Set `apps.example.default_tools_enabled` to `true` or `false` without quotes.",
+    TOOL_ENABLED_GAP: "Set `apps.example.tools.lookup.enabled` to `true` or `false` without quotes.",
     'Selected config file is missing. Check the path supplied to --config.':
         'Check the path supplied to --config.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':
@@ -284,7 +300,8 @@ STEPS = {
     "An MCP transport is missing, conflicting or invalid.": "Give the server either a `command` or a `url`, not both.",
     "An MCP header-helper command is invalid; its value was withheld.":
         "Set `http_headers_helper` to the command you mean to run, or remove it.",
-    "apps has an invalid destructive_enabled flag.": "Set `destructive_enabled` to `true` or `false`.",
+    "Codex cannot load this configuration file because apps.team.destructive_enabled is not a boolean.":
+        "Set `apps.team.destructive_enabled` to `true` or `false` without quotes.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":

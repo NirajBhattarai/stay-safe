@@ -32,6 +32,8 @@ class PackageTests(unittest.TestCase):
             wheel = next((source / 'dist').glob('*.whl'))
             install = base / 'installed'
             with zipfile.ZipFile(wheel) as archive:
+                self.assertEqual(archive.read("stay_safe/data/harnesses/claude-code.md"),
+                                 (source / "harnesses/claude-code.md").read_bytes())
                 archive.extractall(install)
                 metadata = archive.read(next(n for n in archive.namelist() if n.endswith('/METADATA'))).decode()
                 self.assertIn('Requires-Python: >=3.11', metadata)
@@ -99,6 +101,7 @@ class PackageTests(unittest.TestCase):
             # `build` builds its wheel from the sdist by default: this also checks the source distribution.
             with tarfile.open(next((source / 'dist').glob('*.tar.gz'))) as archive:
                 names = archive.getnames()
+                self.assertTrue(any(n.endswith('/harnesses/claude-code.md') for n in names))
                 self.assertTrue(any(n.endswith('/incidents.md') for n in names))
                 stamp = archive.extractfile(next(n for n in names if n.endswith('/stay_safe/release.txt'))).read().decode().strip()
                 self.assertEqual(stamp, revision)

@@ -12,6 +12,11 @@ from unittest.mock import patch
 FEEDBACK = "Report a problem or suggest an idea: https://github.com/chalkbadger/stay-safe/issues/new/choose\n"
 
 ROOT = Path(__file__).resolve().parents[1]
+# Tests that inherit the process environment see an empty home. Discovery fixtures set their own.
+_TEST_HOME = tempfile.TemporaryDirectory()
+os.environ["HOME"] = _TEST_HOME.name
+for variable in ("CLAUDE_CONFIG_DIR", "CODEX_HOME"):
+    os.environ.pop(variable, None)
 # The file name archived issue #106 fixes for the saved report.
 REPORT = "stay-safe-report.html"
 # A commit the copied checkout's .git/HEAD names, so its report has source and incident links.
@@ -184,7 +189,7 @@ def copy_checkout(destination):
     """
     destination.mkdir(parents=True)
     shutil.copytree(ROOT / "stay_safe", destination / "stay_safe", ignore=shutil.ignore_patterns("__pycache__"))
-    for name in ("incidents.md", "harnesses/codex.md"):
+    for name in ("incidents.md", "harnesses/codex.md", "harnesses/claude-code.md"):
         (destination / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, destination / name)
     (destination / ".git").mkdir()
@@ -281,3 +286,23 @@ class ReportRuns:
 
 # Issue #18 specifies this stderr text independently of the implementation.
 INCOMPLETE = "Inspection incomplete (exit 2). See the report for what wasn't checked.\n"
+
+
+def agent_home(root, codex=None, claude=None):
+    """A home folder with ~/.codex/config.toml and ~/.claude/settings.json when their text is given (issue #163)."""
+    home = root / "home"
+    home.mkdir(exist_ok=True)
+    if codex is not None:
+        (home / ".codex").mkdir()
+        (home / ".codex" / "config.toml").write_text(codex, encoding="utf-8")
+    if claude is not None:
+        (home / ".claude").mkdir()
+        (home / ".claude" / "settings.json").write_text(claude, encoding="utf-8")
+    return home
+
+
+def run_home(home, *args, cwd=None, **env):
+    """A default run in a subprocess whose home folder is `home` and whose environment holds nothing else."""
+    return subprocess.run([sys.executable, "-B", "-m", "stay_safe", *args], cwd=cwd or home,
+                          env={"HOME": str(home), "PYTHONPATH": str(ROOT), **env},
+                          text=True, capture_output=True, timeout=10)
