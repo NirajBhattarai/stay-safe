@@ -20,9 +20,7 @@ BOOLEAN_GAP = "{} has an invalid boolean; its behavior is unknown."
 HOOKS_GAP = "Hook execution policy is outside reader coverage."
 APP = '[apps.cal]\nenabled=true\n'
 # With nothing else set, Codex lets an enabled app run destructive tools (harnesses/codex.md [app-tool-policy]).
-CODEX_DEFAULT = "destructive tools enabled by Codex default"
-APP_OBSERVATIONS = ["configured enabled", CODEX_DEFAULT, "tool approval: auto (default)"]
-APP_RISKS = [("destructive_tools", "apps.cal"), ("self_described_tools", "apps.cal")]
+LOAD_ERROR = "Codex cannot load this configuration file"
 TARGET_HTTP = ["configured enabled", "HTTP; endpoint withheld", "tool approval: auto (default)"]
 
 # field: (top-level overrides, tables, expected gaps,
@@ -74,7 +72,7 @@ CASES = {
     "apps.*.enabled": ({}, '[apps.cal]\nenabled="yes"\ndefault_tools_approval_mode="approve"\n',
                        [BOOLEAN_GAP.format("apps")], {"apps.cal": ["enablement unknown", "tool approval: approve"]}, []),
     "apps.*.default_tools_enabled": ({}, APP + 'default_tools_enabled="yes"\ndefault_tools_approval_mode="approve"\n',
-                                     [BOOLEAN_GAP.format("apps")], {"apps.cal": ["configured enabled", "default tools disabled or unknown", "tool approval: approve"]}, []),
+                                     ["Codex cannot load this configuration file because apps.cal.default_tools_enabled is not a boolean."], {"apps.cal": [LOAD_ERROR, "default tools disabled or unknown", "tool approval: approve"]}, []),
     "apps.*.destructive_enabled": ({}, APP + 'destructive_enabled="yes"\n', ["Codex cannot load this configuration file because apps.cal.destructive_enabled is not a boolean."],
                                    {"apps.cal": ["Codex cannot load this configuration file", "tool approval: auto (default)"]}, []),
     # apps._default.enabled = false disables no named app (archived issue #90; openai/codex@086ccc8
@@ -91,18 +89,18 @@ CASES = {
                                                                              {"apps._default": ["disabled", "tool approval: auto (default)"],
                                                                               "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]}, []),
     "apps.*.default_tools_approval_mode": ({}, APP + 'default_tools_approval_mode="yes"\n',
-                                           ["A tool approval mode is unsupported or invalid; its value was withheld."],
-                                           {"apps.cal": ["configured enabled", CODEX_DEFAULT]}, [("destructive_tools", "apps.cal")]),
+                                           ["Codex cannot load this configuration file because apps.cal.default_tools_approval_mode is not one of auto, prompt, writes, approve."],
+                                           {"apps.cal": [LOAD_ERROR]}, []),
     "apps.*.tools.*.enabled": ({}, APP + '[apps.cal.tools.delete]\nenabled="yes"\napproval_mode="approve"\n',
-                               [BOOLEAN_GAP.format("tools")], {"apps.cal": APP_OBSERVATIONS, "apps.cal.tools.delete": ["disabled or enablement unknown", "tool approval: approve"]}, APP_RISKS),
-    # An app whose enablement is unknown might be enabled, so its tool's value can still change a finding.
+                               ["Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean."], {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"], "apps.cal.tools.delete": [LOAD_ERROR, "tool approval: approve"]}, []),
+    # Even when enablement is unknown, this independent field error prevents loading the App and its tools.
     "apps.*.tools.*.enabled under unknown app enablement": ({}, '[apps.cal]\nenabled="yes"\n[apps.cal.tools.delete]\nenabled="yes"\napproval_mode="approve"\n',
-                                                         [BOOLEAN_GAP.format("apps"), BOOLEAN_GAP.format("tools")],
-                                                         {"apps.cal": ["enablement unknown", "tool approval: auto (default)"],
-                                                          "apps.cal.tools.delete": ["disabled or enablement unknown", "tool approval: approve"]}, []),
+                                                         [BOOLEAN_GAP.format("apps"), "Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean."],
+                                                         {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"],
+                                                          "apps.cal.tools.delete": [LOAD_ERROR, "tool approval: approve"]}, []),
     "apps.*.tools.*.approval_mode": ({}, APP + '[apps.cal.tools.delete]\napproval_mode="yes"\n',
-                                     ["A per-tool approval mode is unsupported or invalid; its value was withheld."],
-                                     {"apps.cal": APP_OBSERVATIONS, "apps.cal.tools.delete": ["configured enabled"]}, APP_RISKS),
+                                     ["Codex cannot load this configuration file because apps.cal.tools.delete.approval_mode is not one of auto, prompt, writes, approve."],
+                                     {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"], "apps.cal.tools.delete": [LOAD_ERROR]}, []),
     "notify": ({"notify": '"synthetic-command"'}, "", ["notify is not a command list with a nonempty program."], {"notify": None}, []),
     "notify empty program": ({"notify": '[""]'}, "", ["notify is not a command list with a nonempty program."], {"notify": None}, []),
     "notify non-string argument": ({"notify": '["synthetic-command", 1]'}, "", ["notify is not a command list with a nonempty program."],
@@ -138,16 +136,12 @@ class InvalidValueTests(ConfigCase):
                 expected = [risk for risk in BASELINE_RISKS if risk[1] not in entries] + risks
                 self.assertCountEqual([(r["rule"], r["entry"].removeprefix("config-1:")) for r in report["risks"]], expected)
 
-    def test_a_disabled_app_gives_no_gap_from_its_other_settings(self):
+    def test_a_disabled_app_gives_no_gap_for_unknown_fields_or_valid_links(self):
         # Archived issue #95: Codex disables every tool of a disabled app whatever else it sets
         # (codex-rs/connectors/src/app_tool_policy.rs L272-L277 at 086ccc8). File load errors for App flags
-        # are checked separately in test_named_app_validation.py (issue #173).
+        # are checked separately in test_named_app_validation.py (issues #173 and #184).
         # Only a named app's own enabled disables it: apps._default.enabled disables no named app (archived issue #90).
-        settings = {"tool enabled": ("", '[apps.cal.tools.delete]\nenabled="yes"\n'),
-                    "tool approval_mode": ("", '[apps.cal.tools.delete]\napproval_mode="yes"\n'),
-                    "unknown tool field": ("", "[apps.cal.tools.delete]\nsynthetic=1\n"),
-                    "default_tools_approval_mode": ('default_tools_approval_mode="yes"\n', ""),
-                    "default_tools_enabled": ('default_tools_enabled="yes"\n', ""),
+        settings = {"unknown tool field": ("", "[apps.cal.tools.delete]\nsynthetic=1\n"),
                     "unknown app field": ("synthetic=1\n", ""),
                     "links": ("", "[apps.cal.links.account]\ndefault_tools_approval_mode=\"approve\"\n")}
         for setting, (field, tables) in settings.items():
@@ -166,7 +160,10 @@ class InvalidValueTests(ConfigCase):
     def test_an_app_under_a_non_table_apps_default_keeps_its_gaps(self):
         # A non-table apps._default disables no named app (archived issue #90), so the app is enabled and its settings keep their gaps.
         report = inspect([self.config(configuration({}, '[apps]\n_default=1\n[apps.cal]\n[apps.cal.tools.delete]\nenabled="yes"\n'))])
-        self.assertEqual(report["inspection_gaps"], ["config-1: apps._default must be a table.", "config-1: " + BOOLEAN_GAP.format("tools")])
+        self.assertEqual(report["inspection_gaps"], [
+            "config-1: Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean.",
+            "config-1: apps._default must be a table.",
+        ])
 
     def test_notify_arguments_after_the_program_may_be_empty(self):
         report = inspect([self.config(configuration({"notify": '["synthetic-command", ""]'}, ""))])

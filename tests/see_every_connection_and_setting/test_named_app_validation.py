@@ -5,6 +5,7 @@ as bool, named App flags as Option<bool>, and both as typed parts of AppsConfigT
 """
 import json
 
+from stay_safe.report import inspect
 from tests.support import ConfigCase, copy_checkout, run_checkout
 
 
@@ -94,3 +95,143 @@ class NamedAppValidationTests(ConfigCase):
                     self.assertIn("Codex cannot load this configuration file", entry["observations"])
                     self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]],
                                      [("config-1:apps.notes", "automatic_tools")])
+
+    def test_app_tool_load_errors_name_the_field_in_both_formats(self):
+        # Codex rust-v0.167.0, codex-rs/config/src/types.rs (AppConfig and AppToolConfig).
+        checkout = copy_checkout(self.root / "checkout")
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        sibling = '[apps.cal.tools.archive]\nenabled=true\napproval_mode="approve"\n[apps.notes]\ndefault_tools_approval_mode="approve"\n'
+        for field, reason, control in (
+            ("default_tools_enabled", "is not a boolean", "false"),
+            ("default_tools_approval_mode", "is not one of auto, prompt, writes, approve", '"prompt"'),
+            ("tools.delete.enabled", "is not a boolean", "false"),
+            ("tools.delete.approval_mode", "is not one of auto, prompt, writes, approve", '"prompt"'),
+        ):
+            message = f"Codex cannot load this configuration file because apps.cal.{field} {reason}."
+            for enabled in ("false", "true"):
+                for value in ('"yes"', control):
+                    path = self.config(top + f"enabled={enabled}\n{field}={value}\n" + sibling)
+                    for fmt in ("json", "markdown"):
+                        with self.subTest(field=field, enabled=enabled, value=value, fmt=fmt):
+                            run = run_checkout(checkout, "--config", str(path), "--format", fmt, cwd=self.root)
+                            invalid = value != control
+                            self.assertEqual(run.returncode, 2 if invalid else 0)
+                            self.assertNotRegex(run.stdout + run.stderr, r"\byes\b")
+                            if fmt == "markdown":
+                                label = f"`apps.cal.{field}`"
+                                if not invalid:
+                                    self.assertIn("0 things not checked", run.stdout)
+                                elif reason == "is not a boolean":
+                                    self.assertIn(f"**Codex cannot load this configuration file.** "
+                                                  f"{label} must be `true` or `false` without quotes.", run.stdout)
+                                    self.assertIn(f"Set {label} to `true` or `false` without quotes.", run.stdout)
+                                else:
+                                    self.assertIn(message, run.stdout)
+                                    self.assertIn(f'Set {label} to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+                                                  run.stdout)
+                                continue
+                            report = json.loads(run.stdout)
+                            self.assertEqual(report["inspection_gaps"], ["config-1: " + message] if invalid else [])
+                            rows = {row["name"]: row["observations"] for row in report["catalog"]}
+                            risks = {risk["entry"] for risk in report["risks"]}
+                            self.assertIn("config-1:apps.notes", risks)
+                            if enabled == "false":
+                                self.assertIn("disabled", rows["apps.cal"])
+                            elif invalid:
+                                for name in ("apps.cal", "apps.cal.tools.archive"):
+                                    self.assertIn("Codex cannot load this configuration file", rows[name])
+                            else:
+                                self.assertIn("configured enabled", rows["apps.cal"])
+                                self.assertIn("config-1:apps.cal.tools.archive", risks)
+                            if invalid or enabled == "false":
+                                self.assertFalse(any(key.startswith("config-1:apps.cal") for key in risks))
+
+    def test_app_and_tool_flags_reject_integer_zero_and_one(self):
+        # The pinned AppConfig and AppToolConfig both deserialize these fields as Option<bool>.
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        for field in ("default_tools_enabled", "tools.delete.enabled"):
+            for value in (0, 1):
+                with self.subTest(field=field, value=value):
+                    report = inspect([self.config(top + f"{field}={value}\n")])
+                    self.assertEqual(report["inspection_gaps"], [
+                        f"config-1: Codex cannot load this configuration file because apps.cal.{field} is not a boolean."
+                    ])
+
+    def test_app_and_tool_accept_each_codex_approval_mode(self):
+        # The accepted strings are the variants of AppToolApproval at rust-v0.167.0.
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        for field in ("default_tools_approval_mode", "tools.delete.approval_mode"):
+            for mode in ("auto", "prompt", "writes", "approve"):
+                with self.subTest(field=field, mode=mode):
+                    report = inspect([self.config(top + f'{field}="{mode}"\n')])
+                    self.assertEqual(report["inspection_gaps"], [])
+                    parent = "apps.cal" if field == "default_tools_approval_mode" else "apps.cal.tools.delete"
+                    entry = next(row for row in report["catalog"] if row["name"] == parent)
+                    self.assertIn(f"tool approval: {mode}", entry["observations"])
+
+    def test_disabled_app_reports_a_malformed_setting_when_its_tool_name_is_withheld(self):
+        checkout = copy_checkout(self.root / "checkout")
+        for app, field, control, reason in (
+            ("apps.cal", "enabled", "false", "is not a boolean"),
+            ('apps."work.cal"', "approval_mode", '"prompt"', "is not one of auto, prompt, writes, approve"),
+        ):
+            top = (f'approval_policy="on-request"\nsandbox_mode="read-only"\n[{app}]\nenabled=false\n'
+                   f'[{app}.tools."user@example.invalid"]\n')
+            message = f"Codex cannot load this configuration file because {app}.tools.*.{field} {reason}."
+            for value, status in (('"private-value"', 2), (control, 0)):
+                path = self.config(top + f"{field}={value}\n")
+                for fmt in ("json", "markdown"):
+                    with self.subTest(field=field, value=value, fmt=fmt):
+                        run = run_checkout(checkout, "--config", str(path), "--format", fmt, cwd=self.root)
+                        self.assertEqual(run.returncode, status)
+                        self.assertNotIn("user@example.invalid", run.stdout + run.stderr)
+                        self.assertNotIn("private-value", run.stdout + run.stderr)
+                        if fmt == "json":
+                            gaps = json.loads(run.stdout)["inspection_gaps"]
+                            self.assertEqual(gaps, ["config-1: " + message] if status else [])
+                        elif status:
+                            if reason == "is not a boolean":
+                                self.assertIn(f"`{app}.tools.*.{field}` must be `true` or `false` without quotes.", run.stdout)
+                            else:
+                                self.assertIn(message, run.stdout)
+
+
+    def test_withheld_invalid_tool_marks_all_public_tools_unloadable_unless_apps_are_off(self):
+        checkout = copy_checkout(self.root / "checkout")
+        app = ('[apps.cal]\ndestructive_enabled=true\n[apps.cal.tools.archive]\nenabled=true\n'
+               '[apps.cal.tools."user@example.invalid"]\napproval_mode="private-value"\n')
+        for feature, reason in (("true", "Codex cannot load this configuration file"), ("false", "disabled by features.apps = false")):
+            with self.subTest(feature=feature):
+                path = self.config('approval_policy="on-request"\nsandbox_mode="read-only"\nfeatures.apps=' + feature + '\n' + app)
+                run = run_checkout(checkout, "--config", str(path), "--format", "json", cwd=self.root)
+                self.assertEqual(run.returncode, 2)
+                self.assertNotIn("user@example.invalid", run.stdout)
+                self.assertNotIn("private-value", run.stdout)
+                report = json.loads(run.stdout)
+                rows = {row["name"]: row["observations"] for row in report["catalog"]}
+                for name in ("apps.cal", "apps.cal.tools.archive"):
+                    self.assertIn(reason, rows[name])
+                self.assertFalse(any(risk["entry"].startswith("config-1:apps.cal") for risk in report["risks"]))
+                self.assertTrue(any("apps.cal.tools.*.approval_mode" in gap for gap in report["inspection_gaps"]))
+
+    def test_invalid_default_mode_is_attributed_to_its_declaration_and_an_independent_app_can_override_it(self):
+        checkout = copy_checkout(self.root / "checkout")
+        for value, status in (('"private-mode"', 2), ('"prompt"', 0)):
+            path = self.config('approval_policy="on-request"\nsandbox_mode="read-only"\n'
+                               f'[apps._default]\ndefault_tools_approval_mode={value}\n'
+                               '[apps.inherited]\n[apps.notes]\ndefault_tools_approval_mode="approve"\n')
+            with self.subTest(value=value):
+                run = run_checkout(checkout, "--config", str(path), "--format", "json", cwd=self.root)
+                self.assertEqual(run.returncode, status)
+                report = json.loads(run.stdout)
+                self.assertEqual(report["inspection_gaps"], [
+                    "config-1: Codex cannot load this configuration file because "
+                    "apps._default.default_tools_approval_mode is not one of auto, prompt, writes, approve."
+                ] if status else [])
+                self.assertIn(("config-1:apps.notes", "automatic_tools"), [(r["entry"], r["rule"]) for r in report["risks"]])
+                rows = {r["name"]: r["observations"] for r in report["catalog"]}
+                if status:
+                    self.assertIn("Codex cannot load this configuration file", rows["apps._default"])
+                    self.assertNotIn("private-mode", run.stdout)
+                else:
+                    self.assertIn("tool approval: prompt", rows["apps.inherited"])

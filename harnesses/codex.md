@@ -19,6 +19,10 @@ Tool overrides belong to named apps. Tool allow and deny lists (`enabled_tools`,
 Unsupported `apps._default.tools` blocks are skipped with a gap; they create no child tool
 entries or risk facts.
 
+Codex [requires typed App and tool settings][app-config]. A named App's `default_tools_enabled` and
+each tool's `enabled` take unquoted booleans. The App's `default_tools_approval_mode` and each tool's
+`approval_mode` take a supported approval mode. See the [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) for how the report handles a rejected value.
+
 For a tool of an enabled app, Codex uses the first that is set: the tool's `enabled`,
 the app's `default_tools_enabled`, then `destructive_enabled` from the app, then
 `_default`, then `true` ([order][app-tool-policy], [tests][app-tool-policy-tests]).
