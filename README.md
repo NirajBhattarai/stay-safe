@@ -8,19 +8,13 @@ Check your Codex settings and saved approvals with three questions in mind.
 
 stay-safe reads settings and saved approvals from files. Only some settings are covered. The report names the defaults it uses and the checks it could not complete. It does not test live connections or what Codex will actually allow. See the [full scope](docs/report.md#full-scope).
 
-Here is a finding from a run on a [test configuration](tests/runs_without_a_coding_agent/sample.toml):
+Here’s an excerpt from a finding on a [test configuration](tests/runs_without_a_coding_agent/sample.toml).
 
 > **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
 >
 > *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
->
-> *What to do:* If you want Codex to ask before running some commands it currently blocks, choose `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (commands still can't write files). Ordinary commands can still run inside the sandbox without asking you. But commands a saved approval allows still run outside the sandbox.
->
-> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
->
-> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
->
-> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
+
+[Read the full finding and what to change.](docs/report.md#example-finding)
 
 It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
