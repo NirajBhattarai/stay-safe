@@ -1,5 +1,3 @@
-"""Risk rules consume observations, not a harness's configuration syntax."""
-
 from dataclasses import dataclass
 
 
@@ -44,7 +42,6 @@ RULES = (
 
 
 def evaluate(entries):
-    """Return stable rule results for supported explicit or defaulted conditions."""
     return [
         {"rule": rule.id, "entry": entry["id"], "explanation": rule.explanation,
          "incidents": list(rule.incidents)}

@@ -62,6 +62,14 @@ report format. In a release zip, which has no Git history, the commit is read fr
 `stay_safe/release.txt`, which GitHub fills in when it builds the zip, and is marked
 "(release archive)".
 
+stay-safe reads the commit from Git's own files ([repository layout](https://git-scm.com/docs/gitrepository-layout))
+without running Git. It follows a symbolic `HEAD` only to a ref name that
+[`git check-ref-format`](https://git-scm.com/docs/git-check-ref-format) accepts. Git trims only ASCII whitespace
+when it reads `HEAD` ([Git 2.43.0](https://github.com/git/git/blob/564d0252ca632e0264ed670534a51d18a689ef5d/refs/files-backend.c#L456)),
+so other control characters stay in the name. `git archive` fills in `release.txt` through its
+[`export-subst` attribute](https://git-scm.com/docs/gitattributes/2.43.0#_export_subst), which replaces
+`$Format:%H$` with the commit.
+
 ## Configuration names
 
 Configuration names, such as server, app, tool and provider names, are shown as

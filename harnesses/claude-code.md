@@ -13,7 +13,8 @@ Each report describes a settings file. Claude Code combines rules across its set
 | `permissions.ask` and `permissions.deny` | A matching deny rule can block an allowed action. A matching ask rule can require approval. The report identifies the lists and leaves their matches unchecked. | [Rule order], [sandbox exceptions] |
 | `sandbox.enabled` | A boolean configures Bash sandboxing. When omitted, the documented default is off. | [Sandbox default] |
 | `sandbox.autoAllowBashIfSandboxed` | With sandboxing enabled, true requests automatic approval for eligible sandboxed Bash commands. False selects the regular permission flow. The omitted default changed from true to false in v2.1.324. | [Sandbox Bash approval] |
-| Other fields | Unsupported settings are inspection gaps. Only recognized field names appear in the report. | [Settings index] |
+| Other fields | Settings that change only how Claude Code looks or which model it uses are skipped without a gap. Other unsupported settings are inspection gaps. Only documented field names appear in the report; other names are withheld. | [Settings index] |
+| File format | Settings files are JSON. `NaN`, `Infinity` and `-Infinity`, which Python's JSON reader accepts, are invalid values. | [JSON settings] |
 
 [Settings locations]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L21-L65
 [account and credential files]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#L556
@@ -33,3 +34,4 @@ Each report describes a settings file. Claude Code combines rules across its set
 [Sandbox default]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/sandboxing.md#L21-L27
 [Sandbox Bash approval]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1371
 [Settings index]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md
+[JSON settings]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings.md#L132

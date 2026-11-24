@@ -1,8 +1,3 @@
-"""App flag validation at the Codex pin, rust-v0.167.0 (issue #173).
-
-codex-rs/config/src/types.rs:459-486,546-561,576-588 declares the template flags
-as bool, named App flags as Option<bool>, and both as typed parts of AppsConfigToml.
-"""
 import json
 
 from stay_safe.report import inspect
@@ -97,7 +92,6 @@ class NamedAppValidationTests(ConfigCase):
                                      [("config-1:apps.notes", "automatic_tools")])
 
     def test_app_tool_load_errors_name_the_field_in_both_formats(self):
-        # Codex rust-v0.167.0, codex-rs/config/src/types.rs (AppConfig and AppToolConfig).
         checkout = copy_checkout(self.root / "checkout")
         top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
         sibling = '[apps.cal.tools.archive]\nenabled=true\napproval_mode="approve"\n[apps.notes]\ndefault_tools_approval_mode="approve"\n'
@@ -147,7 +141,6 @@ class NamedAppValidationTests(ConfigCase):
                                 self.assertFalse(any(key.startswith("config-1:apps.cal") for key in risks))
 
     def test_app_and_tool_flags_reject_integer_zero_and_one(self):
-        # The pinned AppConfig and AppToolConfig both deserialize these fields as Option<bool>.
         top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
         for field in ("default_tools_enabled", "tools.delete.enabled"):
             for value in (0, 1):
@@ -158,7 +151,6 @@ class NamedAppValidationTests(ConfigCase):
                     ])
 
     def test_app_and_tool_accept_each_codex_approval_mode(self):
-        # The accepted strings are the variants of AppToolApproval at rust-v0.167.0.
         top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
         for field in ("default_tools_approval_mode", "tools.delete.approval_mode"):
             for mode in ("auto", "prompt", "writes", "approve"):

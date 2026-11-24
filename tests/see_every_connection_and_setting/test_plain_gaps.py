@@ -1,11 +1,3 @@
-"""Each Markdown gap leads with what stay-safe could not check and why, then what to do, then its file label
-(archived issue #105 and its reading check).
-
-The JSON gap texts are unchanged; the expected Markdown wording below restates each one in the style of the
-issue's After example ("Not checked: your approval setting."), written from the gap's meaning, not copied from
-the report.
-"""
-
 import json
 import subprocess
 import sys
@@ -14,8 +6,6 @@ from stay_safe.report import inspect, markdown
 from tests.support import ConfigCase, ROOT, items, section, gap_items
 
 WITHHELD = "The value is left out of this report."
-# JSON gap text, without its source label -> expected Markdown lead.
-# Issue #184 names the declared App setting, including when a tool inherits it.
 APP_MODE_GAP = "Codex cannot load this configuration file because apps.example.default_tools_approval_mode is not one of auto, prompt, writes, approve."
 TOOL_MODE_GAP = "Codex cannot load this configuration file because apps.example.tools.lookup.approval_mode is not one of auto, prompt, writes, approve."
 APP_ENABLED_GAP = "Codex cannot load this configuration file because apps.example.default_tools_enabled is not a boolean."
@@ -38,7 +28,6 @@ PLAIN = {
         "**Not checked: your config file.** The selected file isn't valid UTF-8. Its contents are left out of this report.",
     'Selected config file is not valid TOML. Fix the TOML syntax locally, then run stay-safe again.':
         "**Not checked: your config file.** The selected file isn't valid TOML. Parser details are left out of this report.",
-    # Reading a configuration file
     "Input is not a regular file.":
         "**Not checked: your config file.** It isn't a regular file, so stay-safe didn't read it.",
     "Input exceeds the 1 MiB size limit.":
@@ -46,7 +35,6 @@ PLAIN = {
     "Input is missing, unreadable, a symlink, or invalid UTF-8 TOML; raw errors were withheld.":
         "**Not checked: your config file.** stay-safe couldn't read it: it's missing, unreadable, a symlink, or "
         "not valid UTF-8 TOML. Error details are left out of this report.",
-    # Approval, sandbox and profiles
     "approval_policy is absent; the reader does not infer its effective value.":
         "**Not checked: your approval setting.** `approval_policy` isn't in your config file, so stay-safe can't "
         "tell whether Codex asks before running commands.",
@@ -78,14 +66,12 @@ PLAIN = {
     "Profiles are outside reader coverage; a selected profile can override the reported settings.":
         "**Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile "
         "Codex uses can override the settings in this report.",
-    # Shell environment
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "**Not checked: whether commands get your environment variables.** Your "
         f"`shell_environment_policy.inherit` value isn't one stay-safe supports. {WITHHELD}",
     "shell_environment_policy.ignore_default_excludes has an invalid boolean; its behavior is unknown.":
         "**Not checked: whether commands get your environment variables.** Your "
         "`shell_environment_policy.ignore_default_excludes` isn't true or false.",
-    # Tables, fields and names, for each label they occur with
     **{f"{label} must be a table.":
        f"**Not checked: your `{label}` settings.** `{label}` isn't written as a group of settings, such as a "
        "`[section]`, so stay-safe couldn't read the settings in it."
@@ -111,7 +97,6 @@ PLAIN = {
        f"**Not checked: an entry in `{label}`.** It isn't written as a group of settings, such as a `[section]`, "
        "so stay-safe couldn't read it."
        for label in ("mcp_servers", "apps", "tools", "model_providers")},
-    # MCP servers, apps and tools
     "A tool approval mode is unsupported or invalid; its value was withheld.":
         "**Not checked: a tool approval setting.** A `default_tools_approval_mode` value isn't one stay-safe "
         f"supports, so it can't tell when Codex asks before using those tools. {WITHHELD}",
@@ -143,7 +128,6 @@ PLAIN = {
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
-    # notify and hooks
     "notify is not a command list with a nonempty program.":
         "**Not checked: your `notify` setting.** It isn't a list that starts with a program name, so stay-safe "
         "can't tell whether it starts a program.",
@@ -158,7 +142,6 @@ PLAIN = {
         "decide whether Codex runs your hooks, so it treats each hook command as able to run.",
     "web_search is unsupported or invalid; its value was withheld.":
         f"**Not checked: your web search setting.** Your `web_search` value isn't one stay-safe supports. {WITHHELD}",
-    # Rules files
     "Rules input is not a regular file.":
         "**Not checked: your rules file.** It isn't a regular file, so stay-safe didn't read it.",
     "Rules input exceeds the 1 MiB size limit.":
@@ -178,7 +161,6 @@ PLAIN = {
     "Other rules files exist and were not inspected.":
         "**Not checked: other rules files.** Your `rules` folder has other `.rules` files besides "
         "`default.rules`. Codex reads them too, but stay-safe doesn't.",
-    # The Codex home
     "Codex home: CODEX_HOME is set but is missing, not a directory or cannot be checked; "
     "Codex would not start, so no default files were inspected.":
         "**Not checked: your Codex folder.** `CODEX_HOME` points to something that's missing, isn't a folder or "
@@ -189,7 +171,6 @@ PLAIN = {
     "System config folder: /etc/codex holds Codex configuration that was not inspected.":
         "**Not checked: Codex's system folder.** `/etc/codex` holds Codex settings, hooks or rules that stay-safe "
         "doesn't read.",
-    # Archived issues #116 and #121 (harnesses/codex.md row `features.apps`).
     "Codex home: plugins/cache holds Codex plugins that were not inspected.":
         "**Not checked: your Codex plugins.** Your Codex folder has plugins in `plugins/cache`, which stay-safe "
         "doesn't read.",
@@ -199,7 +180,6 @@ PLAIN = {
     "Codex home: hooks.json exists and was not inspected.":
         "**Not checked: your `hooks.json` file.** Your Codex folder has a `hooks.json` file, which stay-safe "
         "doesn't read.",
-    # Issue #142
     "Codex home: skills holds Codex skills that were not inspected.":
         "**Not checked: your Codex skills.** Your Codex folder has skills in `skills`, which stay-safe doesn't read.",
     "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
@@ -209,7 +189,6 @@ PLAIN = {
         "stay-safe doesn't read.",
     "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
         "**Not checked: your `environments.toml` file.** Could not check it.",
-    # stay-safe's own files
     "Committed incident citations are incomplete; source links are unavailable.":
         "**Not checked: some cited incidents.** stay-safe couldn't find every cited incident in its incident list, "
         "so those incidents appear without links.",
@@ -221,7 +200,6 @@ PLAIN = {
         "**Not checked: which version of stay-safe made this report.** stay-safe couldn't tell which commit it's "
         "running from, so links to its rules, evidence and incidents are left out.",
 }
-# With no Codex config file found, the two absent-setting gaps say so instead (archived issue #105 review F2).
 ABSENT = {
     "approval_policy is absent; the reader does not infer its effective value.":
         "**Not checked: your approval setting.** stay-safe found no Codex config file, so it can't tell whether "
@@ -230,7 +208,6 @@ ABSENT = {
         "**Not checked: your sandbox setting.** stay-safe found no Codex config file, so it can't tell what "
         "commands Codex runs are allowed to do.",
 }
-# JSON gap text -> the follow-up the reader can act on (reading check, 2026-11-09), from the meanings table and docs/usage.md.
 STEPS = {
     APP_MODE_GAP: 'Set `apps.example.default_tools_approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
     TOOL_MODE_GAP: 'Set `apps.example.tools.lookup.approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
@@ -352,7 +329,6 @@ STEPS = {
     "Revision unknown; checkout source links are withheld.":
         "Run stay-safe from a git clone so the report can link to the exact version.",
 }
-# With no Codex config file found, the follow-up says to create one (re-review F11, owner direction).
 ABSENT_STEPS = {
     "approval_policy is absent; the reader does not infer its effective value.":
         "Check the approval setting wherever you run Codex (the app or the command line). To set it in a file, "
@@ -369,12 +345,6 @@ UNSOURCED = {message for message in PLAIN
 
 
 def gap_text(gap, absent=False, file=None, profile=False):
-    """The expected Markdown paragraph for a JSON gap: its plain lead, what to do, then its file label, if any.
-
-    absent: the gap's source is a Codex config file that automatic discovery did not find.
-    file: how the report names an automatically found file, such as `~/.codex/config.toml`; files you pass keep
-    their source label, such as `config-1` (reading check, 2026-11-09).
-    """
     source, _, message = gap.partition(": ")
     if source.startswith(("config-", "rules-")):
         lead, step = ((ABSENT[message], ABSENT_STEPS[message]) if absent and message in ABSENT
@@ -468,7 +438,6 @@ future_feature = 1
 """)
         rules = self.config('prefix_rule(pattern=["curl"], decision="prompt")\n', "selected.rules")
         missing = self.root / "seed-missing.toml"
-        # An existing file without approval or sandbox settings keeps "isn't in your config file".
         unset = self.config('model = "gpt-5"\n', "unset.toml")
         args = ["-B", "-m", "stay_safe", "--config", str(missing), "--config", str(config), "--config", str(unset),
                 "--rules", str(rules)]

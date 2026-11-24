@@ -1,4 +1,3 @@
-"""Read the selected agent settings and print their reports."""
 import argparse
 import os
 from pathlib import Path
@@ -16,19 +15,12 @@ NOT_SAVED = f"Could not save {NAME} in {SAVE_FOLDER}; the full report follows.\n
 
 
 def open_command(path, platform=None):
-    """The line `--save` ends with: a command the user can paste to open the page (archived issue #106).
-
-    stay-safe doesn't run it. The plain path is put in single quotes, where the shell expands nothing, and each `'`
-    in it is written as '"'"'; so spaces, double quotes, `$`, backticks and `!` reach the command unchanged.
-    """
     opener = "open" if (platform or sys.platform) == "darwin" else "xdg-open"
     quoted = "'" + str(path).replace("'", "'\"'\"'") + "'"
     return f"Saved the formatted report. Open it with: {opener} {quoted}\n"
 
 SYSTEM = Path("/etc/codex")
 AGENTS = ("codex", "claude")
-# The command --help names: the same for `python3 -m stay_safe` and `python3 stay_safe` (issue #48), in the form
-# Python 3.14's argparse gives `-m` itself.
 PROG = (sys.executable.rsplit("/", 1)[-1] or "python3") + " -m stay_safe"
 
 
@@ -43,7 +35,6 @@ class Parser(argparse.ArgumentParser):
 
 
 def codex_home():
-    """Select the directory Codex's find_codex_home selects, or return the gap that stops Codex."""
     value = os.environ.get("CODEX_HOME", "")
     if value:
         try:
@@ -63,7 +54,6 @@ def codex_home():
 
 
 def hooks_json(home):
-    """Codex loads hooks.json beside config.toml when Rust's Path::is_file is true; errors count as false."""
     try:
         return (home / "hooks.json").is_file()
     except OSError:
@@ -71,7 +61,6 @@ def hooks_json(home):
 
 
 def plugins_cache(home):
-    """Return the observed or unreadable cache gap, or no gap when no version folder is found."""
     def folders(path):
         return [path / name for name in os.listdir(path) if (path / name).is_dir()]
     try:
@@ -86,37 +75,21 @@ def plugins_cache(home):
 
 
 def skills(home):
-    """Return the skills gap when Codex would find a skill in skills/, the unreadable gap, or no gap.
-
-    Codex loads skills from $CODEX_HOME/skills:
-    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/host_roots.rs#L134-L140
-    A skill is a file named SKILL.md anywhere in the walk:
-    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/discovery.rs#L142-L154
-    The walk follows folder links (ext/skills/src/loader/host.rs#L164-L167), skips file links and hidden
-    folders, among them Codex's own skills/.system, and lists folders down to depth 6
-    (ext/skills/src/loader/mod.rs#L24):
-    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L837-L839
-    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L860-L863
-    """
     root = home / "skills"
     failed = False
 
     def mode(path, follow=True):
-        """The path's file type, or None when it is absent; other errors, such as PermissionError, propagate.
-        Path.is_dir() would report an unreadable folder as absent."""
         try:
             return stat.S_IFMT(path.stat(follow_symlinks=follow).st_mode)
         except (FileNotFoundError, NotADirectoryError):
             return None
 
-    # Breadth-first, as Codex walks, so each folder is first reached by its shortest route and a longer link to it
-    # can't hide the folders below it.
     try:
         if mode(root) != stat.S_IFDIR:
             return None
         seen = {root.resolve()}
         queue = [(root, 0)]
-        for folder, depth in queue:  # the loop also reaches folders appended while it runs
+        for folder, depth in queue:
             try:
                 names = sorted(os.listdir(folder))
             except OSError:
@@ -127,7 +100,7 @@ def skills(home):
                 try:
                     kind = mode(path)
                     if mode(path, follow=False) == stat.S_IFLNK and kind != stat.S_IFDIR:
-                        continue  # a file link or a broken link: Codex skips it
+                        continue
                     if name == "SKILL.md" and kind == stat.S_IFREG:
                         return "Codex home: skills holds Codex skills that were not inspected."
                     if kind == stat.S_IFDIR and depth < 6 and not name.startswith(".") and path.resolve() not in seen:
@@ -144,12 +117,6 @@ def skills(home):
 
 
 def environments_toml(home):
-    """Return the gap for an environments.toml Codex would read, the unreadable gap, or no gap.
-
-    Codex reads it with read_to_string: a missing file, or a broken link, is skipped and other failures are
-    errors, so a folder by that name is an error, not a missing file:
-    https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment_toml.rs#L330-L341
-    """
     try:
         if not stat.S_ISREG((home / "environments.toml").stat().st_mode):
             return "Codex home: environments.toml is not a file; Codex fails to read it."
@@ -162,7 +129,6 @@ def environments_toml(home):
 
 
 def system_config():
-    """Whether Codex's system config folder holds a file Codex loads, or a rules/ folder it cannot list."""
     try:
         if not SYSTEM.is_dir():
             return False
@@ -177,7 +143,6 @@ def system_config():
 
 
 def directory_status(path):
-    """Only a missing directory can be skipped during default discovery."""
     try:
         return "directory" if stat.S_ISDIR(path.stat().st_mode) else "not a directory"
     except FileNotFoundError:
@@ -246,7 +211,6 @@ def main(argv=None):
     if args.rules and len(args.rules) != 1:
         parser.error("Only one rules file may be selected.")
     if args.save and args.format == "json":
-        # A fixed message: it names the options, never a value the user typed.
         parser.exit(2, "--save can't be combined with --format json. Use --help.\n")
     agents = list(dict.fromkeys(args.agent or []))
     if args.config and len(agents) > 1:
@@ -279,13 +243,12 @@ def main(argv=None):
 
 
 def codex_run(args):
-    """The Codex report and its file labels, exactly as before --agent existed."""
     paths = [Path(p) for p in args.config or []]
     rules = Path(args.rules[0]) if args.rules else None
     defaults = not args.config and not args.rules
     gaps, files = [], {}
     if args.rules:
-        files["rules-1"] = None  # Explicit selection has a source label, but no shareable path.
+        files["rules-1"] = None
     if defaults:
         home, gap = codex_home()
         if home is None:
@@ -293,7 +256,6 @@ def codex_run(args):
         else:
             paths = [home / "config.toml"]
             rules = home / "rules" / "default.rules"
-            # The report names these files by where Codex keeps them, never by the expanded folder.
             base = "$CODEX_HOME" if os.environ.get("CODEX_HOME", "") else "~/.codex"
             files = {"config-1": f"{base}/config.toml", "rules-1": f"{base}/rules/default.rules"}
             if hooks_json(home):
