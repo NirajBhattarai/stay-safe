@@ -181,10 +181,10 @@ class Reader:
         if isinstance(mode, str) and mode in APPROVALS:
             return ([f"tool approval: {mode}" + (" (default)" if default else "")],
                     {"automatic_tools": applies and mode == "approve",
-                     "self_described_tools": applies and mode in {"auto", "writes"}})
+                     "self_described_tools": applies and mode in {"auto", "writes"}}, True)
         if mode is not UNKNOWN and report_invalid:
             self.gap(f"A {label} approval mode is unsupported or invalid; its value was withheld.")
-        return [], {}
+        return [], {}, False
 
     def tool(self, parts, name, override, mode, available, destructive, off_reason=None):
         own = override is not None
@@ -192,8 +192,9 @@ class Reader:
         if destructive:
             obs.append("enabled even if destructive")
         effective = override if own else ("auto" if mode is None else mode)
-        approval, facts = self.tool_approval(effective, own and available, "per-tool", report_invalid=own)
+        approval, facts, mode_valid = self.tool_approval(effective, own and available, "per-tool", report_invalid=own)
         self.add(parts + ["tools", name], "tool policy", obs + approval, facts | {"destructive_tools": destructive})
+        return mode_valid
 
     def mcp_tools(self, server, parts, enabled):
         valid = True
@@ -215,24 +216,15 @@ class Reader:
             return valid and (allow is None or name in allow) and name not in deny
         mode, configs = server.get("default_tools_approval_mode"), tool_tables(server)
         applies = valid and (allow is None or any(permitted(n) and "approval_mode" not in configs.get(n, {}) for n in allow))
-        observations, facts = self.tool_approval(mode, enabled is True and applies, "tool")
+        observations, facts, mode_valid = self.tool_approval(mode, enabled is True and applies, "tool")
+        policy_valid = valid and mode_valid
         if "tools" in server:
+            policy_valid = policy_valid and isinstance(server["tools"], dict) and len(configs) == len(server["tools"])
             for name, config in self.named(self.table(server["tools"], "tools"), "tools"):
                 self.unknown(config, {"approval_mode", "output_token_limit"}, "tools")
-                self.tool(parts, name, config.get("approval_mode"), mode, enabled is True and permitted(name), False)
-        return observations, facts
-
-    def mcp_inline_values(self, server, parts, field, enabled):
-        if field not in server:
-            return True
-        values = server[field]
-        label = config_name(parts + [field])
-        if not isinstance(values, dict) or not all(isinstance(value, str) for value in values.values()):
-            self.gap(INVALID_MCP_MAP.format(label=label))
-            return False
-        if enabled and values and MCP_OTHER_TRANSPORT[field].isdisjoint(server):
-            self.gap(INLINE_MCP_VALUES.format(label=label))
-        return True
+                override_valid = self.tool(parts, name, config.get("approval_mode"), mode, enabled is True and permitted(name), False)
+                policy_valid = policy_valid and override_valid
+        return observations, facts, policy_valid
 
     def mcp(self, data):
         servers = self.table(data.get("mcp_servers", {}), "mcp_servers")
@@ -251,22 +243,26 @@ class Reader:
             http = isinstance(url, str) and command is None
             helper = server.get("http_headers_helper")
             valid_helper = isinstance(helper, str) and bool(helper.strip())
+            field = "env" if stdio else "http_headers"
+            values = server.get(field, {})
             valid = (stdio and bool(command.strip())) or http
             if stdio and helper is not None:
                 valid = False
                 obs.append("Codex rejects this stdio configuration")
                 self.gap(f"Codex cannot load this configuration because stdio MCP server {name} sets http_headers_helper.")
+            elif valid and not (isinstance(values, dict) and all(isinstance(v, str) for v in values.values())):
+                valid = False
+                obs.append("Codex rejects this configuration")
+                self.gap(INVALID_MCP_MAP.format(label=config_name(parts + [field])))
             elif valid:
-                field = "env" if stdio else "http_headers"
-                valid = self.mcp_inline_values(server, parts, field, enabled is True and (helper is None or valid_helper))
-                if valid:
-                    obs.append("stdio; command withheld" if stdio else "HTTP; endpoint withheld")
-                else:
-                    obs.append("Codex rejects this configuration")
+                obs.append("stdio; command withheld" if stdio else "HTTP; endpoint withheld")
             else:
                 obs.append("transport unknown")
                 self.gap("An MCP transport is missing, conflicting or invalid.")
-            policy, facts = self.mcp_tools(server, parts, enabled is True and valid)
+            policy, facts, policy_valid = self.mcp_tools(server, parts, enabled is True and valid)
+            if (enabled is True and valid and policy_valid and values and MCP_OTHER_TRANSPORT[field].isdisjoint(server)
+                    and (helper is None or valid_helper)):
+                self.gap(INLINE_MCP_VALUES.format(label=config_name(parts + [field])))
             if helper is not None and not stdio and not valid_helper:
                 self.gap("An MCP header-helper command is invalid; its value was withheld.")
             facts["configured_program"] = enabled is True and valid and (stdio or valid_helper)
@@ -321,7 +317,7 @@ class Reader:
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")
             applies = tools_enabled is True or any(own and override is None for _, _, override, own in tools)
-            policy, facts = self.tool_approval(mode, enabled is True and applies, "tool")
+            policy, facts, _ = self.tool_approval(mode, enabled is True and applies, "tool")
             for tool, tool_enabled, override, explicitly_enabled in tools:
                 if tool is not None:
                     available = tool_enabled is True and enabled is True
