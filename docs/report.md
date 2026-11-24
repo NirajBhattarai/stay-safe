@@ -72,6 +72,41 @@ such as `~/.codex/config.toml` or `$CODEX_HOME/config.toml`, never by your own f
 Saved approvals use `rules-1:prefix_rule.N`, where N is the physical line number
 in the selected rules file.
 
+### A saved tool-description flag
+
+This synthetic [Snyk Agent Scan v0.7.1 fixture](../tests/see_every_connection_and_setting/pairing/saved-scan.json)
+flags a tool description on `team.api` in `approve.toml`. Run this example from the
+checkout root. Both Codex files name that server. Select `config-2` because
+`approve.toml` is the second `--config`. The quotes in the entry ID keep the
+dotted server name together. [Scanner JSON reference, read 2026-11-24](https://github.com/snyk/agent-scan/blob/a85612713593ab8beb1c0b6964eee954c1a498b0/docs/json-output.md#agent-scan-v06-and-later)
+
+```sh
+python3 - <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+samples = Path("tests/see_every_connection_and_setting/pairing")
+saved = json.loads((samples / "saved-scan.json").read_text())
+server, = saved["scan_path_responses"][0]["server_risks"]
+report = json.loads(subprocess.check_output([
+    sys.executable, "-m", "stay_safe", "--format", "json",
+    "--config", samples / "prompt.toml", "--config", samples / "approve.toml",
+]))
+key = "config-2:mcp_servers." + json.dumps(server["name"])
+entry, = (row for row in report["catalog"] if row["id"] == key)
+approval, = (item for item in entry["observations"] if item.startswith("tool approval: "))
+flag = "prompt_injection_tool_desc"
+if flag in server["risk_indexes"]:
+    print(server["name"], flag, approval, sep=" | ")
+PY
+```
+
+The output is `team.api | prompt_injection_tool_desc | tool approval: approve`.
+Review the flagged description alongside the server’s configured default when
+deciding whether to change that setting.
+
 ## The commit, and release archives
 
 A last line names the stay-safe commit and
