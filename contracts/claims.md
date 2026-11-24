@@ -7,7 +7,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I inspect known settings and see the expected entries and findings. `test_config.py::test_known_configuration_has_exact_named_catalog_and_risks`
 - I turn Apps off in one file and see why its named apps give no warnings, while another file keeps its own warnings. `test_config.py::test_named_apps_respect_the_apps_switch_in_each_file`
 - I inspect several files and each keeps its own settings and identities. `test_config.py::test_files_remain_independent_and_identity_preserves_dotted_name`
-- I follow the saved scanner example and see the flagged server’s default approval for the configuration I selected. `test_saved_scan_example.py::test_published_example_pairs_the_flag_with_the_selected_snapshot`
+- I follow the saved scanner example and see the flagged server and its default approval for the configuration I selected. `test_saved_scan_example.py::test_published_example_pairs_the_flag_with_the_selected_snapshot`
 - I have no default config file and see the assessed defaults and remaining gaps. `test_defaults.py::test_both_formats_report_cited_defaults_and_retained_gaps`
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
 - I let commands in `workspace-write` mode write to extra folders and see that setting under "Not checked", without the folders' paths. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
