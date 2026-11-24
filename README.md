@@ -6,7 +6,7 @@ Check your Codex settings and saved approvals with three questions in mind.
 - **Which actions do my settings let Codex take on its own, and which need my approval?**
 - **What should I change if that’s more access than I want?**
 
-stay-safe is a pre-1.0 tool for Unix. Version 0.2.4 checks Codex settings and saved approvals. The 0.3 source also reads Claude Code user settings. The report shows what’s in the files, the defaults it used and what it couldn’t check. See the [full scope](docs/report.md#full-scope).
+stay-safe is a pre-1.0 tool for Unix. Version 0.2.4 checks Codex settings and saved approvals. The 0.3 development version also reads Claude Code user settings. The report names defaults and incomplete checks. It can’t confirm live connections or what the agent will allow. See the [full scope](docs/report.md#full-scope).
 
 Each finding names its rule and setting and links to evidence. You can [challenge a finding](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml). Coding agents help write and review changes using [Wirth](https://github.com/chalkbadger/wirth). The maintainer decides what to merge.
 
