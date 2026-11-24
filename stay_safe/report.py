@@ -921,7 +921,6 @@ SETUP_WORDS = {
     "workspace-write": "`workspace-write` (commands can write in your workspace)",
     "danger-full-access": "`danger-full-access` (no sandbox)",
 }
-APPROVAL_MODES = {"auto", "approve", "prompt", "writes"}
 INHERIT = {"all": "all variables passed on", "core": "only core variables passed on", "none": "none passed on"}
 ORIGIN = {"explicit": "you set this", "default": "default"}
 
@@ -935,7 +934,7 @@ def setup_words(keys, observation):
     if observation in SETUP_WORDS:
         return SETUP_WORDS[observation]
     found = re.fullmatch(r"tool approval: (\w+)( \(default\))?", observation)
-    if found and found[1] in APPROVAL_MODES:
+    if found and found[1] in APPROVALS:
         mode = f"`{found[1]}`"
         return f"tool approval left at the default, {mode}" if found[2] else f"tool approval {mode}"
     # Apps the file does not name (harnesses/codex.md row features.apps `omitted`, issue #139).

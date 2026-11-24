@@ -5,6 +5,7 @@ as bool, named App flags as Option<bool>, and both as typed parts of AppsConfigT
 """
 import json
 
+from stay_safe.report import inspect
 from tests.support import ConfigCase, copy_checkout, run_checkout
 
 
@@ -108,21 +109,26 @@ class NamedAppValidationTests(ConfigCase):
         ):
             message = f"Codex cannot load this configuration file because apps.cal.{field} {reason}."
             for enabled in ("false", "true"):
-                for value in ('"false"' if reason == 'is not a boolean' else '"private-mode"', control):
+                for value in ('"yes"', control):
                     path = self.config(top + f"enabled={enabled}\n{field}={value}\n" + sibling)
                     for fmt in ("json", "markdown"):
                         with self.subTest(field=field, enabled=enabled, value=value, fmt=fmt):
                             run = run_checkout(checkout, "--config", str(path), "--format", fmt, cwd=self.root)
                             invalid = value != control
                             self.assertEqual(run.returncode, 2 if invalid else 0)
-                            self.assertNotIn("private-mode", run.stdout + run.stderr)
+                            self.assertNotRegex(run.stdout + run.stderr, r"\byes\b")
                             if fmt == "markdown":
-                                if invalid and reason == "is not a boolean":
-                                    label = f"`apps.cal.{field}`"
-                                    self.assertIn(f"{label} must be `true` or `false` without quotes.", run.stdout)
+                                label = f"`apps.cal.{field}`"
+                                if not invalid:
+                                    self.assertIn("0 things not checked", run.stdout)
+                                elif reason == "is not a boolean":
+                                    self.assertIn(f"**Codex cannot load this configuration file.** "
+                                                  f"{label} must be `true` or `false` without quotes.", run.stdout)
                                     self.assertIn(f"Set {label} to `true` or `false` without quotes.", run.stdout)
                                 else:
-                                    self.assertIn(message if invalid else "0 things not checked", run.stdout)
+                                    self.assertIn(message, run.stdout)
+                                    self.assertIn(f'Set {label} to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
+                                                  run.stdout)
                                 continue
                             report = json.loads(run.stdout)
                             self.assertEqual(report["inspection_gaps"], ["config-1: " + message] if invalid else [])
@@ -139,6 +145,29 @@ class NamedAppValidationTests(ConfigCase):
                                 self.assertIn("config-1:apps.cal.tools.archive", risks)
                             if invalid or enabled == "false":
                                 self.assertFalse(any(key.startswith("config-1:apps.cal") for key in risks))
+
+    def test_app_and_tool_flags_reject_integer_zero_and_one(self):
+        # The pinned AppConfig and AppToolConfig both deserialize these fields as Option<bool>.
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        for field in ("default_tools_enabled", "tools.delete.enabled"):
+            for value in (0, 1):
+                with self.subTest(field=field, value=value):
+                    report = inspect([self.config(top + f"{field}={value}\n")])
+                    self.assertEqual(report["inspection_gaps"], [
+                        f"config-1: Codex cannot load this configuration file because apps.cal.{field} is not a boolean."
+                    ])
+
+    def test_app_and_tool_accept_each_codex_approval_mode(self):
+        # The accepted strings are the variants of AppToolApproval at rust-v0.167.0.
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        for field in ("default_tools_approval_mode", "tools.delete.approval_mode"):
+            for mode in ("auto", "prompt", "writes", "approve"):
+                with self.subTest(field=field, mode=mode):
+                    report = inspect([self.config(top + f'{field}="{mode}"\n')])
+                    self.assertEqual(report["inspection_gaps"], [])
+                    parent = "apps.cal" if field == "default_tools_approval_mode" else "apps.cal.tools.delete"
+                    entry = next(row for row in report["catalog"] if row["name"] == parent)
+                    self.assertIn(f"tool approval: {mode}", entry["observations"])
 
     def test_disabled_app_reports_a_malformed_setting_when_its_tool_name_is_withheld(self):
         checkout = copy_checkout(self.root / "checkout")
