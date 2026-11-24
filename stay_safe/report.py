@@ -168,43 +168,45 @@ LABELS_GROUP = {
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
 PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
+ASK_FOR_BLOCKED = "If you want Codex to ask before running some commands it currently blocks, choose "
+ORDINARY_STILL_RUN = "Ordinary commands can still run inside the sandbox without asking you."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
-                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + '`approval_policy = "on-request"`. ' + ORDINARY_STILL_RUN +
+                " For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
-                "ask you first; commands still can't write files). But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` "
+                "(commands still can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "workspace-write": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when "
-                "to ask you first; commands can still write in your workspace). Stricter: also "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` "
+                "(commands can still write in your workspace). " + ORDINARY_STILL_RUN + " Stricter: also "
                 "`sandbox_mode = \"read-only\"` (commands can't write files). Either way, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-                "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` without loosening the "
+                "`sandbox_mode = \"{value}\"` in `{label}`. " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "full-on-request": {
         "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
-                "in your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides "
-                "when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+                "in your workspace and in any extra folders in `writable_roots`, so review that list). "
+                + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     "full-on-request-read-only": {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
-                "(commands can't write files; Codex decides when to ask you first). But " + SAVED_STILL,
+                "(commands can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
-                "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
-                "to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` "
+                "(commands can write in your workspace and in any extra folders in `writable_roots`, so review that "
+                "list). " + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",

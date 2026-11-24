@@ -26,6 +26,23 @@ words, links to the rules and meanings sources, and what the report can't see, w
 link to the [full scope](#full-scope). The JSON report (`--format json`) keeps the catalog, full scope
 and fingerprints in their original form.
 
+## Example finding
+
+This is the full finding from the [README example](../README.md), including the
+change suggested for that configuration.
+
+> **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
+>
+> *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
+>
+> *What to do:* If you want Codex to ask before running some commands it currently blocks, choose `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (commands still can't write files). Ordinary commands can still run inside the sandbox without asking you. But commands a saved approval allows still run outside the sandbox.
+>
+> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
+>
+> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
+>
+> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
+
 ## The order of findings
 
 Each rule belongs to one group, fixed by what the rule's condition removes, as its
