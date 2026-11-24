@@ -46,6 +46,7 @@ Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limi
 - I get an incomplete report and an explanation of exit status 2. `test_status.py::test_reports_with_gaps_explain_exit_two_on_stderr_only`
 - I give a stdio server an HTTP header helper and see why Codex rejects the setting and how to fix it. `test_status.py::test_stdio_header_helper_names_the_rejected_setting`
 - I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`
+- I let automatic review decide an app's tool calls and see that reviewer under "Not checked", while `user` or no reviewer stays clean. `test_status.py::test_app_auto_reviewer_is_named_as_unchecked`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
