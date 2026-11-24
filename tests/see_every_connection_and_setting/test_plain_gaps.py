@@ -119,7 +119,7 @@ PLAIN = {
         "**Not checked: an MCP header-helper command.** An `http_headers_helper` value isn't a valid command, so "
         f"stay-safe didn't assess it. {WITHHELD}",
     "Codex cannot load this configuration file because apps.team.destructive_enabled is not a boolean.":
-        "**Codex cannot load this configuration file.** `apps.team.destructive_enabled` must be true or false. "
+        "**Codex cannot load this configuration file.** `apps.team.destructive_enabled` must be `true` or `false` without quotes. "
         "Findings for other entries describe settings written in the file.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
@@ -281,7 +281,7 @@ STEPS = {
     "An MCP header-helper command is invalid; its value was withheld.":
         "Set `http_headers_helper` to the command you mean to run, or remove it.",
     "Codex cannot load this configuration file because apps.team.destructive_enabled is not a boolean.":
-        "Set `apps.team.destructive_enabled` to `true` or `false`.",
+        "Set `apps.team.destructive_enabled` to `true` or `false` without quotes.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "Model-provider command-backed authentication is outside reader coverage.":

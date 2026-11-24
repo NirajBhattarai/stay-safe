@@ -9,6 +9,21 @@ from tests.support import ConfigCase, copy_checkout, run_checkout
 
 
 class NamedAppValidationTests(ConfigCase):
+    def test_markdown_explains_how_to_correct_a_quoted_boolean(self):
+        checkout = copy_checkout(self.root / "checkout")
+        settings = ('approval_policy="on-request"\nsandbox_mode="workspace-write"\n'
+                    'shell_environment_policy.inherit="none"\n[apps.calendar]\nopen_world_enabled=')
+        field = "`apps.calendar.open_world_enabled`"
+        for value, status in (('"false"', 2), ('false', 0)):
+            run = run_checkout(checkout, "--agent", "codex", "--config", str(self.config(settings + value)),
+                               "--format", "markdown", cwd=self.root)
+            with self.subTest(value=value, part="exit status"):
+                self.assertEqual(run.returncode, status)
+            for advice in (f"{field} must be `true` or `false` without quotes.",
+                           f"Set {field} to `true` or `false` without quotes."):
+                with self.subTest(value=value, advice=advice):
+                    self.assertEqual(advice in run.stdout, status == 2)
+
     def test_invalid_open_world_flag_names_the_app_and_preserves_its_sibling(self):
         checkout = copy_checkout(self.root / "checkout")
         config = ('approval_policy="on-request"\nsandbox_mode="workspace-write"\n'

@@ -572,7 +572,7 @@ GAPS = {
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
     "Codex cannot load this configuration file because {label} is not a boolean.":
-        "**Codex cannot load this configuration file.** `{label}` must be true or false. "
+        "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
         "Findings for other entries describe settings written in the file.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
@@ -737,7 +737,7 @@ STEPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "Codex cannot load this configuration file because {label} is not a boolean.":
-        "Set `{label}` to `true` or `false`.",
+        "Set `{label}` to `true` or `false` without quotes.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
     "Model-provider setting {label} was not checked for a credential command.": "Review `{label}` in your config file.",
