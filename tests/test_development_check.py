@@ -16,13 +16,13 @@ DOCUMENTED = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
 
 def comments_and_docstrings(root):
-    paths = [root / 'setup.py', root / 'check_tests.py']
-    paths += sorted((root / 'stay_safe').rglob('*.py')) + sorted((root / 'tests').rglob('*.py'))
+    names = subprocess.run(['git', 'ls-files', '-z', '--', '*.py'], cwd=root, check=True, capture_output=True,
+                           text=True).stdout.split('\0')
     found = []
-    for path in paths:
+    for name in filter(None, names):
+        path = root / name
         if not path.is_file():
             continue
-        name = path.relative_to(root).as_posix()
         source = path.read_text(encoding='utf-8')
         for token in tokenize.generate_tokens(io.StringIO(source).readline):
             if token.type == tokenize.COMMENT:
@@ -49,13 +49,19 @@ class NoCommentsTests(unittest.TestCase):
                 '        # full line\n        return text\n')
             (root / 'tests' / 'nested' / 'test_thing.py').write_text(
                 'async def check():\n    """Function."""\n    """Not a docstring."""\n')
+            (root / 'tools').mkdir()
+            (root / 'tools' / 'script.py').write_text('# tracked anywhere\n')
+            (root / 'untracked.py').write_text('# not committed\n')
             (root / 'docs.md').write_text('# Heading\n')
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'add', '--', '*.py', 'docs.md', ':!untracked.py'], cwd=root, check=True)
             self.assertEqual(comments_and_docstrings(root), [
                 'check_tests.py:1: docstring',
                 'setup.py:1: comment',
                 'stay_safe/code.py:5: docstring',
                 'stay_safe/code.py:8: comment',
                 'tests/nested/test_thing.py:2: docstring',
+                'tools/script.py:1: comment',
             ])
 
 
