@@ -30,7 +30,9 @@ HOOK_EVENTS = {"SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion
                "TeammateIdle", "InstructionsLoaded", "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
                "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact", "PreModelSwitch", "PostModelSwitch",
                "Elicitation", "ElicitationResult", "SessionEnd"}
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls"}
+STATUS_LINE = ("statusLine",)
+AFTER_TRUST = "project settings; runs after workspace trust"
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *STATUS_LINE}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -154,6 +156,7 @@ class SettingsReader(Reader):
                 self.add(["allowedHttpHookUrls"], "setting", ["set; patterns withheld"], {"http_allowlist": True})
             else:
                 self.gap("allowedHttpHookUrls is not a list of URL patterns; it was not evaluated.")
+        self.commands(data)
         if "hooks" not in data:
             return
         records = self.handlers(data["hooks"])
@@ -165,6 +168,17 @@ class SettingsReader(Reader):
                 if kind in FACTS:
                     facts[FACTS[kind]] = False
                 self.add(name, "hook", [], facts)
+
+    def commands(self, data):
+        for name in STATUS_LINE:
+            if name not in data:
+                continue
+            value = data[name]
+            if not (isinstance(value, dict) and value.get("type") == "command" and nonempty(value.get("command"))):
+                self.gap(f"{name} is not a command object with a nonempty command; it was not evaluated.")
+                continue
+            facts = {"configured_program": True, "gated_command": True, "project": self.scope == "project"}
+            self.add([name], "program", [], facts)
 
     def handlers(self, value):
         if not isinstance(value, dict):
@@ -277,11 +291,18 @@ def resolve(entries, discovered):
     gaps, disabled_any = [], False
     for entry in entries:
         facts = entry["facts"]
-        if "handlers" not in facts:
+        if "handlers" not in facts and "gated_command" not in facts:
             continue
         scoped = flags if discovered else [flag for flag in flags if flag["source"] == entry["source"]]
         winner = scoped[-1] if scoped else None
         disabled = winner is not None and winner["facts"]["disable_all_hooks"] is True
+        if "gated_command" in facts:
+            facts["configured_program"] = not disabled
+            off = [] if not disabled else [DISABLED if winner["source"] == entry["source"]
+                                           else f"turned off by disableAllHooks in {winner['source']}"]
+            entry["observations"] = [COMMAND] + off + ([AFTER_TRUST] if facts["project"] else [])
+            disabled_any = disabled_any or disabled
+            continue
         active = not disabled and any(runs(record) for record in facts["handlers"])
         if facts["kind"] in FACTS:
             facts[FACTS[facts["kind"]]] = active
