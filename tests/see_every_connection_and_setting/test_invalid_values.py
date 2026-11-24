@@ -20,9 +20,7 @@ BOOLEAN_GAP = "{} has an invalid boolean; its behavior is unknown."
 HOOKS_GAP = "Hook execution policy is outside reader coverage."
 APP = '[apps.cal]\nenabled=true\n'
 # With nothing else set, Codex lets an enabled app run destructive tools (harnesses/codex.md [app-tool-policy]).
-CODEX_DEFAULT = "destructive tools enabled by Codex default"
-APP_OBSERVATIONS = ["configured enabled", CODEX_DEFAULT, "tool approval: auto (default)"]
-APP_RISKS = [("destructive_tools", "apps.cal"), ("self_described_tools", "apps.cal")]
+LOAD_ERROR = "Codex cannot load this configuration file"
 TARGET_HTTP = ["configured enabled", "HTTP; endpoint withheld", "tool approval: auto (default)"]
 
 # field: (top-level overrides, tables, expected gaps,
@@ -74,7 +72,7 @@ CASES = {
     "apps.*.enabled": ({}, '[apps.cal]\nenabled="yes"\ndefault_tools_approval_mode="approve"\n',
                        [BOOLEAN_GAP.format("apps")], {"apps.cal": ["enablement unknown", "tool approval: approve"]}, []),
     "apps.*.default_tools_enabled": ({}, APP + 'default_tools_enabled="yes"\ndefault_tools_approval_mode="approve"\n',
-                                     ["Codex cannot load this configuration file because apps.cal.default_tools_enabled is not a boolean."], {"apps.cal": ["configured enabled", "default tools disabled or unknown", "tool approval: approve"]}, []),
+                                     ["Codex cannot load this configuration file because apps.cal.default_tools_enabled is not a boolean."], {"apps.cal": [LOAD_ERROR, "default tools disabled or unknown", "tool approval: approve"]}, []),
     "apps.*.destructive_enabled": ({}, APP + 'destructive_enabled="yes"\n', ["Codex cannot load this configuration file because apps.cal.destructive_enabled is not a boolean."],
                                    {"apps.cal": ["Codex cannot load this configuration file", "tool approval: auto (default)"]}, []),
     # apps._default.enabled = false disables no named app (archived issue #90; openai/codex@086ccc8
@@ -92,17 +90,17 @@ CASES = {
                                                                               "features.apps": CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]}, []),
     "apps.*.default_tools_approval_mode": ({}, APP + 'default_tools_approval_mode="yes"\n',
                                            ["Codex cannot load this configuration file because apps.cal.default_tools_approval_mode is not one of auto, prompt, writes, approve."],
-                                           {"apps.cal": ["configured enabled", CODEX_DEFAULT]}, [("destructive_tools", "apps.cal")]),
+                                           {"apps.cal": [LOAD_ERROR]}, []),
     "apps.*.tools.*.enabled": ({}, APP + '[apps.cal.tools.delete]\nenabled="yes"\napproval_mode="approve"\n',
-                               ["Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean."], {"apps.cal": APP_OBSERVATIONS, "apps.cal.tools.delete": ["disabled or enablement unknown", "tool approval: approve"]}, APP_RISKS),
-    # An app whose enablement is unknown might be enabled, so its tool's value can still change a finding.
+                               ["Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean."], {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"], "apps.cal.tools.delete": [LOAD_ERROR, "tool approval: approve"]}, []),
+    # Even when enablement is unknown, this independent field error prevents loading the App and its tools.
     "apps.*.tools.*.enabled under unknown app enablement": ({}, '[apps.cal]\nenabled="yes"\n[apps.cal.tools.delete]\nenabled="yes"\napproval_mode="approve"\n',
                                                          [BOOLEAN_GAP.format("apps"), "Codex cannot load this configuration file because apps.cal.tools.delete.enabled is not a boolean."],
-                                                         {"apps.cal": ["enablement unknown", "tool approval: auto (default)"],
-                                                          "apps.cal.tools.delete": ["disabled or enablement unknown", "tool approval: approve"]}, []),
+                                                         {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"],
+                                                          "apps.cal.tools.delete": [LOAD_ERROR, "tool approval: approve"]}, []),
     "apps.*.tools.*.approval_mode": ({}, APP + '[apps.cal.tools.delete]\napproval_mode="yes"\n',
                                      ["Codex cannot load this configuration file because apps.cal.tools.delete.approval_mode is not one of auto, prompt, writes, approve."],
-                                     {"apps.cal": APP_OBSERVATIONS, "apps.cal.tools.delete": ["configured enabled"]}, APP_RISKS),
+                                     {"apps.cal": [LOAD_ERROR, "tool approval: auto (default)"], "apps.cal.tools.delete": [LOAD_ERROR]}, []),
     "notify": ({"notify": '"synthetic-command"'}, "", ["notify is not a command list with a nonempty program."], {"notify": None}, []),
     "notify empty program": ({"notify": '[""]'}, "", ["notify is not a command list with a nonempty program."], {"notify": None}, []),
     "notify non-string argument": ({"notify": '["synthetic-command", 1]'}, "", ["notify is not a command list with a nonempty program."],

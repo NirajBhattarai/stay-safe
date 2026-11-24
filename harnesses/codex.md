@@ -19,6 +19,13 @@ Tool overrides belong to named apps. Tool allow and deny lists (`enabled_tools`,
 Unsupported `apps._default.tools` blocks are skipped with a gap; they create no child tool
 entries or risk facts.
 
+Codex [requires typed App and tool settings][app-config]. A named App's `default_tools_enabled` and
+each tool's `enabled` take unquoted booleans. The App's `default_tools_approval_mode` and each tool's
+`approval_mode` take a supported approval mode. If any declaration fails to load, stay-safe identifies
+the field, keeps the App and its tools in the catalog, and omits their tool risks. A disabled App keeps
+its off reason. Other Apps retain observations about their own configured settings. A malformed default
+approval mode is identified at `apps._default`.
+
 For a tool of an enabled app, Codex uses the first that is set: the tool's `enabled`,
 the app's `default_tools_enabled`, then `destructive_enabled` from the app, then
 `_default`, then `true` ([order][app-tool-policy], [tests][app-tool-policy-tests]).

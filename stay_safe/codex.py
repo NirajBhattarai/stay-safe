@@ -10,7 +10,9 @@ import tomllib
 
 MAX_BYTES = 1024 * 1024
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\Z")
-APPROVALS = {"auto", "prompt", "writes", "approve"}
+APPROVALS = ("auto", "prompt", "writes", "approve")
+INVALID_APPROVAL = "Codex cannot load this configuration file because {label} is not one of " + ", ".join(APPROVALS) + "."
+INVALID_BOOLEAN = "Codex cannot load this configuration file because {label} is not a boolean."
 SANDBOXES = {"read-only", "workspace-write", "danger-full-access"}
 HOOKS = {"SessionStart", "SessionEnd", "PreToolUse", "PostToolUse", "UserPromptSubmit",
          "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact",
@@ -48,12 +50,12 @@ def app_tool_setting(table, path, key, default, errors):
     if key in ("enabled", "default_tools_enabled"):
         if type(value) is bool:
             return value
-        reason = "is not a boolean"
+        message = INVALID_BOOLEAN
     else:
         if isinstance(value, str) and value in APPROVALS:
             return value
-        reason = "is not one of auto, prompt, writes, approve"
-    errors.append(f"Codex cannot load this configuration file because {path}.{key} {reason}.")
+        message = INVALID_APPROVAL
+    errors.append(message.format(label=f"{path}.{key}"))
     return UNKNOWN
 
 
@@ -260,32 +262,27 @@ class Reader:
             facts["configured_program"] = enabled is True and valid and (stdio or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
-    def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason, load_errors):
-        # Without default_tools_enabled = true, only tools enabled by name take the app's mode.
-        applies = tools_enabled is True or any("approval_mode" not in config and config.get("enabled") is True
-                                               for config in tool_tables(app).values())
-        observations, facts = self.tool_approval(mode, enabled is True and applies, "tool")
-        if "tools" in app and name != "_default":
-            for tool, config in self.named(self.table(app["tools"], "tools"), "tools", include_withheld=True):
-                path = config_name(["apps", name, "tools"]) + "." + (config_name([tool]) if tool is not None else "*")
-                tool_enabled = app_tool_setting(config, path, "enabled", tools_enabled, load_errors)
-                override = app_tool_setting(config, path, "approval_mode", None, load_errors)
-                if tool is None:
-                    continue
+    def app_tool_settings(self, app, path, tools_enabled, errors):
+        for tool, config in self.named(self.table(app.get("tools", {}), "tools"), "tools", include_withheld=True):
+            label = path + ".tools." + (config_name([tool]) if tool is not None else "*")
+            enabled = app_tool_setting(config, label, "enabled", tools_enabled, errors)
+            mode = app_tool_setting(config, label, "approval_mode", None, errors)
+            if tool is not None:
                 self.unknown(config, {"approval_mode", "enabled"}, "tools")
-                available = tool_enabled is True and enabled is True
-                self.tool(["apps", name], tool, override, mode, available, available and config.get("enabled") is True,
-                          off_reason)
-        return observations, facts
+            yield tool, enabled, mode, config.get("enabled") is True
 
     def apps(self, data, apps_off):
         apps = self.table(data.get("apps", {}), "apps")
         default = apps.get("_default", {})
+        default_errors = []
         if not isinstance(default, dict):
             self.gap("apps._default must be a table.")
             apps = {k: v for k, v in apps.items() if k != "_default"}
             # A template that is not a table leaves every setting an app takes from it unknown.
-            default = dict.fromkeys(("default_tools_approval_mode", "destructive_enabled"), UNKNOWN)
+            default = {"destructive_enabled": UNKNOWN}
+            default_mode = UNKNOWN
+        else:
+            default_mode = app_tool_setting(default, "apps._default", "default_tools_approval_mode", None, default_errors)
         for name, app in self.named(apps, "apps"):
             before = set(self.gaps)
             # What the app takes from apps._default; the code below reads only this and the app's own fields.
@@ -298,23 +295,32 @@ class Reader:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
             enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
-            # Both AppConfig and AppsDefaultConfig require these flags to be booleans before tool policy runs.
-            invalid_flags = [field for field in ("open_world_enabled", "destructive_enabled")
-                             if field in app and type(app[field]) is not bool]
-            if invalid_flags and enabled is not False:
+            path = config_name(["apps", name])
+            load_errors = list(default_errors) if template else []
+            for field in ("open_world_enabled", "destructive_enabled"):
+                if field in app and type(app[field]) is not bool:
+                    load_errors.append(INVALID_BOOLEAN.format(label=f"{path}.{field}"))
+            mode = default_mode
+            tools_enabled = True
+            tools = []
+            if not template:
+                mode = app_tool_setting(app, path, "default_tools_approval_mode", default_mode, load_errors)
+                tools_enabled = app_tool_setting(app, path, "default_tools_enabled", True, load_errors)
+                tools = list(self.app_tool_settings(app, path, tools_enabled, load_errors))
+            # Validate every declaration before attributing findings to this App or any of its tools.
+            if load_errors and enabled is not False:
                 enabled = None
                 off_reason = "Codex cannot load this configuration file"
-            load_errors = []
-            tools_enabled = True
-            mode = settings.get("default_tools_approval_mode")
-            if not template:
-                path = config_name(["apps", name])
-                tools_enabled = app_tool_setting(app, path, "default_tools_enabled", True, load_errors)
-                mode = app_tool_setting(app, path, "default_tools_approval_mode", mode, load_errors)
             obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")
-            policy, facts = self.app_tools(app, name, enabled, mode, tools_enabled, off_reason, load_errors)
+            # Without default_tools_enabled = true, only tools enabled by name take the app's mode.
+            applies = tools_enabled is True or any(own and override is None for _, _, override, own in tools)
+            policy, facts = self.tool_approval(mode, enabled is True and applies, "tool")
+            for tool, tool_enabled, override, explicitly_enabled in tools:
+                if tool is not None:
+                    available = tool_enabled is True and enabled is True
+                    self.tool(["apps", name], tool, override, mode, available, available and explicitly_enabled, off_reason)
             # Codex decides by default_tools_enabled, then destructive_enabled: harnesses/codex.md [app-tool-policy].
             source = ("destructive_enabled" if "destructive_enabled" in app
                       else "apps._default.destructive_enabled" if "destructive_enabled" in settings else "Codex default")
@@ -335,8 +341,6 @@ class Reader:
                 self.gaps = before
             for error in load_errors:
                 self.gap(error)
-            for field in invalid_flags:
-                self.gap(f"Codex cannot load this configuration file because apps.{name}.{field} is not a boolean.")
             if template:
                 # Codex gives apps this file does not name the template's approval mode and destructive_enabled
                 # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.

@@ -23,7 +23,11 @@ TOOL_ENABLED_GAP = "Codex cannot load this configuration file because apps.examp
 
 PLAIN = {
     **{gap: f"**{gap}** Findings for other entries describe settings written in the file."
-       for gap in (APP_MODE_GAP, TOOL_MODE_GAP, APP_ENABLED_GAP, TOOL_ENABLED_GAP)},
+       for gap in (APP_MODE_GAP, TOOL_MODE_GAP)},
+    **{gap: f"**Codex cannot load this configuration file.** `{field}` must be `true` or `false` without quotes. "
+            "Findings for other entries describe settings written in the file."
+       for gap, field in ((APP_ENABLED_GAP, "apps.example.default_tools_enabled"),
+                          (TOOL_ENABLED_GAP, "apps.example.tools.lookup.enabled"))},
     'Selected config file is missing. Check the path supplied to --config.':
         '**Not checked: your config file.** The selected file is missing.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':
@@ -226,8 +230,8 @@ ABSENT = {
 STEPS = {
     APP_MODE_GAP: 'Set `apps.example.default_tools_approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
     TOOL_MODE_GAP: 'Set `apps.example.tools.lookup.approval_mode` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
-    APP_ENABLED_GAP: "Set `apps.example.default_tools_enabled` to `true` or `false`.",
-    TOOL_ENABLED_GAP: "Set `apps.example.tools.lookup.enabled` to `true` or `false`.",
+    APP_ENABLED_GAP: "Set `apps.example.default_tools_enabled` to `true` or `false` without quotes.",
+    TOOL_ENABLED_GAP: "Set `apps.example.tools.lookup.enabled` to `true` or `false` without quotes.",
     'Selected config file is missing. Check the path supplied to --config.':
         'Check the path supplied to --config.',
     'Selected config file is a symlink and was not followed. Select its target file explicitly with --config.':

@@ -5,13 +5,14 @@ import json
 from pathlib import Path
 import re
 
-from .codex import EXCLUDED_ACCOUNT, read_file
+from .codex import APPROVALS, EXCLUDED_ACCOUNT, INVALID_APPROVAL, INVALID_BOOLEAN, read_file
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
 
 INCIDENTS = resource("incidents.md")
 INCIDENT_STATUS = "reported, not verified"
+APPROVAL_OPTIONS = ", ".join(f'`"{mode}"`' for mode in APPROVALS[:-1]) + f' or `"{APPROVALS[-1]}"`'
 
 
 def incident_links(path=INCIDENTS, revision=None):
@@ -571,13 +572,8 @@ GAPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
-    **{message: f"**{message}** Findings for other entries describe settings written in the file."
-       for message in (
-           "Codex cannot load this configuration file because {label}.enabled is not a boolean.",
-           "Codex cannot load this configuration file because {label}.default_tools_enabled is not a boolean.",
-           "Codex cannot load this configuration file because {label} is not one of auto, prompt, writes, approve.",
-       )},
-    "Codex cannot load this configuration file because {label} is not a boolean.":
+    INVALID_APPROVAL: f"**{INVALID_APPROVAL}** Findings for other entries describe settings written in the file.",
+    INVALID_BOOLEAN:
         "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
         "Findings for other entries describe settings written in the file.",
     "Model-provider command-backed authentication is outside reader coverage.":
@@ -728,9 +724,9 @@ STEPS = {
         "Review that entry yourself, since it isn't in this report.",
     "{label} contains an entry that is not a table.": "Rewrite it as a group of settings, then run stay-safe again.",
     "A tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A per-tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A tool allow/deny list contains a name that cannot be included in a shareable report.":
         "Review the full list in your config file yourself.",
     "A tool allow/deny list is invalid; tool availability is unknown.":
@@ -742,9 +738,8 @@ STEPS = {
         "To keep using stdio, remove `http_headers_helper` from this server's settings.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
-    "Codex cannot load this configuration file because {label} is not one of auto, prompt, writes, approve.":
-        'Set `{label}` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
-    "Codex cannot load this configuration file because {label} is not a boolean.":
+    INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
+    INVALID_BOOLEAN:
         "Set `{label}` to `true` or `false` without quotes.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
