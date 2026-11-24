@@ -156,8 +156,9 @@ and [runtime sandbox handling][saved-runtime] establish the declared meaning.
 
 A run with no file arguments finds the Codex home as Codex does ([home][codex-home]): `$CODEX_HOME`, or
 `~/.codex` when it is unset or empty. A set `CODEX_HOME` must be an existing folder, or Codex refuses to start.
-Codex also reads the files below, there and in its system folder `/etc/codex`. The reader does not read their
-contents; each one it finds is an inspection gap.
+Codex also reads the files below, there and in its system folder `/etc/codex`. Apart from the default rules
+file (see [Saved approval records](#saved-approval-records)), the reader does not read their contents; each one
+it finds is an inspection gap.
 
 - `hooks.json`: Codex loads hooks from `hooks.json` in each layer's config folder ([load][hooks-json],
   [folder][config-folder]): the folder holding the Codex home's `config.toml` for the User layer, and
@@ -189,9 +190,9 @@ contents; each one it finds is an inspection gap.
   ([managed][system-managed]) and `requirements.toml` ([requirements][system-requirements]) there, and
   `hooks.json` and `rules/` as above.
 
-## Edits the advice suggests
+## Facts behind the advice
 
-These facts shape the report's advice:
+The report's advice rests on these:
 
 - Codex writes each hook matcher group's handlers as `[[hooks.<Event>.hooks]]` sections
   ([group][hook-group], [written layout][hook-group-written]). Deleting only the `[[hooks.<Event>]]` lines
