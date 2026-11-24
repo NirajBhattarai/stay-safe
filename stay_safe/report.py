@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import re
 
-from .codex import APPROVALS, EXCLUDED_ACCOUNT, INVALID_APPROVAL, INVALID_BOOLEAN, read_file
+from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
@@ -402,6 +403,8 @@ def note(report, files):
 
 WITHHELD = "The value is left out of this report."
 GAPS = {
+    INLINE_MCP_VALUES: "**Not checked: inline values in `{label}`.** stay-safe did not check these entries for credentials.",
+    INVALID_MCP_MAP: "**Codex cannot load this configuration.** `{label}` must be a table of strings.",
     "Unchecked section {label}; its settings were not evaluated.":
         "**Not checked: `{label}`.** Its settings were not evaluated.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":
@@ -600,6 +603,8 @@ ABSENT = {
         "commands Codex runs are allowed to do.",
 }
 STEPS = {
+    INLINE_MCP_VALUES: "Review the entries for credentials in your own configuration file.",
+    INVALID_MCP_MAP: "Give each entry in `{label}` a quoted string value, or remove the setting.",
     "Unchecked section {label}; its settings were not evaluated.":
         "Review the `{label}` section in your selected file yourself.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":

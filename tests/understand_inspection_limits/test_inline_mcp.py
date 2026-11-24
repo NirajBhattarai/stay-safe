@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from stay_safe.report import inspect
-from tests.support import ConfigCase, INCOMPLETE, ROOT, run_checkout
+from tests.support import ConfigCase, INCOMPLETE, ROOT, run_checkout, section
 
 
 FIXTURE = Path(__file__).with_name("inline-env.toml")
@@ -24,6 +24,12 @@ class InlineMcpTests(ConfigCase):
                 self.assertEqual([(r["rule"], r["entry"]) for r in report["risks"]],
                                  [("configured_program", "config-1:mcp_servers.example")])
                 self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE) if gaps else (0, ""))
+
+        human = run_checkout(ROOT, "--config", str(FIXTURE), "--format", "markdown", cwd=self.root)
+        self.assertIn("1 finding, 1 thing not checked.", human.stdout)
+        advice = section(human.stdout, "Not checked")
+        self.assertIn("`mcp_servers.example.env`", advice)
+        self.assertIn("Review the entries for credentials", advice)
 
     def test_each_populated_field_names_its_snapshot_and_server_once(self):
         text = BASE + '[mcp_servers."team.api"]\n' + HTTP + 'http_headers={One="first",Two="second"}\n'
@@ -47,6 +53,12 @@ class InlineMcpTests(ConfigCase):
         for config in (STDIO + 'http_headers={Private="hidden"}', HTTP + 'env={Private="hidden"}',
                        'command="private"\nurl="ignored"\nenv={Private="hidden"}'):
             with self.subTest(config=config):
+                gaps = inspect([self.config(BASE + "[mcp_servers.local]\n" + config)])["inspection_gaps"]
+                self.assertFalse(any("credentials" in g for g in gaps))
+        for config in (STDIO + 'env={Private="hidden"}\nhttp_headers={}',
+                       HTTP + 'http_headers={Private="hidden"}\nargs=[]',
+                       HTTP + 'http_headers={Private="hidden"}\nhttp_headers_helper=42'):
+            with self.subTest(rejected=config):
                 gaps = inspect([self.config(BASE + "[mcp_servers.local]\n" + config)])["inspection_gaps"]
                 self.assertFalse(any("credentials" in g for g in gaps))
         hidden = inspect([self.config(BASE + '[mcp_servers."sk-private"]\n' + STDIO + 'env={Private="hidden"}')])
