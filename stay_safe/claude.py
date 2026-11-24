@@ -30,7 +30,10 @@ HOOK_EVENTS = {"SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion
                "TeammateIdle", "InstructionsLoaded", "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
                "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact", "PreModelSwitch", "PostModelSwitch",
                "Elicitation", "ElicitationResult", "SessionEnd"}
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls"}
+SSH_HOST_COMMANDS = ("sshHostCommands",)
+IGNORED = "ignored in project settings; applies only from user or managed settings"
+USER_OR_MANAGED = "applies only from user or managed settings"
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *SSH_HOST_COMMANDS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -154,6 +157,7 @@ class SettingsReader(Reader):
                 self.add(["allowedHttpHookUrls"], "setting", ["set; patterns withheld"], {"http_allowlist": True})
             else:
                 self.gap("allowedHttpHookUrls is not a list of URL patterns; it was not evaluated.")
+        self.commands(data)
         if "hooks" not in data:
             return
         records = self.handlers(data["hooks"])
@@ -165,6 +169,22 @@ class SettingsReader(Reader):
                 if kind in FACTS:
                     facts[FACTS[kind]] = False
                 self.add(name, "hook", [], facts)
+
+    def commands(self, data):
+        for name in SSH_HOST_COMMANDS:
+            if name not in data:
+                continue
+            value = data[name]
+            if not (isinstance(value, list) and all(isinstance(item, dict) and all(nonempty(item.get(field)) for field in ("id", "name", "command")) for item in value)):
+                self.gap(f"{name} is not a list of entries with an id, a name and a command; it was not evaluated.")
+                continue
+            if not value:
+                continue
+            if self.scope == "project":
+                self.add([name], "program", [IGNORED], {"configured_program": False})
+                continue
+            observations = [COMMAND] + ([USER_OR_MANAGED] if self.scope is None else [])
+            self.add([name], "program", observations, {"configured_program": True})
 
     def handlers(self, value):
         if not isinstance(value, dict):
