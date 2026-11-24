@@ -1,5 +1,3 @@
-"""Read selected Codex TOML files without executing their configuration."""
-
 import errno
 import json
 import os
@@ -10,13 +8,14 @@ import tomllib
 
 MAX_BYTES = 1024 * 1024
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\Z")
-APPROVALS = {"auto", "prompt", "writes", "approve"}
+APPROVALS = ("auto", "prompt", "writes", "approve")
+INVALID_APPROVAL = "Codex cannot load this configuration file because {label} is not one of " + ", ".join(APPROVALS) + "."
+INVALID_BOOLEAN = "Codex cannot load this configuration file because {label} is not a boolean."
 SANDBOXES = {"read-only", "workspace-write", "danger-full-access"}
 HOOKS = {"SessionStart", "SessionEnd", "PreToolUse", "PostToolUse", "UserPromptSubmit",
          "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact",
          "PreModelRequest", "PostModelRequest", "PermissionRequest", "Interrupt"}
-UNKNOWN = object()  # A value left to an apps._default that is not a table.
-# Non-security preferences are deliberately ignored; unknown surfaces become gaps.
+UNKNOWN = object()
 PREFERENCES = {"model", "review_model", "model_reasoning_effort", "model_reasoning_summary",
                "model_verbosity", "service_tier", "personality", "tui", "notice", "history",
                "check_for_update_on_startup", "disable_paste_burst", "hide_agent_reasoning",
@@ -28,16 +27,30 @@ def config_name(parts):
 
 
 def tool_tables(table):
-    # A tools block or tool that is not a table is read as absent.
     tools = table.get("tools", {})
     return {n: c for n, c in tools.items() if isinstance(c, dict)} if isinstance(tools, dict) else {}
 
 
 def public_name(value, tool=False):
-    # Account IDs, URLs, paths, control text and credential-shaped identifiers are not report names.
     pieces = value.split("/") if tool else [value]
     return all(bool(NAME.fullmatch(p)) and p not in {".", ".."}
                and not p.lower().startswith(("sk-", "ghp_", "github_pat_")) for p in pieces)
+
+
+def app_tool_setting(table, path, key, default, errors):
+    if key not in table:
+        return default
+    value = table[key]
+    if key in ("enabled", "default_tools_enabled"):
+        if type(value) is bool:
+            return value
+        message = INVALID_BOOLEAN
+    else:
+        if isinstance(value, str) and value in APPROVALS:
+            return value
+        message = INVALID_APPROVAL
+    errors.append(message.format(label=f"{path}.{key}"))
+    return UNKNOWN
 
 
 class Reader:
@@ -74,11 +87,13 @@ class Reader:
             return None
         return value
 
-    def named(self, table, label):
+    def named(self, table, label, *, include_withheld=False):
         for name, value in table.items():
             if not public_name(name, tool=label == "tools"):
                 self.gap(f"{label} contains a name that cannot be included in a shareable report.")
-                continue
+                if not include_withheld or not isinstance(value, dict):
+                    continue
+                name = None
             if not isinstance(value, dict):
                 self.gap(f"{label} contains an entry that is not a table.")
                 continue
@@ -99,7 +114,6 @@ class Reader:
             self.gap("approval_policy is unsupported or invalid; its value was withheld.")
 
     def sandbox(self, data):
-        # A selected permission profile may supersede the sandbox settings, so they give no risk.
         profile = "default_permissions" in data
         if profile or "permissions" in data:
             self.gap("Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.")
@@ -122,7 +136,6 @@ class Reader:
                 if not (isinstance(roots, list) and all(isinstance(r, str) for r in roots)):
                     self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
                 elif roots and active:
-                    # Codex adds each root to the folders sandboxed commands may write: harnesses/codex.md [writable-roots].
                     self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
                              "workspace-write mode, some possibly outside the workspace; their paths were withheld "
                              "and were not evaluated.")
@@ -141,7 +154,6 @@ class Reader:
             return
         if self.unknown(policy, {"inherit", "ignore_default_excludes"}, label):
             return
-        # Source and coverage boundary: harnesses/codex.md [shell-environment].
         inherit = policy.get("inherit", "all")
         ignore = policy.get("ignore_default_excludes", True)
         inherit_valid = isinstance(inherit, str) and inherit in {"all", "core", "none"}
@@ -158,7 +170,6 @@ class Reader:
                  {"environment_inheritance": inherit == "all"})
 
     def tool_approval(self, mode, applies, label, report_invalid=True):
-        """Observations and facts of an approval mode that tools take when applies is true."""
         default = mode is None
         mode = "auto" if default else mode
         if isinstance(mode, str) and mode in APPROVALS:
@@ -169,17 +180,16 @@ class Reader:
             self.gap(f"A {label} approval mode is unsupported or invalid; its value was withheld.")
         return [], {}
 
-    def tool(self, parts, name, config, mode, available, destructive, off_reason=None):
-        # A tool without its own mode takes its connection's; that risk stays on the connection.
-        own = "approval_mode" in config
+    def tool(self, parts, name, override, mode, available, destructive, off_reason=None):
+        own = override is not None
         obs = [off_reason or ("configured enabled" if available else "disabled or enablement unknown")]
         if destructive:
             obs.append("enabled even if destructive")
-        approval, facts = self.tool_approval(config.get("approval_mode", "auto" if mode is None else mode), own and available, "per-tool", report_invalid=own)
+        effective = override if own else ("auto" if mode is None else mode)
+        approval, facts = self.tool_approval(effective, own and available, "per-tool", report_invalid=own)
         self.add(parts + ["tools", name], "tool policy", obs + approval, facts | {"destructive_tools": destructive})
 
     def mcp_tools(self, server, parts, enabled):
-        # Tool allow and deny lists exist only on MCP servers: harnesses/codex.md [app-config].
         valid = True
         for key in ("enabled_tools", "disabled_tools"):
             values = server.get(key, [])
@@ -203,7 +213,7 @@ class Reader:
         if "tools" in server:
             for name, config in self.named(self.table(server["tools"], "tools"), "tools"):
                 self.unknown(config, {"approval_mode", "output_token_limit"}, "tools")
-                self.tool(parts, name, config, mode, enabled is True and permitted(name), False)
+                self.tool(parts, name, config.get("approval_mode"), mode, enabled is True and permitted(name), False)
         return observations, facts
 
     def mcp(self, data):
@@ -220,7 +230,6 @@ class Reader:
             obs = ["configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown"]
             command, url = server.get("command"), server.get("url")
             stdio = isinstance(command, str) and url is None
-            # Codex uses HTTP for any string url without command: harnesses/codex.md [mcp-transport].
             http = isinstance(url, str) and command is None
             helper = server.get("http_headers_helper")
             valid = (stdio and bool(command.strip())) or http
@@ -240,32 +249,28 @@ class Reader:
             facts["configured_program"] = enabled is True and valid and (stdio or valid_helper)
             self.add(parts, "MCP server", obs + policy, facts)
 
-    def app_tools(self, app, name, enabled, mode, tools_enabled, off_reason):
-        # Without default_tools_enabled = true, only tools enabled by name take the app's mode.
-        applies = tools_enabled is True or any("approval_mode" not in config and config.get("enabled") is True
-                                               for config in tool_tables(app).values())
-        observations, facts = self.tool_approval(mode, enabled is True and applies, "tool")
-        if "tools" in app and name != "_default":
-            for tool, config in self.named(self.table(app["tools"], "tools"), "tools"):
+    def app_tool_settings(self, app, path, tools_enabled, errors):
+        for tool, config in self.named(self.table(app.get("tools", {}), "tools"), "tools", include_withheld=True):
+            label = path + ".tools." + (config_name([tool]) if tool is not None else "*")
+            enabled = app_tool_setting(config, label, "enabled", tools_enabled, errors)
+            mode = app_tool_setting(config, label, "approval_mode", None, errors)
+            if tool is not None:
                 self.unknown(config, {"approval_mode", "enabled"}, "tools")
-                tool_enabled = self.boolean(config, "enabled", tools_enabled, "tools") if "enabled" in config else tools_enabled
-                available = tool_enabled is True and enabled is True
-                self.tool(["apps", name], tool, config, mode, available, available and config.get("enabled") is True,
-                          off_reason)
-        return observations, facts
+            yield tool, enabled, mode, config.get("enabled") is True
 
     def apps(self, data, apps_off):
         apps = self.table(data.get("apps", {}), "apps")
         default = apps.get("_default", {})
+        default_errors = []
         if not isinstance(default, dict):
             self.gap("apps._default must be a table.")
             apps = {k: v for k, v in apps.items() if k != "_default"}
-            # A template that is not a table leaves every setting an app takes from it unknown.
-            default = dict.fromkeys(("default_tools_approval_mode", "destructive_enabled"), UNKNOWN)
+            default = {"destructive_enabled": UNKNOWN}
+            default_mode = UNKNOWN
+        else:
+            default_mode = app_tool_setting(default, "apps._default", "default_tools_approval_mode", None, default_errors)
         for name, app in self.named(apps, "apps"):
             before = set(self.gaps)
-            # What the app takes from apps._default; the code below reads only this and the app's own fields.
-            # Not enabled: apps._default.enabled disables no named app (harnesses/codex.md [app-enabled]).
             settings = {**{k: v for k, v in default.items() if k != "enabled"}, **app}
             template = name == "_default"
             off_reason = "disabled by features.apps = false" if apps_off and not template else None
@@ -274,36 +279,47 @@ class Reader:
                 allowed |= {"default_tools_enabled", "tools", "links", "omit_tools_from"}
             self.unknown(app, allowed, "apps._default" if template else "apps")
             enabled = False if off_reason else self.boolean(settings, "enabled", True, "apps")
-            tools_enabled = True if template else self.boolean(app, "default_tools_enabled", True, "apps")
+            path = config_name(["apps", name])
+            load_errors = list(default_errors) if template else []
+            for field in ("open_world_enabled", "destructive_enabled"):
+                if field in app and type(app[field]) is not bool:
+                    load_errors.append(INVALID_BOOLEAN.format(label=f"{path}.{field}"))
+            mode = default_mode
+            tools_enabled = True
+            tools = []
+            if not template:
+                mode = app_tool_setting(app, path, "default_tools_approval_mode", default_mode, load_errors)
+                tools_enabled = app_tool_setting(app, path, "default_tools_enabled", True, load_errors)
+                tools = list(self.app_tool_settings(app, path, tools_enabled, load_errors))
+            if load_errors and enabled is not False:
+                enabled = None
+                off_reason = "Codex cannot load this configuration file"
             obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")
-            policy, facts = self.app_tools(app, name, enabled, settings.get("default_tools_approval_mode"),
-                                           tools_enabled, off_reason)
-            # Codex decides by default_tools_enabled, then destructive_enabled: harnesses/codex.md [app-tool-policy].
+            applies = tools_enabled is True or any(own and override is None for _, _, override, own in tools)
+            policy, facts = self.tool_approval(mode, enabled is True and applies, "tool")
+            for tool, tool_enabled, override, explicitly_enabled in tools:
+                if tool is not None:
+                    available = tool_enabled is True and enabled is True
+                    self.tool(["apps", name], tool, override, mode, available, available and explicitly_enabled, off_reason)
             source = ("destructive_enabled" if "destructive_enabled" in app
                       else "apps._default.destructive_enabled" if "destructive_enabled" in settings else "Codex default")
             destructive = settings.get("destructive_enabled", True)
-            if destructive is UNKNOWN:
-                destructive = None
-            elif type(destructive) is not bool:
-                self.gap("apps has an invalid destructive_enabled flag.")
+            if type(destructive) is not bool:
                 destructive = None
             if not template and "default_tools_enabled" in app:
                 destructive, source = (True, "default_tools_enabled") if tools_enabled is True else (None, None)
-            # A disabled app is decided before destructive_enabled is read; _default is only a template.
             if destructive is not None and enabled is True and not template:
                 obs.append(f"destructive tools {'enabled' if destructive else 'disabled'} by {source}")
                 facts["destructive_tools"] = destructive
             if "links" in app:
                 self.gap("Per-account app policy is not evaluated; account identifiers were withheld.")
             if enabled is False and not template:
-                # Codex disables every tool of a disabled app whatever else it sets (app_tool_policy.rs
-                # L272-L277 at 086ccc8), so its other settings can't change a finding and give no gap.
                 self.gaps = before
+            for error in load_errors:
+                self.gap(error)
             if template:
-                # Codex gives apps this file does not name the template's approval mode and destructive_enabled
-                # (harnesses/codex.md rows apps._default.*), so the template carries those risks, not self_described_tools.
                 facts = {k: v for k, v in facts.items() if k == "automatic_tools"} if enabled is True and not apps_off else {}
                 explicit = default.get("destructive_enabled")
                 if enabled is True and not apps_off and type(explicit) is bool:
@@ -315,15 +331,14 @@ class Reader:
 
     @staticmethod
     def unnamed_apps(data):
-        """What an app this file does not name gets: apps._default, then Codex's defaults (harnesses/codex.md [app-enabled])."""
-        # A missing value takes Codex's default; an invalid table or value leaves its part unknown (Codex's schema
-        # requires booleans, so it does not fall back to the default).
         apps = data.get("apps", {})
         default = apps.get("_default", {}) if isinstance(apps, dict) else None
         if not isinstance(default, dict) or type(default.get("enabled", True)) is not bool:
             return "apps not named in this file: settings unknown"
         if default.get("enabled") is False:
             return "apps not named in this file: disabled by apps._default.enabled"
+        if type(default.get("open_world_enabled", True)) is not bool:
+            return "apps not named in this file: settings unknown"
         if "destructive_enabled" not in default:
             return "apps not named in this file: destructive tools enabled by Codex default"
         destructive = default["destructive_enabled"]
@@ -333,7 +348,6 @@ class Reader:
                 "by apps._default.destructive_enabled")
 
     def projects(self, projects):
-        """Count literal declarations only; never use project keys as filesystem paths."""
         count = 0
         incomplete = not isinstance(projects, dict)
         if isinstance(projects, dict):
@@ -374,7 +388,6 @@ class Reader:
                         self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
         if "notify" in data:
             notify = data["notify"]
-            # The first element is the program; later arguments may be empty.
             if (isinstance(notify, list) and notify and all(isinstance(p, str) for p in notify)
                     and notify[0]):
                 self.add(["notify"], "automation", ["notification command configured; command withheld"], {"configured_program": True})
@@ -392,8 +405,6 @@ class Reader:
                     if not isinstance(group, dict) or not isinstance(group.get("hooks", []), list):
                         self.gap("hooks contains an invalid handler group.")
                         continue
-                    # Matchers, options and hooks.state do not stop a command: harnesses/codex.md [hooks].
-                    # Windows runs commandWindows (alias command_windows) when set: [hook-windows-choice].
                     program = program or any(
                         isinstance(h, dict) and h.get("type") == "command" and isinstance(h.get("command"), str)
                         and any(isinstance(h.get(key), str) and bool(h[key].strip())
@@ -403,12 +414,10 @@ class Reader:
             self.gap("Hook execution policy is outside reader coverage.")
         features = self.table(data.get("features", {}), "features")
         self.unknown(features, {"apps"}, "features")
-        # Codex adds the ChatGPT Apps connection at ChatGPT sign-in unless this is false: harnesses/codex.md [apps-feature].
         apps_enabled = self.boolean(features, "apps", True, "features.apps")
         if apps_enabled:
             self.add(["features", "apps"], "MCP server", ["ChatGPT Apps", "exists only if Codex is signed in with ChatGPT, "
                      "which is not checked", "features.apps = false turns it off", self.unnamed_apps(data)])
-        # The legacy connectors key can turn Apps back on (harnesses/codex.md, features.apps).
         self.apps(data, apps_enabled is False and features.get("connectors", False) is False)
         if "web_search" in data:
             value = data["web_search"]
@@ -426,10 +435,6 @@ class Reader:
         return self.entries, sorted(self.gaps)
 
     def full_access(self, approval):
-        """What an unrestricted sandbox adds to the approval policy (harnesses/codex.md rows approval_policy with
-        danger-full-access): on-request lets commands no execution rule matches run unless Codex flags them as
-        dangerous, and never can let MCP and app tool calls run without asking whatever their approval mode, unless
-        strict automatic review is on."""
         if approval["observations"] == ["on-request"]:
             approval["observations"].append("with danger-full-access, ordinary commands can run without asking")
             approval["facts"]["commands_without_prompts"] = True
@@ -442,11 +447,22 @@ class Reader:
                 approval["facts"]["automatic_tools"] = True
 
 
+EXCLUDED_ACCOUNT = "Claude Code account and credential files are excluded. Check which input file you selected."
+
+
+def exclude_account_files(read_file):
+    def checked(path, source, **options):
+        if Path(path).name.casefold() in {".claude.json", ".credentials.json"}:
+            return [], [f"{source}: {EXCLUDED_ACCOUNT}"]
+        return read_file(path, source, **options)
+    return checked
+
+
 def open_input(path):
-    """Open a file read-only; O_NOFOLLOW refuses a symlink as the final component."""
     return os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
 
 
+@exclude_account_files
 def read_file(path: Path, source: str, *, discovered=False):
     reader = Reader(source)
     try:

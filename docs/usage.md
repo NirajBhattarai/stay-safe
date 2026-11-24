@@ -61,7 +61,7 @@ output and nothing is written. Redirect it to a new file to share it; never redi
 
 ## How files are found
 
-With no file arguments, the reader opens `config.toml` and `rules/default.rules`
+For a Codex report with no file arguments, the reader opens `config.toml` and `rules/default.rules`
 under `$CODEX_HOME`, falling back to `~/.codex` when it is unset or empty, as
 Codex does. Other `.rules` files in that `rules/` directory are not read; their
 presence, or a `rules/` directory that cannot be listed, is an inspection gap.
@@ -78,6 +78,34 @@ its absence and assesses documented defaults (shell environment, the ChatGPT App
 settings remain unknown, so this assessment still exits `2`. See the
 [inspection contract](../contracts/claims.md#see_every_connection_and_setting-i-see-supported-settings-and-saved-approvals-from-my-files-with-defaults-identified) for the behavior and checks.
 
+## Claude Code: `--agent`
+
+With no file or agent selected, stay-safe checks each agent whose settings folder it
+finds. A Claude-only home gets a Claude Code report. If neither folder exists, you
+get the usual Codex default assessment. A nonempty `CODEX_HOME` or `CLAUDE_CONFIG_DIR`
+selects that folder even when it cannot be inspected. That report names the gap and
+the command exits 2, alongside any findings for the other agent.
+
+With `--format json`, a single report is an object with a `harness` field. For two
+agents the outer object contains a `reports` array, with Codex first and Claude Code
+second.
+
+```sh
+python3 -m stay_safe --agent claude
+python3 -m stay_safe --agent codex
+python3 -m stay_safe --agent claude --config /path/to/settings.json
+```
+
+Claude Code discovery reads `settings.json` under `$CLAUDE_CONFIG_DIR` or
+`~/.claude`. To inspect another settings file, pass `--agent claude --config FILE`.
+Each selected file is a separate snapshot. Account data, managed settings and
+extension folders are outside discovery. The [Claude Code meanings table](../harnesses/claude-code.md)
+lists the supported settings and their sources.
+
+Without `--agent`, `--config` and `--rules` select Codex. Select one agent when
+passing `--config`. Only Codex accepts `--rules`. Both options skip files named
+`.claude.json` or `.credentials.json` and report an inspection gap.
+
 ## Save the report as a page: `--save`
 
 `--save` also writes the report as a self-contained page, `stay-safe-report.html`, in
@@ -88,14 +116,17 @@ then one last line with a command that opens the page: `open '<path>'` on macOS,
 read the formatted report in your browser; stay-safe doesn't run it. Attach the file to
 share it; the last line names the saved location, so leave it out when you share the
 printed report. The page has the same content as the Markdown
-report, and no scripts or network requests. It is the only file stay-safe's code writes,
+report, and no scripts or network requests: it uses only document structure, text and link
+elements ([HTML element index](https://html.spec.whatwg.org/multipage/indices.html#elements-3)), and its headings
+carry the [anchors GitHub gives them](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links), so the report's own links work on the page. It is the only file stay-safe's code writes,
 and only with `--save`; Python itself may cache compiled code in `stay_safe/__pycache__`. If the page can't be written, for example in a read-only sandbox,
 stay-safe says so in one line and prints the report. `--save` can't be combined
 with `--format json`.
 
 ## Symlinks
 
-A symlinked configuration or rules file is refused and reported as an inspection gap.
+A symlinked configuration or rules file is refused and reported as an inspection gap. stay-safe opens each file
+with `O_NOFOLLOW`, which [fails when the last part of the path is a link](https://pubs.opengroup.org/onlinepubs/9799919799/functions/open.html).
 
 ## Platforms
 

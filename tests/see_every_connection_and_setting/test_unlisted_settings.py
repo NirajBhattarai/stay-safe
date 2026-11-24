@@ -4,13 +4,6 @@ import unittest
 from stay_safe.report import inspect
 from tests.support import CHATGPT_APPS, ConfigCase
 
-# Archived issues #81, #79 and #95: settings that no rule reads are not listed and give no gap of their own,
-# whatever their value. Expected results come from those issues and these harnesses/codex.md rows:
-# `approval_policy` `on-request`, `sandbox_mode` (`read-only`, `workspace-write`), the
-# `default_permissions` row, `sandbox_workspace_write.network_access` `true`,
-# `apps.*.destructive_enabled` `omitted`, `approval_policy` `granular` and
-# `shell_environment_policy` `omitted`. `network_access` shows that the rest of its table is kept.
-# Entries every case gives: harnesses/codex.md rows `shell_environment_policy` and `features.apps` `omitted`.
 DEFAULTS = {"shell_environment_policy": ["inherit: all (default)", "ignore_default_excludes: true (default)"],
             "features.apps": CHATGPT_APPS}
 SHELL_RISK = ("environment_inheritance", "config-1:shell_environment_policy")
@@ -21,7 +14,6 @@ SANDBOX_CATALOG = {"approval_policy": ["on-request"], "sandbox_mode": ["workspac
                    "sandbox_workspace_write.network_access": ["true", "workspace-write option"], **DEFAULTS}
 SANDBOX_RISKS = {("network_access", "config-1:sandbox_workspace_write.network_access"), SHELL_RISK}
 
-# An enabled app with nothing else set; an `apps._default` table is enabled with the auto default.
 APP = ["configured enabled", "destructive tools enabled by Codex default", "tool approval: auto (default)"]
 APP_CATALOG = {"approval_policy": ["on-request"], "sandbox_mode": ["read-only"], "apps.files": APP, **DEFAULTS}
 APP_RISKS = {("destructive_tools", "config-1:apps.files"), ("self_described_tools", "config-1:apps.files"), SHELL_RISK}
@@ -46,7 +38,7 @@ class UnlistedSettingTests(ConfigCase):
                                      ("exclude_tmpdir_env_var", ("true", "false", '"yes"')))
                  for value in values]
         base = ON_REQUEST + 'sandbox_mode="read-only"\n'
-        app_settings = [("open_world_enabled", value) for value in ("true", "false", '"yes"')]
+        app_settings = [("open_world_enabled", value) for value in ("true", "false")]
         app_settings += [("approvals_reviewer", value) for value in ('"user"', '"auto_review"', '"guardian_subagent"', '"human"', "7")]
         for key, value in app_settings:
             cases.append((base + f"[apps.files]\n{key}={value}\n", APP_CATALOG, APP_RISKS))
@@ -60,9 +52,6 @@ class UnlistedSettingTests(ConfigCase):
                 self.assertEqual(report["inspection_gaps"], [])
 
     def test_active_writable_roots_give_a_gap_and_no_entry_or_risk(self):
-        # Issue #137: Codex adds each writable root to the folders sandboxed commands may write in workspace-write
-        # mode (openai/codex 086ccc8, core/src/config/mod.rs L3769-L3790); a list that is not a list of paths fails
-        # Codex's own parsing, whatever the mode.
         writable = ("config-1: sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
                     "workspace-write mode, some possibly outside the workspace; their paths were withheld and were "
                     "not evaluated.")
@@ -72,7 +61,6 @@ class UnlistedSettingTests(ConfigCase):
                              "sandbox_workspace_write.network_access": ["true", "inactive or selection unknown"]}
         cases = [(SANDBOX + 'writable_roots=["/var/run/docker.sock"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
                  (SANDBOX + 'writable_roots=["/srv/a", "/srv/b"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
-                 # A folder inside the project gets the same gap: the file alone can't place a folder.
                  (SANDBOX + 'writable_roots=["./inproject-logs"]\n', SANDBOX_CATALOG, SANDBOX_RISKS, [writable]),
                  (SANDBOX + "writable_roots=[]\n", SANDBOX_CATALOG, SANDBOX_RISKS, []),
                  (read_only + 'writable_roots=["/var/run/docker.sock"]\n', read_only_catalog, {SHELL_RISK}, [])]

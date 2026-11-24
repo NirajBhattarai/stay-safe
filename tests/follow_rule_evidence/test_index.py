@@ -11,8 +11,6 @@ from tests.support import ConfigCase, ROOT
 REPO = 'https://github.com/chalkbadger/stay-safe'
 REVISION = '1234567890abcdef1234567890abcdef12345678'
 CODEX = '/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/'
-# Rules whose incidents need a note on what they support (#144): the rules and incidents
-# the note links, and its external sources as (path, fragment).
 NOTES = {
     'network_access': {'rules': ['unrestricted_filesystem'], 'incidents': ['I15', 'I21'], 'external': []},
     'commands_without_prompts': {'rules': [], 'incidents': ['I2', 'I3'], 'external': [

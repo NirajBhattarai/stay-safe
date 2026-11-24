@@ -15,7 +15,26 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - My Codex folder reaches a skill folder by a short route and by a longer link, and I still see the skills under "Not checked". `test_skills_and_environments.py::test_a_skill_in_the_skills_folder_gives_the_gap_and_exits_2`
 - My Codex folder has an `environments.toml` that is a folder, and I see that under "Not checked". `test_skills_and_environments.py::test_environments_toml_that_is_not_a_file_gives_its_own_gap`
 - My skills folder is reached through a link I can't open, and I see that stay-safe could not check it. `test_skills_and_environments.py::test_permission_error_on_a_linked_skills_folder_reports_failure`
+- I see which named App has an invalid `open_world_enabled` boolean, and I can still review the other App's configured tools. `test_named_app_validation.py::test_invalid_open_world_flag_names_the_app_and_preserves_its_sibling`
+- When I quote an App boolean, both the load error and the fix tell me to write the boolean without quotes. `test_named_app_validation.py::test_markdown_explains_how_to_correct_a_quoted_boolean`
+- A malformed tool flag in a named App or its default template tells me Codex cannot load the file, and I can still review another App's configured settings. `test_named_app_validation.py::test_both_flags_reject_the_file_and_preserve_independent_app_settings`
+- I see why a named App is off alongside its App flag validation error. `test_named_app_validation.py::test_invalid_flag_on_a_disabled_app_keeps_the_off_reason_and_only_the_validation_gap`
+- I give a named App an invalid tool setting, and both reports name the field and drop the affected App's tool risks while preserving a valid sibling App's configured findings. `test_named_app_validation.py::test_app_tool_load_errors_name_the_field_in_both_formats`
+- I set a tool flag to an integer on an App or its tool and see a boolean load error. `test_named_app_validation.py::test_app_and_tool_flags_reject_integer_zero_and_one`
+- I set any supported approval mode on an App or its tool and see the selected mode in the catalog. `test_named_app_validation.py::test_app_and_tool_accept_each_codex_approval_mode`
+- I give a tool with a withheld name an invalid setting and see the load error or the configured off reason on the other tools in its App. `test_named_app_validation.py::test_withheld_invalid_tool_marks_all_public_tools_unloadable_unless_apps_are_off`
+- I give the default template an invalid approval mode and see the error on the template alongside a named App's explicit override. `test_named_app_validation.py::test_invalid_default_mode_is_attributed_to_its_declaration_and_an_independent_app_can_override_it`
+- I see a disabled App's malformed tool setting even when the report withholds the tool's name. `test_named_app_validation.py::test_disabled_app_reports_a_malformed_setting_when_its_tool_name_is_withheld`
 - I give `apps._default` an invalid value and see that the ChatGPT Apps connection says unknown for apps my file doesn't name, next to the invalid-value gap. `test_chatgpt_apps.py::test_invalid_template_leaves_apps_not_named_unknown_and_keeps_its_gap`
+- I set each Claude Code permission mode and see it listed, with `auto` under "Not checked". `test_claude_settings.py::test_each_permission_mode_is_listed_and_only_bypass_runs_without_asking`
+- I leave Claude Code's permission mode out or give it an invalid value and see that under "Not checked", not a guessed mode. `test_claude_settings.py::test_absent_and_invalid_modes_are_gaps_not_guesses`
+- I allow shell commands and web fetches in Claude Code and see each rule and the sandbox setting, without the rules' contents. `test_claude_settings.py::test_allow_rules_for_shell_commands_and_web_fetches`
+- I add Claude Code ask or deny rules and settings stay-safe doesn't read, and see them under "Not checked" without their values. `test_claude_settings.py::test_ask_and_deny_rules_and_uncovered_settings_are_gaps`
+- My Claude Code settings file is invalid, a symlink or missing, and I see that under "Not checked". `test_claude_settings.py::test_unreadable_files_give_a_gap_and_no_entries`
+- I see which Claude Code files were read even when every field in a parsed file is invalid. `test_claude_settings.py::test_read_summary_counts_parsed_files_even_when_all_fields_are_invalid`
+- I supply a malformed Claude permission or sandbox field and see the field named as a gap. `test_claude_settings.py::test_malformed_permission_lists_and_sandbox_fields_name_the_field`
+- I turn on sandboxing and see whether the file sets automatic Bash approval or leaves it to a version-dependent default. `test_claude_settings.py::test_sandbox_approval_is_version_dependent_only_when_enabled_and_unset`
+- I configure only an ask rule and see that its matches were not checked. `test_claude_settings.py::test_ask_only_rules_name_the_unchecked_list_without_a_finding`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
@@ -38,6 +57,9 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - I combine `danger-full-access` with `on-request` or `never` and see that ordinary commands, or MCP and app tool calls, can run without asking. `test_conditions.py::test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking`
 - I lose an incident citation and see the gap while the findings remain. `test_report.py::test_cli_reports_missing_incident_citation_and_preserves_safe_data`
 - I set an approval mode or `destructive_enabled = true` in `apps._default` and see its risk once, on the template, for apps my file doesn't name. `test_single_attribution.py::test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps`
+- I set Claude Code's `bypassPermissions`, or allow every shell command or web fetch, and see each warning tied to its setting and incidents. `test_claude_risks.py::test_each_claude_code_warning_names_its_rule_setting_and_incidents`
+- I see which Claude Code versions and file scopes limit the bypass setting in both JSON and Markdown. `test_claude_risks.py::test_bypass_finding_explains_file_scope_and_version_in_json_and_markdown`
+- I see competing ask or deny rules beside the allowance in the overview, details and JSON. `test_claude_risks.py::test_competing_permission_rules_are_visible_on_each_affected_finding`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
 Issue: https://github.com/chalkbadger/stay-safe/issues/12
@@ -51,6 +73,12 @@ Tests: [tests/findings_say_what_to_do/](../tests/findings_say_what_to_do/)
 - I follow the sandbox advice in a file with extra writable folders and see that the advice and the new report both tell me to review `writable_roots`. `test_what_to_do.py::test_following_the_sandbox_advice_with_writable_roots_leaves_them_to_review`
 - I combine a `danger-full-access` file with another file that sets `read-only`, and every finding on the first file suggests `read-only`; with `on-request`, it says ordinary commands can still run without asking. `test_what_to_do.py::test_full_access_advice_matches_the_read_only_edit_when_another_file_sets_read_only`
 - I get a finding from `apps._default` and its advice says it covers apps my file doesn't name. `test_what_to_do.py::test_app_template_findings_cover_apps_the_file_does_not_name`
+- I get advice for each Claude Code finding, naming the setting to change and how to check it. `test_claude_advice.py::test_each_claude_code_finding_says_what_to_change_where_and_how_to_check`
+- I see how to remove broad WebFetch access without adding sandbox hosts, with the versions that honor a domain wildcard. `test_claude_advice.py::test_all_domain_rule_gets_broad_advice_and_distinct_evidence`
+- I leave bypass mode in one Claude file and see which sandboxed Bash approvals can survive the edit. `test_claude_advice.py::test_switching_mode_explains_the_sandbox_approval_left_in_each_file`
+- I read the advice for leaving auto mode and see which sandboxed Bash commands can still run without a prompt. `test_claude_advice.py::test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit`
+- I see that the auto-mode edit applies to user settings when I select a Claude Code settings file. `test_claude_advice.py::test_auto_mode_edit_is_conditional_on_user_settings`
+- I run the environment Check with a variable whose value spans several lines and see only variable names. `test_what_to_do.py::test_environment_check_lists_variable_names_without_values`
 
 ## [runs_without_a_coding_agent] I can run stay-safe without an agent and get guidance if my Python is too old.
 Issue: https://github.com/chalkbadger/stay-safe/issues/3
@@ -65,6 +93,7 @@ Tests: [tests/runs_without_a_coding_agent/](../tests/runs_without_a_coding_agent
 Issue: https://github.com/chalkbadger/stay-safe/issues/82
 Tests: [tests/overview_lists_findings_first/](../tests/overview_lists_findings_first/)
 
+- I see the same two numbered lists in the Claude Markdown overview and saved page. `test_overview.py::test_claude_finding_groups_keep_numbered_lists_in_markdown_and_html`
 - I see every finding once in the documented order, with matching details. `test_overview.py::test_every_finding_appears_once_in_policy_order_with_matching_details`
 - I see how many findings concern network access, credentials, or connected tools when that group appears. `test_overview.py::test_network_credentials_and_tools_group_uses_topic_and_count`
 - I follow identical titles from different files and reach the correct details. `test_overview.py::test_two_files_with_the_same_title_keep_their_labels_and_each_link_reaches_its_own_finding`
@@ -78,6 +107,8 @@ Tests: [tests/share_without_exposing_secrets/](../tests/share_without_exposing_s
 - I inspect files containing private values and none appear in the report. `test_report.py::test_report_excludes_private_values`
 - I see names as written, with a reminder to check them before sharing. `test_report.py::test_names_are_shown_as_written_and_the_report_says_to_check_them`
 - I use names containing markup and the saved page shows text, not executable content or unintended links. `test_page.py::test_names_with_html_characters_are_shown_as_written_not_as_markup`
+- I inspect Claude Code settings containing commands, domains and environment values, and none appear in the report. `test_claude_report.py::test_claude_code_report_excludes_private_values`
+- The program names my report may show from a saved approval are exactly the list in the Codex meanings document. `test_rules_file.py::test_shown_program_names_are_the_list_in_the_meanings_document`
 
 ## [nothing_in_my_setup_changes] Running stay-safe leaves my setup unchanged; saving writes only the report.
 Issue: https://github.com/chalkbadger/stay-safe/issues/1
@@ -115,3 +146,19 @@ Tests: [tests/follow_rule_evidence/](../tests/follow_rule_evidence/)
 - I see each readable finding's rule linked at the report revision, or plain text when that revision is unknown. `test_index.py::test_readable_rule_links_follow_revision_and_unknown_stays_plain`
 - I find the index's search label configured on the challenge form, with the rule ID directed to its required finding field. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
 - I read what the `network_access` and `commands_without_prompts` citations support, with links to the incidents, rule, and sources the note names. `test_index.py::test_index_matches_rules_incidents_and_resolvable_links`
+
+## [check_every_installed_agent] I run one command and see a report for each coding agent I have installed, or choose one with `--agent`.
+Issue: https://github.com/chalkbadger/stay-safe/issues/163
+Tests: [tests/check_every_installed_agent/](../tests/check_every_installed_agent/)
+
+- I have Codex and Claude Code folders and one run reports both. `test_agents.py::test_default_run_reports_every_installed_agent`
+- I have only a Claude Code home and get only its report, even with account and extension files present. `test_agents.py::test_claude_only_home_keeps_just_its_report_even_with_account_and_extensions`
+- I configure a missing or invalid Claude folder and still see my Codex findings beside the Claude gap. `test_agents.py::test_bad_configured_claude_home_keeps_codex_findings_and_reports_gap`
+- I have an inaccessible Claude folder and see its gap alongside my Codex findings. `test_agents.py::test_inaccessible_claude_directory_keeps_the_other_report`
+- I have neither agent folder and see the Codex default assessment. `test_agents.py::test_neither_home_keeps_codex_defaults_and_any_explicit_claude_gap`
+- I select a Claude account or credential file as settings or saved rules and see it excluded before it is opened. `test_agents.py::test_selected_account_file_never_reaches_the_opener`
+- I have no Claude Code folder and see the same report as `--agent codex`. `test_agents.py::test_without_a_claude_folder_the_default_run_is_the_codex_report`
+- I choose `--agent claude` and see only the Claude Code report. `test_agents.py::test_agent_claude_reports_only_claude_code`
+- I set `CLAUDE_CONFIG_DIR` and see the settings in that folder. `test_agents.py::test_claude_config_dir_selects_the_claude_folder`
+- I choose `--agent claude` without a Claude Code folder and see that nothing was inspected. `test_agents.py::test_agent_claude_without_its_folder_says_nothing_was_inspected`
+- I pass a file with both agents chosen, or a rules file for Claude Code, and am told what to choose. `test_agents.py::test_selected_files_need_exactly_one_agent_and_rules_need_codex`

@@ -1,4 +1,3 @@
-"""Expected status explanation comes from stay-safe issue #18, not production text."""
 import io
 import json
 from unittest.mock import patch
@@ -13,7 +12,6 @@ COMPLETE = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\n'
 
 class StatusTests(ConfigCase):
     def test_stdio_header_helper_names_the_rejected_setting(self):
-        # Codex rust-v0.167.0, mcp_types.rs:513-548 (linked from issue #155).
         checkout = copy_checkout(self.root / "checkout")
         config = COMPLETE + 'shell_environment_policy.inherit="core"\n[mcp_servers."docs.local"]\n'
         command = 'command="private-server"\n'
@@ -43,8 +41,6 @@ class StatusTests(ConfigCase):
                         self.assertNotIn(private, run.stdout + human.stdout)
 
     def test_aws_credentials_name_each_unchecked_command(self):
-        # NirajBhattarai: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-7003842313
-        # openai/codex 086ccc8 codex-rs/model-provider-info/src/lib.rs L241–260, L308–324.
         checkout = copy_checkout(self.root / "checkout")
         quiet = COMPLETE + 'shell_environment_policy={inherit="none"}\nfeatures.apps=false\n'
         keys = ("credential_export", "auth_refresh")
@@ -83,7 +79,6 @@ class StatusTests(ConfigCase):
         self.assertEqual(control.returncode, 2)
         self.assertIn("a model provider's sign-in command", section(control.stdout, "Not checked"))
 
-        # The two providers in the second file each contribute a gap.
         malformed = self.config(quiet + '[model_providers.corp]\naws=false\n', "bad.toml")
         other = self.config(quiet + '[model_providers.first.aws.credential_export]\n'
                             '[model_providers.second.aws.auth_refresh]\n')

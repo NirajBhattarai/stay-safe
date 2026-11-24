@@ -53,14 +53,14 @@ the JSON report keeps its own order.
 
 | Group | Heading in the report | Rule | Reported incidents |
 | --- | --- | --- | --- |
-| 1 | Nothing stands between a mistaken or injected instruction and your computer | `unrestricted_filesystem` | [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped) |
+| 1 | Nothing stands between a mistaken or injected instruction and your computer | `unrestricted_filesystem` | [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped), [I32](../incidents.md#i32-powershell-cleanup-deleted-files-in-the-home-directory) |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `commands_without_prompts` | [I2](../incidents.md#i2-home-directory-added-to-a-delete-command), [I3](../incidents.md#i3-windows-drive-wiped), [I24](../incidents.md#i24-driver-update-followed-by-boot-and-network-failures) |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `saved_approval` | [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces), [I30](../incidents.md#i30-railway-credentials-printed-in-a-claude-code-transcript) |
 | 2 | Network access, credentials, and connected tools | `destructive_tools` | [I7](../incidents.md#i7-production-volumes-deleted-with-a-found-token), [I8](../incidents.md#i8-database-changes-after-an-order-to-stop) |
 | 2 | Network access, credentials, and connected tools | `network_access` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets) |
 | 2 | Network access, credentials, and connected tools | `environment_inheritance` | [I23](../incidents.md#i23-production-tables-dropped-by-a-dev-only-migration-command) |
 | 2 | Network access, credentials, and connected tools | `automatic_tools` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I20](../incidents.md#i20-injected-text-turned-off-approvals) |
-| 3 | Something else has to be tampered with first | `configured_program` | [I13](../incidents.md#i13-repository-settings-run-commands-on-collaborators-machines), [I14](../incidents.md#i14-readme-injection-bypassed-a-command-allowlist), [I19](../incidents.md#i19-worm-persisted-through-agent-startup-hooks) |
+| 3 | Something else has to be tampered with first | `configured_program` | [I13](../incidents.md#i13-repository-settings-run-commands-on-collaborators-machines), [I14](../incidents.md#i14-readme-injection-bypassed-a-command-allowlist), [I19](../incidents.md#i19-worm-persisted-through-agent-startup-hooks), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) |
 | Not ranked | Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. That does not make them minor. | `self_described_tools` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets) |
 
 ## Entry IDs
@@ -78,6 +78,14 @@ A last line names the stay-safe commit and
 report format. In a release zip, which has no Git history, the commit is read from
 `stay_safe/release.txt`, which GitHub fills in when it builds the zip, and is marked
 "(release archive)".
+
+stay-safe reads the commit from Git's own files ([repository layout](https://git-scm.com/docs/gitrepository-layout))
+without running Git. It follows a symbolic `HEAD` only to a ref name that
+[`git check-ref-format`](https://git-scm.com/docs/git-check-ref-format) accepts. Git trims only ASCII whitespace
+when it reads `HEAD` ([Git 2.43.0](https://github.com/git/git/blob/564d0252ca632e0264ed670534a51d18a689ef5d/refs/files-backend.c#L456)),
+so other control characters stay in the name. `git archive` fills in `release.txt` through its
+[`export-subst` attribute](https://git-scm.com/docs/gitattributes/2.43.0#_export_subst), which replaces
+`$Format:%H$` with the commit.
 
 ## Configuration names
 
