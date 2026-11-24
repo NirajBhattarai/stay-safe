@@ -44,6 +44,14 @@ from the repository root.
 Contributor test-runner checks live in `tests/test_development_check.py`, outside
 the product-claim folders.
 
+stay-safe's Python code has no comments or docstrings, and the development tests
+fail on any. Put what a comment would say here instead:
+
+- A fact about Codex or Claude Code: `harnesses/codex.md` or
+  `harnesses/claude-code.md`, with its source at the pinned revision.
+- stay-safe's own behaviour: a test whose name states it.
+- Reasons and history: the issue or pull request.
+
 For stay-safe's own PRs, a passing [check](.github/workflows/checks.yml) on the PR's
 latest push replaces the
 [verification procedure](https://github.com/chalkbadger/wirth/blob/main/docs/workflow.md#record-execution-results);
