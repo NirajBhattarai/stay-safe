@@ -40,7 +40,7 @@ def public_name(value, tool=False):
                and not p.lower().startswith(("sk-", "ghp_", "github_pat_")) for p in pieces)
 
 
-def app_tool_setting(table, parts, key, default, errors):
+def app_tool_setting(table, path, key, default, errors):
     """Read a declared setting; its load error survives a disabled App's policy-gap suppression."""
     if key not in table:
         return default
@@ -53,7 +53,7 @@ def app_tool_setting(table, parts, key, default, errors):
         if isinstance(value, str) and value in APPROVALS:
             return value
         reason = "is not one of auto, prompt, writes, approve"
-    errors.append(f"Codex cannot load this configuration file because {config_name([*parts, key])} {reason}.")
+    errors.append(f"Codex cannot load this configuration file because {path}.{key} {reason}.")
     return UNKNOWN
 
 
@@ -91,11 +91,13 @@ class Reader:
             return None
         return value
 
-    def named(self, table, label):
+    def named(self, table, label, *, include_withheld=False):
         for name, value in table.items():
             if not public_name(name, tool=label == "tools"):
                 self.gap(f"{label} contains a name that cannot be included in a shareable report.")
-                continue
+                if not include_withheld or not isinstance(value, dict):
+                    continue
+                name = None
             if not isinstance(value, dict):
                 self.gap(f"{label} contains an entry that is not a table.")
                 continue
@@ -264,11 +266,13 @@ class Reader:
                                                for config in tool_tables(app).values())
         observations, facts = self.tool_approval(mode, enabled is True and applies, "tool")
         if "tools" in app and name != "_default":
-            for tool, config in self.named(self.table(app["tools"], "tools"), "tools"):
+            for tool, config in self.named(self.table(app["tools"], "tools"), "tools", include_withheld=True):
+                path = config_name(["apps", name, "tools"]) + "." + (config_name([tool]) if tool is not None else "*")
+                tool_enabled = app_tool_setting(config, path, "enabled", tools_enabled, load_errors)
+                override = app_tool_setting(config, path, "approval_mode", None, load_errors)
+                if tool is None:
+                    continue
                 self.unknown(config, {"approval_mode", "enabled"}, "tools")
-                parts = ["apps", name, "tools", tool]
-                tool_enabled = app_tool_setting(config, parts, "enabled", tools_enabled, load_errors)
-                override = app_tool_setting(config, parts, "approval_mode", None, load_errors)
                 available = tool_enabled is True and enabled is True
                 self.tool(["apps", name], tool, override, mode, available, available and config.get("enabled") is True,
                           off_reason)
@@ -304,9 +308,9 @@ class Reader:
             tools_enabled = True
             mode = settings.get("default_tools_approval_mode")
             if not template:
-                parts = ["apps", name]
-                tools_enabled = app_tool_setting(app, parts, "default_tools_enabled", True, load_errors)
-                mode = app_tool_setting(app, parts, "default_tools_approval_mode", mode, load_errors)
+                path = config_name(["apps", name])
+                tools_enabled = app_tool_setting(app, path, "default_tools_enabled", True, load_errors)
+                mode = app_tool_setting(app, path, "default_tools_approval_mode", mode, load_errors)
             obs = [off_reason or ("configured enabled" if enabled is True else "disabled" if enabled is False else "enablement unknown")]
             if tools_enabled is not True:
                 obs.append("default tools disabled or unknown")

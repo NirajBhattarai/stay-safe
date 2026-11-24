@@ -815,7 +815,7 @@ def lookup(table, message):
         return table[message]
     for key, text in table.items():
         if "{label}" in key:
-            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r'([\w./"-]+)'), message)
+            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r'([\w./"*-]+)'), message)
             if found:
                 return text.replace("{label}", found[1])
     return None
