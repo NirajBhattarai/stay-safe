@@ -79,3 +79,34 @@ class NamedAppValidationTests(ConfigCase):
                     self.assertIn("Codex cannot load this configuration file", entry["observations"])
                     self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]],
                                      [("config-1:apps.notes", "automatic_tools")])
+
+    def test_app_tool_load_errors_name_the_field_in_both_formats(self):
+        # Codex rust-v0.167.0, codex-rs/config/src/types.rs (AppConfig and AppToolConfig).
+        checkout = copy_checkout(self.root / "checkout")
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\n'
+        for field, reason, control in (
+            ("default_tools_enabled", "is not a boolean", "false"),
+            ("default_tools_approval_mode", "is not one of auto, prompt, writes, approve", '"prompt"'),
+            ("tools.delete.enabled", "is not a boolean", "false"),
+            ("tools.delete.approval_mode", "is not one of auto, prompt, writes, approve", '"prompt"'),
+        ):
+            message = f"Codex cannot load this configuration file because apps.cal.{field} {reason}."
+            for enabled in ("false", "true"):
+                for value in ('"yes"', control):
+                    path = self.config(top + f"enabled={enabled}\n{field}={value}\n")
+                    for fmt in ("json", "markdown"):
+                        with self.subTest(field=field, enabled=enabled, value=value, fmt=fmt):
+                            run = run_checkout(checkout, "--config", str(path), "--format", fmt, cwd=self.root)
+                            invalid = value != control
+                            self.assertEqual(run.returncode, 2 if invalid else 0)
+                            self.assertNotRegex(run.stdout + run.stderr, r"\byes\b")
+                            if fmt == "markdown":
+                                self.assertIn(message if invalid else "0 things not checked", run.stdout)
+                                continue
+                            report = json.loads(run.stdout)
+                            self.assertEqual(report["inspection_gaps"], ["config-1: " + message] if invalid else [])
+                            if enabled == "false":
+                                app = next(row for row in report["catalog"] if row["name"] == "apps.cal")
+                                self.assertIn("disabled", app["observations"])
+                                self.assertFalse(any(risk["entry"].startswith("config-1:apps.cal")
+                                                     for risk in report["risks"]))
