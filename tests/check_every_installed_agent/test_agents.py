@@ -1,10 +1,3 @@
-"""A default run reports every coding agent whose folder exists; --agent selects them (issue #163).
-
-Claude Code keeps user settings in ~/.claude/settings.json, and CLAUDE_CONFIG_DIR moves that folder
-(https://code.claude.com/docs/en/settings, "Settings files and who they affect" and "Find or create your settings
-files"). Codex keeps its settings in ~/.codex/config.toml, as tests/see_every_connection_and_setting/test_home.py cites.
-"""
-
 import json
 import os
 from contextlib import redirect_stderr, redirect_stdout
@@ -34,7 +27,6 @@ class AgentSelectionTests(ConfigCase):
         status, report = self.json_run(home)
         self.assertEqual([part["harness"] for part in report["reports"]], ["Codex", "Claude Code"])
         codex, claude = report["reports"]
-        # Exit status 2 means some report has a gap, whichever agent it belongs to.
         self.assertEqual(status, 2 if codex["inspection_gaps"] or claude["inspection_gaps"] else 0)
         self.assertIn(("config-1:approval_policy", "commands_without_prompts"),
                       {(risk["entry"], risk["rule"]) for risk in codex["risks"]})
@@ -124,7 +116,6 @@ class AgentSelectionTests(ConfigCase):
 
     def test_selected_account_file_never_reaches_the_opener(self):
         home = agent_home(self.root)
-        # The reserved names are identified before any file is opened, including on the default Codex route.
         for args in (("--config",), ("--agent", "codex", "--config"), ("--agent", "claude", "--config"), ("--rules",)):
             for name in (".claude.json", ".credentials.json"):
                 with self.subTest(args=args, name=name), patch("os.open", side_effect=FileNotFoundError) as opener, \

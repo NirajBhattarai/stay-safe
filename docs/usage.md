@@ -116,14 +116,17 @@ then one last line with a command that opens the page: `open '<path>'` on macOS,
 read the formatted report in your browser; stay-safe doesn't run it. Attach the file to
 share it; the last line names the saved location, so leave it out when you share the
 printed report. The page has the same content as the Markdown
-report, and no scripts or network requests. It is the only file stay-safe's code writes,
+report, and no scripts or network requests: it uses only document structure, text and link
+elements ([HTML element index](https://html.spec.whatwg.org/multipage/indices.html#elements-3)), and its headings
+carry the [anchors GitHub gives them](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links), so the report's own links work on the page. It is the only file stay-safe's code writes,
 and only with `--save`; Python itself may cache compiled code in `stay_safe/__pycache__`. If the page can't be written, for example in a read-only sandbox,
 stay-safe says so in one line and prints the report. `--save` can't be combined
 with `--format json`.
 
 ## Symlinks
 
-A symlinked configuration or rules file is refused and reported as an inspection gap.
+A symlinked configuration or rules file is refused and reported as an inspection gap. stay-safe opens each file
+with `O_NOFOLLOW`, which [fails when the last part of the path is a link](https://pubs.opengroup.org/onlinepubs/9799919799/functions/open.html).
 
 ## Platforms
 

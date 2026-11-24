@@ -1,8 +1,3 @@
-"""Read selected Claude Code settings files without executing their configuration.
-
-The meanings are in harnesses/claude-code.md; each one cites the Claude Code documentation it rests on.
-"""
-
 import json
 import os
 import re
@@ -11,26 +6,20 @@ import stat
 from .codex import MAX_BYTES, Reader, exclude_account_files, open_input
 from .codex_rules import PROGRAMS
 
-# https://code.claude.com/docs/en/permissions, "Permission modes"; `manual` is the CLI's alias for `default`
-# (https://code.claude.com/docs/en/permission-modes, "Available modes").
 MODES = {"default", "manual", "acceptEdits", "plan", "auto", "dontAsk", "bypassPermissions"}
 PERMISSIONS = {"allow", "ask", "deny", "defaultMode"}
 SANDBOX = {"enabled", "autoAllowBashIfSandboxed"}
-# Settings that change how Claude Code looks or which model it uses, not what it may do; skipped without a gap.
 PREFERENCES = {"$schema", "model", "theme", "language", "verbose", "outputStyle", "editorMode", "tui", "viewMode",
                "alwaysThinkingEnabled", "effortLevel", "autoUpdatesChannel", "cleanupPeriodDays", "timeFormat",
                "timeZone", "prefersReducedMotion", "showTurnDuration", "terminalProgressBarEnabled",
                "spinnerTipsEnabled", "autoCompactEnabled", "fastMode", "feedbackSurveyRate", "spellcheck",
                "syntaxHighlightingDisabled", "vimInsertModeRemaps", "keybindingFlavor", "maxProseWidth",
                "showThinkingSummaries", "autoScrollEnabled", "copyOnSelect", "emojiCompletionEnabled"}
-# Documented settings the report may name when they are outside reader coverage
-# (https://code.claude.com/docs/en/settings-reference, "Settings index"). Other names are withheld.
 NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper", "awsAuthRefresh",
          "awsCredentialExport", "deniedMcpServers", "disableAllHooks", "disableAutoMode", "disabledMcpjsonServers",
          "enableAllProjectMcpServers", "enabledMcpjsonServers", "enabledPlugins", "env", "extraKnownMarketplaces",
          "gcpAuthRefresh", "hooks", "otelHeadersHelper", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
          "skipDangerousModePermissionPrompt", "sshConfigs", "sshHostCommands", "statusLine", "worktree"}
-# A rule is a tool name with an optional specifier in parentheses (permissions page, "Permission rule syntax").
 RULE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)(?:\((.*)\))?", re.DOTALL)
 UNREADABLE = "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld."
 
@@ -89,10 +78,10 @@ class SettingsReader(Reader):
         keys = ["permissions", "allow", str(number)]
         if found and found[1] == "Bash":
             spec = (found[2] or "").strip()
-            if spec in ("", "*"):  # `Bash` and `Bash(*)` match every command.
+            if spec in ("", "*"):
                 self.add(keys, "allow rule", ["tool: Bash", "broad: every command", *overrides], {"saved_approval": True})
                 return
-            first = re.split(r"[\s:]", spec, maxsplit=1)[0]  # `Bash(git:*)` and `Bash(git push *)` start with git.
+            first = re.split(r"[\s:]", spec, maxsplit=1)[0]
             observations = ["tool: Bash"]
             if first in PROGRAMS:
                 observations.append(f"program: {first}")
@@ -131,7 +120,6 @@ class SettingsReader(Reader):
 
 
 def invalid_json_constant(token):
-    """NaN and infinity are accepted by Python but are not numbers in a JSON settings file."""
     raise ValueError("Invalid JSON number")
 
 

@@ -27,7 +27,6 @@ class PublishedMeaningTests(ConfigCase):
         keys = [(case["setting"], case["value"]) for case in fixtures]
         self.assertEqual(len(keys), len(set(keys)))
         self.assertEqual(set(keys), set(rows), "Every meaning needs a fixture, and every fixture needs a meaning.")
-        # Every fixture shares one baseline, whose expected entries are these rows.
         baseline = [('approval_policy="on-request"', ("approval_policy", "on-request")),
                     ('sandbox_mode="read-only"', ("sandbox_mode", "read-only")),
                     (None, ("shell_environment_policy", "omitted"))]

@@ -1,12 +1,3 @@
-"""Each Claude Code finding says what to change, where, and how to check (issue #163).
-
-The advice follows the Claude Code docs: `default` "Prompts before most edits, shell commands, and network requests"
-(https://code.claude.com/docs/en/permissions, "Permission modes"); `WebFetch(domain:example.com)` "Matches fetch
-requests to example.com" (same page, "Use specifiers for fine-grained control"); a `--permission-mode` flag and managed
-settings take precedence over user settings (https://code.claude.com/docs/en/permission-modes, "Which mode a session
-starts in"; https://code.claude.com/docs/en/settings, "Settings precedence").
-"""
-
 import json
 import re
 
@@ -18,7 +9,6 @@ SETTINGS = ('{"permissions": {"defaultMode": "bypassPermissions", "allow": ["Bas
 
 class ClaudeAdviceTests(ConfigCase):
     def test_auto_mode_edit_is_conditional_on_user_settings(self):
-        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1144-L1151
         settings = '{"permissions":{"defaultMode":"auto"}}'
         home = agent_home(self.root, claude=settings)
         project = self.root / "project" / ".claude"
@@ -95,7 +85,6 @@ class ClaudeAdviceTests(ConfigCase):
                 self.assertNotIn("private.example", text)
 
     def test_switching_mode_explains_the_sandbox_approval_left_in_each_file(self):
-        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1368
         home = agent_home(self.root)
         args = ["--agent", "claude"]
         paths = []
@@ -108,7 +97,7 @@ class ClaudeAdviceTests(ConfigCase):
             args.extend(("--config", str(path)))
             paths.append(path)
         report = run_home(home, *args)
-        self.assertEqual(report.returncode, 2)  # The third file omits auto-approval and the fifth has an invalid value.
+        self.assertEqual(report.returncode, 2)
         findings = items(section(report.stdout, "Claude Code findings").split("\n\n", 1)[1])
         self.assertEqual(len(findings), 5)
         self.assertIn("autoAllowBashIfSandboxed", findings[0])
@@ -123,7 +112,6 @@ class ClaudeAdviceTests(ConfigCase):
         for i, (finding, risk) in enumerate(zip(findings, encoded["risks"], strict=True)):
             self.assertIn(f"<settings-{i + 1}>", finding)
             self.assertIn(risk["explanation"], finding)
-        # Apply the mode edit. The same file still explicitly selects sandbox auto-approval.
         selected = json.loads(paths[0].read_text())
         selected["permissions"]["defaultMode"] = "default"
         paths[0].write_text(json.dumps(selected))
@@ -133,7 +121,6 @@ class ClaudeAdviceTests(ConfigCase):
                       [(e["name"], e["observations"]) for e in after["catalog"]])
 
     def test_auto_mode_advice_identifies_bash_auto_approval_that_survives_the_edit(self):
-        # https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L1359-L1368
         home = agent_home(self.root)
         settings = {"permissions": {"defaultMode": "auto"},
                     "sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}

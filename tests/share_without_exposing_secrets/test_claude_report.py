@@ -1,5 +1,3 @@
-"""Claude Code reports withhold commands, addresses and values in every format (issue #163)."""
-
 import io
 import json
 from contextlib import redirect_stderr, redirect_stdout

@@ -1,9 +1,6 @@
 from stay_safe.report import inspect
 from tests.support import CHATGPT_APPS, ConfigCase
 
-# Approval expectations: ../../harnesses/codex.md, documented in source at
-# openai/codex@086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a.
-
 
 BASE = 'approval_policy="on-request"\nsandbox_mode="read-only"\n'
 DEFAULTS = ['inherit: all (default)', 'ignore_default_excludes: true (default)']
@@ -27,7 +24,6 @@ class ConfiguredConditionTests(ConfigCase):
         return report
 
     def assert_silent(self, text, catalog, gaps):
-        """A negative case shows its whole result, so a configuration rejected for another reason fails."""
         report = self.assert_risks(text, [])
         self.assertEqual({e['name']: e['observations'] for e in report['catalog']}, {**BASE_CATALOG, **catalog})
         self.assertEqual(report['inspection_gaps'], gaps)
@@ -49,10 +45,6 @@ class ConfiguredConditionTests(ConfigCase):
         }, PROFILE_GAPS)
 
     def test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking(self):
-        # Issue #141. With an unrestricted sandbox, on-request allows every command Codex does not flag as dangerous
-        # (openai/codex 086ccc8, core/src/exec_policy.rs L857-L864; the flag covers forced deletes,
-        # shell-command/src/command_safety/is_dangerous_command.rs), and never approves every MCP and app tool call
-        # whatever its approval mode (codex-mcp/src/mcp/mod.rs L91-L110, core/src/mcp_tool_call.rs L1577-L1588).
         commands = "with danger-full-access, ordinary commands can run without asking"
         tools = "with danger-full-access, MCP and app tool calls can run without asking"
         full = 'sandbox_mode="danger-full-access"\n'
@@ -68,7 +60,6 @@ class ConfiguredConditionTests(ConfigCase):
             ('approval_policy="never"\n' + full + server + apps_off,
              [("commands_without_prompts", "approval_policy"), ("automatic_tools", "approval_policy"),
               ("self_described_tools", "mcp_servers.r"), ("unrestricted_filesystem", "sandbox_mode")], ["never", tools]),
-            # Controls: no tools to call, a disabled server, and a sandbox that is not full access.
             ('approval_policy="never"\n' + full + apps_off,
              [("commands_without_prompts", "approval_policy"), ("unrestricted_filesystem", "sandbox_mode")], ["never"]),
             ('approval_policy="never"\n' + full + server + 'enabled=false\n' + apps_off,
@@ -81,7 +72,6 @@ class ConfiguredConditionTests(ConfigCase):
                 report = self.assert_risks(text, expected)
                 self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "approval_policy"],
                                  [approval])
-        # A selected permission profile may replace the sandbox, so neither combination is assumed.
         for approval in ("never", "on-request"):
             with self.subTest(approval=approval, profile=True):
                 report = self.assert_risks(f'approval_policy="{approval}"\n' + full + 'default_permissions=":read-only"\n',
@@ -89,7 +79,6 @@ class ConfiguredConditionTests(ConfigCase):
                 self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "approval_policy"], [[approval]])
 
     def test_program_rule_requires_a_configured_enabled_command(self):
-        # Event names: openai/codex@086ccc8, codex-rs/protocol/src/hooks.rs L113-L137.
         events = ("PreModelRequest", "PostModelRequest", "PreToolUse", "PermissionRequest", "PostToolUse",
                   "PreCompact", "PostCompact", "SessionStart", "SessionEnd", "UserPromptSubmit",
                   "SubagentStart", "SubagentStop", "Stop", "Interrupt")
@@ -131,11 +120,6 @@ class ConfiguredConditionTests(ConfigCase):
                             'configured enabled' if enabled else 'disabled', 'HTTP; endpoint withheld', f'tool approval: {approval}']}, [])
         for tail, expected in [
             ('[apps.files]\ndefault_tools_approval_mode="approve"', [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files")]),
-            # apps._default.enabled disables no named app (archived issue #90): a named app's `enabled` defaults to true and
-            # is read before the template (openai/codex@086ccc8, rust-v0.167.0, codex-rs/config/src/types.rs
-            # L537-L540, codex-rs/connectors/src/app_tool_policy.rs L174-L185), as the recorded Codex 0.167.0 run
-            # shows (https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6726050010, cases A and C).
-            # The app still inherits the template's approval mode (app_tool_policy.rs L255-L270 at 086ccc8).
             (TEMPLATE_OFF + '[apps.files]', [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files")]),
         ]:
             with self.subTest(tail=tail):
@@ -144,7 +128,6 @@ class ConfiguredConditionTests(ConfigCase):
         for tail, catalog in [
             ('[apps.files]\nenabled=false\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true',
              {'apps.files': ['disabled', 'tool approval: approve']}),
-            # The app's own enabled = false stops the risks it would inherit (run case B).
             (TEMPLATE_OFF + '[apps.files]\nenabled=false',
              {'apps._default': template_off, 'apps.files': template_off,
               'features.apps': CHATGPT_APPS[:3] + ['apps not named in this file: disabled by apps._default.enabled']}),
@@ -159,10 +142,6 @@ class ConfiguredConditionTests(ConfigCase):
                 self.assert_silent(BASE + tail, catalog, [])
 
     def test_preapproved_mcp_tool_stops_when_its_server_or_lists_make_it_unavailable(self):
-        # harnesses/codex.md rows mcp_servers.*.enabled `false`, mcp_servers.*.enabled_tools and
-        # mcp_servers.*.tools.*.approval_mode `approve`; Codex 086ccc8 codex-rs/codex-mcp/src/tools.rs
-        # L63-L95 (an allowlist, even empty, permits only its names) and codex-rs/config/src/mcp_types.rs
-        # L243-L245 (a disabled server is not started), L292-L297 (each list is a list of strings).
         tool = '\n[mcp_servers.remote.tools.read]\napproval_mode="approve"'
         for setting, gaps in [
             ('enabled_tools=["read", 7]', ['config-1: A tool allow/deny list is invalid; tool availability is unknown.']),

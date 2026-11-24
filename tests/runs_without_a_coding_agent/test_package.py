@@ -1,4 +1,3 @@
-"""Build and run the artifacts outside the source tree, with no network access."""
 import json
 import os
 from pathlib import Path
@@ -98,7 +97,6 @@ class PackageTests(unittest.TestCase):
             self.assertEqual([r['rule'] for r in corrupt_result['risks']], [r['rule'] for r in expected['risks']])
             self.assertTrue(all(r['rule_source'] is None for r in corrupt_result['risks']))
             self.assertNotIn('private-invalid-stamp', corrupt.stdout + corrupt.stderr)
-            # `build` builds its wheel from the sdist by default: this also checks the source distribution.
             with tarfile.open(next((source / 'dist').glob('*.tar.gz'))) as archive:
                 names = archive.getnames()
                 self.assertTrue(any(n.endswith('/harnesses/claude-code.md') for n in names))

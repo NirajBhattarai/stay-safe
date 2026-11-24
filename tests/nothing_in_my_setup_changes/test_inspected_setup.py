@@ -24,10 +24,9 @@ class InspectedSetupTests(ConfigCase):
         for path in (config, rules):
             path.chmod(0o640)
             os.utime(path, ns=(1_000_000_000_000_000_000, 1_000_000_000_000_000_000))
-        # The checkout is outside the home and working directories; with --save it gains its report file.
         checkout = copy_checkout(self.root / "checkout")
         env = {"HOME": str(home)}
-        self.require_no_system_folder()  # the absent-default cases are default runs
+        self.require_no_system_folder()
         cases = [
             ("explicit config", ["--config", str(config)], [config], 0, "\n- MCP server `lookup`: on,"),
             ("rules file", ["--rules", str(rules)], [rules], 0, "rules-1:prefix_rule.1"),
