@@ -21,15 +21,15 @@ follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
 the commands below. No agent is needed:
 
 ```sh
-git clone --branch v0.2.4 https://github.com/chalkbadger/stay-safe.git
+git clone --branch v0.3.0 https://github.com/chalkbadger/stay-safe.git
 cd stay-safe
 python3 -m stay_safe
 ```
 
-Without Git, [download the v0.2.4 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.4.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.2.4` folder, then run:
+Without Git, [download the v0.3.0 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.3.0.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.3.0` folder, then run:
 
 ```sh
-cd stay-safe-0.2.4
+cd stay-safe-0.3.0
 python3 -m stay_safe
 ```
 
@@ -38,10 +38,10 @@ By default it reads `~/.codex/config.toml` (`$CODEX_HOME/config.toml` when `CODE
 ## Run with uv
 
 If you already use [uv](https://docs.astral.sh/uv/), run the
-[published 0.2.4 package](https://pypi.org/project/stay-safe/0.2.4/):
+[published 0.3.0 package](https://pypi.org/project/stay-safe/0.3.0/):
 
 ```sh
-uvx --python 3.11 stay-safe@0.2.4
+uvx --python 3.11 stay-safe@0.3.0
 ```
 
 The command asks uv for Python 3.11, downloading it if needed; your system Python
@@ -53,7 +53,7 @@ The clone and ZIP routes above do not require uv.
 Paste this into Codex in the ChatGPT app or the CLI:
 
 ```text
-Download stay-safe at tag v0.2.4 from https://github.com/chalkbadger/stay-safe into
+Download stay-safe at tag v0.3.0 from https://github.com/chalkbadger/stay-safe into
 a new temporary folder and run `python3 -m stay_safe` there. First identify where
 your execution tools run and which environment you will inspect. If my intended
 configuration is unavailable there, stop and explain. If Python is too old or missing,
