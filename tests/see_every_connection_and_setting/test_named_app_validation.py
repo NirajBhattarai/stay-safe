@@ -110,3 +110,21 @@ class NamedAppValidationTests(ConfigCase):
                                 self.assertIn("disabled", app["observations"])
                                 self.assertFalse(any(risk["entry"].startswith("config-1:apps.cal")
                                                      for risk in report["risks"]))
+
+    def test_disabled_app_reports_a_malformed_setting_when_its_tool_name_is_withheld(self):
+        checkout = copy_checkout(self.root / "checkout")
+        top = ('approval_policy="on-request"\nsandbox_mode="read-only"\n[apps.cal]\nenabled=false\n'
+               '[apps.cal.tools."user@example.invalid"]\n')
+        for value, status in (('"private-value"', 2), ('false', 0)):
+            path = self.config(top + f"enabled={value}\n")
+            for fmt in ("json", "markdown"):
+                with self.subTest(value=value, fmt=fmt):
+                    run = run_checkout(checkout, "--config", str(path), "--format", fmt, cwd=self.root)
+                    self.assertEqual(run.returncode, status)
+                    self.assertNotIn("user@example.invalid", run.stdout + run.stderr)
+                    self.assertNotIn("private-value", run.stdout + run.stderr)
+                    message = "Codex cannot load this configuration file because apps.cal.tools.*.enabled is not a boolean."
+                    if fmt == "json":
+                        self.assertEqual(json.loads(run.stdout)["inspection_gaps"], ["config-1: " + message] if status else [])
+                    elif status:
+                        self.assertIn(message, run.stdout)
