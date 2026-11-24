@@ -101,6 +101,7 @@ Two challenges help improve the report. Show us a risk it missed, or a warning
 it gave even though the settings already block the action it describes.
 
 Use the [challenge form](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml) to submit the finding, revision, disputed claim and evidence.
+Read [past challenges and their outcomes](https://github.com/chalkbadger/stay-safe/issues/211#issuecomment-7147613949).
 
 ## Why stay-safe exists
 
