@@ -571,6 +571,12 @@ GAPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
+    **{message: f"**{message}** Findings for other entries describe settings written in the file."
+       for message in (
+           "Codex cannot load this configuration file because {label}.enabled is not a boolean.",
+           "Codex cannot load this configuration file because {label}.default_tools_enabled is not a boolean.",
+           "Codex cannot load this configuration file because {label} is not one of auto, prompt, writes, approve.",
+       )},
     "Codex cannot load this configuration file because {label} is not a boolean.":
         "**Codex cannot load this configuration file.** `{label}` must be true or false. "
         "Findings for other entries describe settings written in the file.",
@@ -736,6 +742,8 @@ STEPS = {
         "To keep using stdio, remove `http_headers_helper` from this server's settings.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
+    "Codex cannot load this configuration file because {label} is not one of auto, prompt, writes, approve.":
+        'Set `{label}` to `"auto"`, `"prompt"`, `"writes"` or `"approve"`.',
     "Codex cannot load this configuration file because {label} is not a boolean.":
         "Set `{label}` to `true` or `false`.",
     "Model-provider command-backed authentication is outside reader coverage.":
@@ -807,7 +815,7 @@ def lookup(table, message):
         return table[message]
     for key, text in table.items():
         if "{label}" in key:
-            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r"([\w./-]+)"), message)
+            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r'([\w./"-]+)'), message)
             if found:
                 return text.replace("{label}", found[1])
     return None
