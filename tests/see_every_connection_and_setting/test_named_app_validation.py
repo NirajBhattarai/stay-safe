@@ -58,3 +58,23 @@ class NamedAppValidationTests(ConfigCase):
                 self.assertEqual(report["inspection_gaps"],
                                  ["config-1: App calendar sets open_world_enabled to a non-boolean value."])
                 self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]], expected_risks)
+
+    def test_both_flags_reject_the_file_and_preserve_independent_app_settings(self):
+        checkout = copy_checkout(self.root / "checkout")
+        top = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
+        sibling = '[apps.notes]\ndestructive_enabled=false\ndefault_tools_approval_mode="approve"\n'
+        for name in ("calendar", "_default"):
+            for field in ("open_world_enabled", "destructive_enabled"):
+                with self.subTest(name=name, field=field):
+                    path = self.config(top + f'[apps.{name}]\n{field}="false"\ndefault_tools_approval_mode="approve"\n'
+                                       + sibling)
+                    run = run_checkout(checkout, "--agent", "codex", "--config", str(path),
+                                       "--format", "json", cwd=self.root)
+                    report = json.loads(run.stdout)
+                    self.assertEqual(run.returncode, 2)
+                    self.assertEqual(report["inspection_gaps"],
+                                     [f"config-1: Codex cannot load this configuration file because apps.{name}.{field} is not a boolean."])
+                    entry = next(row for row in report["catalog"] if row["name"] == f"apps.{name}")
+                    self.assertIn("Codex cannot load this configuration file", entry["observations"])
+                    self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]],
+                                     [("config-1:apps.notes", "automatic_tools")])
