@@ -104,7 +104,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `model_providers.*.auth` | `command-backed authentication` | Command-backed provider authentication is outside reader coverage. This row covers the provider’s `auth` command. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [schema] | open |
 | `model_providers.*.aws` | `credential commands` | Each `credential_export` or `auth_refresh` setting present is named as unchecked, whether or not the file selects the provider. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [provider-auth] | documented in source |
 | `notify` | `command list with nonempty program` | Notifications may spawn a configured external command; its contents are withheld. Catalog: `notification command configured; command withheld`. Rules: `configured_program`. Gap: no. | [notify-program] | documented in source |
-| `hooks.*` | `command handler with nonempty command` | Codex runs a `type = "command"` handler whose command is not empty, in every matcher group of every [event][hook-events], whatever its [matcher][hook-matcher] or [options][hook-handlers] such as `timeout`; trust and enablement in `hooks.state` are uninspected. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
+| `hooks.*` | `command handler with nonempty command` | Codex runs a `type = "command"` handler whose command is not empty, in each matcher group of each [event][hook-events] whose matcher is a valid pattern ([groups][hook-groups]), whatever events the [matcher][hook-matcher] selects and whatever its [options][hook-handlers] such as `timeout`; the reader does not check matcher patterns, and trust and enablement in `hooks.state` are uninspected. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
 | `hooks.*` | `command handler with empty command and nonempty Windows command` | On Windows, Codex runs the handler's `commandWindows` (alias `command_windows`) in place of `command` when it is set ([field][hook-command-windows], [choice][hook-windows-choice]); on other platforms it skips the empty `command`. The file may be used on either platform, so the handler counts. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
 | `hooks.*` | `no command handler with nonempty command` | Codex skips `prompt` and `agent` handlers ([source][hook-skipped]) and empty commands ([source][hook-empty]); an `mcp_tool` handler calls a tool on an MCP server ([source][hook-mcp-tool]). Catalog: `contents withheld`. Rules: none. Gap: yes. | [hooks] | documented in source |
 | `hooks.state` | `trusts, distrusts or disables a hook` | Codex runs a hook from the user's `config.toml` only when this state enables and trusts it ([gate][hook-trust], [trust check][hook-trust-check], [state source][hook-state]); the reader does not inspect it, so a command handler keeps its risk. Catalog: `contents withheld`. Rules: `configured_program`. Gap: yes. | [hooks] | documented in source |
@@ -191,7 +191,7 @@ contents; each one it finds is an inspection gap.
 
 ## Edits the advice suggests
 
-The report's advice suggests edits that Codex still loads:
+These facts shape the report's advice:
 
 - Codex writes each hook matcher group's handlers as `[[hooks.<Event>.hooks]]` sections
   ([group][hook-group], [written layout][hook-group-written]). Deleting only the `[[hooks.<Event>]]` lines
@@ -266,6 +266,7 @@ observations, not source readings. The environment Check lists variable names wi
 [shell-launch-use]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L170-L172
 [shell-core]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L178-L181
 [shell-set]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L153-L158
+[hook-groups]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L632-L650
 [hook-events]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L113-L137
 [hook-group]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L140-L145
 [hook-group-written]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server/tests/suite/v2/hooks_list.rs#L80-L87
