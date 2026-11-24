@@ -220,7 +220,7 @@ def discover_runs(args, agents):
     else:
         include_claude = status != "missing" or configured or project != (None, None)
         include_codex = True
-        if status == "directory" and not os.environ.get("CODEX_HOME"):
+        if (status == "directory" or project[0] is not None) and not os.environ.get("CODEX_HOME"):
             codex, _ = codex_home()
             include_codex = codex is not None and directory_status(codex) != "missing"
     runs = [codex_run(args)] if include_codex else []

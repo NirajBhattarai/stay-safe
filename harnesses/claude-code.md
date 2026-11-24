@@ -17,7 +17,7 @@ Each report describes a settings file. Claude Code combines rules across its set
 | `hooks` | Each handler runs on its event in any settings file. A `command` hook runs a command; an `http` hook posts the event's data, such as commands, file paths and prompts, to a URL; an `mcp_tool` hook calls a tool on an MCP server; `prompt` and `agent` hooks ask a Claude model. Commands and URLs are withheld. MCP servers are outside reader coverage, so `mcp_tool` hooks are gaps. `allowedHttpHookUrls` can limit HTTP hooks. | [hooks setting], [Hook handler types], [HTTP hooks], [Limit HTTP hooks] |
 | Hooks on `PreToolUse` and `PermissionRequest` | A `PreToolUse` hook can approve a tool call without a prompt and replace its input. A `PermissionRequest` hook can grant a permission, replace the input, and add permission rules or change the mode. The finding says so. | [PreToolUse decisions], [PermissionRequest decisions] |
 | Project hooks before trust | Claude Code uses hooks from a repository's settings in a `claude -p` run and when only a parent folder is trusted. | [What runs before trust] |
-| `disableAllHooks` | `true` turns off hooks. The reader applies it within the same file; a higher-precedence file can set it back to `false`. | [disableAllHooks setting], [What runs before trust] |
+| `disableAllHooks` | `true` turns off hooks. Claude Code uses the value left after settings precedence, so a project file's `false` overrides a `true` in user settings. Discovery applies the last valid value across the user and project files to every hook read, and names the file that set it. When hooks end up off, `.claude/settings.local.json`, managed settings and `--settings` could turn them back on; they aren't read, so that is a gap. Files passed with `--config` are each read on their own. | [disableAllHooks setting], [Disable hooks], [What runs before trust] |
 | Other fields | Settings that change only how Claude Code looks or which model it uses are skipped without a gap. Other unsupported settings are inspection gaps. Only documented field names appear in the report; other names are withheld. | [Settings index] |
 | File format | Settings files are JSON. `NaN`, `Infinity` and `-Infinity`, which Python's JSON reader accepts, are invalid values. | [JSON settings] |
 
@@ -44,6 +44,7 @@ Each report describes a settings file. Claude Code combines rules across its set
 [hooks setting]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L3720-L3725
 [What runs before trust]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/permissions.md#L824-L844
 [disableAllHooks setting]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/settings-reference.md#L3642-L3649
+[Disable hooks]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L731-L737
 [Hook handler types]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L399-L407
 [HTTP hooks]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L501-L512
 [Limit HTTP hooks]: https://github.com/pleaseai/claude-code-docs/blob/161fdcbca8a503b16dbdc4e326dba95c8a5325dd/docs/hooks.md#L268-L273

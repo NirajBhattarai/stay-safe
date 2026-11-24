@@ -1,6 +1,7 @@
 import re
 
-from .claude import AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, DECIDES, HTTP, PROJECT, read_file
+from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, DECIDES, HTTP, PROJECT, UNREAD_ENABLE, apply_disable,
+                     read_file)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
@@ -109,6 +110,10 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
+    UNREAD_ENABLE: (
+        "**Not checked: whether hooks stay off.** `disableAllHooks` turns them off in the files read, but "
+        "`.claude/settings.local.json`, managed settings and `--settings` can set it back to `false`.",
+        "Look for `disableAllHooks` in those."),
     "disableAllHooks has an invalid boolean; its behavior is unknown.": (
         "**Not checked: `disableAllHooks`.** It isn't `true` or `false`, so stay-safe treats your hooks as on.",
         "Set it to `true` or `false`."),
@@ -154,6 +159,8 @@ def inspect(paths, *, discovered=False, gaps=(), scopes=()):
                                    scope=scopes[index - 1])
         entries.extend(found)
         gaps.extend(missing)
+    if discovered:
+        gaps.extend(apply_disable(entries))
     risks = evaluate(entries)
     revision = provenance["source_revision"]
     by_id = {entry["id"]: entry for entry in entries}

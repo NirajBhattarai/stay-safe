@@ -71,7 +71,11 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - The same hook in my user settings gives the finding tied to my user file. `test_claude_program_risks.py::test_the_same_hook_in_user_settings_is_tied_to_the_user_file`
 - I add a hook on `PreToolUse` and the finding says it can approve tool calls and change what they do. `test_claude_program_risks.py::test_a_hook_that_can_approve_tool_calls_says_so_in_the_finding`
 - A project's HTTP hook gives a network finding with advice and its address withheld. `test_claude_program_risks.py::test_an_http_hook_is_a_network_finding_with_its_address_withheld`
-- I have no Claude Code folder and still see a hook from the project's settings. `test_claude_program_risks.py::test_a_project_hook_is_reported_without_a_claude_home`
+- I have no Claude Code or Codex folder and a plain run shows one Claude Code report with the project's hook, no gaps and exit 0. `test_claude_program_risks.py::test_a_project_hook_is_reported_without_a_claude_home`
+- With no agent folders and no project file, a plain run still falls back to Codex; with a Codex folder, both reports appear. `test_claude_program_risks.py::test_without_agent_homes_or_a_project_file_the_codex_fallback_still_runs`
+- A hook whose `type` is a list or an object is a named gap, and the valid hook beside it is still reported. `test_claude_program_risks.py::test_a_handler_with_a_list_or_object_type_is_a_gap_beside_the_valid_hook`
+- Discovery uses the highest-precedence `disableAllHooks`, names the file that set it, and says unread files could turn hooks back on. `test_claude_program_risks.py::test_discovery_uses_the_highest_precedence_disable_flag`
+- Files passed with `--config` keep their own `disableAllHooks`. `test_claude_program_risks.py::test_explicit_files_keep_their_own_disable_flag`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
 Issue: https://github.com/chalkbadger/stay-safe/issues/12

@@ -26,6 +26,8 @@ DECISION_EVENTS = {"PreToolUse", "PermissionRequest"}
 PROGRAM_SETTINGS = {"hooks", "disableAllHooks"}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
+UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
+                 "--settings were not read and could turn them back on.")
 PROJECT = "project settings"
 HTTP = "HTTP hook"
 ADDRESS = "address withheld"
@@ -150,7 +152,7 @@ class SettingsReader(Reader):
                     continue
                 for handler in handlers:
                     kind = handler.get("type") if isinstance(handler, dict) else None
-                    field = HOOK_FIELDS.get(kind)
+                    field = HOOK_FIELDS.get(kind) if isinstance(kind, str) else None
                     if field is None or not all(nonempty(handler.get(name)) for name in field):
                         self.gap("hooks contains a handler that is not a valid hook; it was not evaluated.")
                     elif kind == "mcp_tool":
@@ -184,6 +186,27 @@ def nonempty(value):
 
 def invalid_json_constant(token):
     raise ValueError("Invalid JSON number")
+
+
+def apply_disable(entries):
+    flags = [entry for entry in entries if entry["kind"] == "setting" and entry["name"] == "disableAllHooks"]
+    if not flags:
+        return []
+    winner = flags[-1]
+    disabled = winner["observations"] == ["true"]
+    for entry in flags[:-1]:
+        if entry["observations"] != winner["observations"]:
+            entry["observations"].append(f"overridden by {winner['source']}")
+    hooks = [entry for entry in entries if entry["kind"] == "hook"]
+    for entry in hooks:
+        observations = [value for value in entry["observations"] if value != DISABLED]
+        if disabled:
+            label = (DISABLED if entry["source"] == winner["source"]
+                     else f"turned off by disableAllHooks in {winner['source']}")
+            observations.insert(len(observations) - (PROJECT in observations), label)
+        entry["observations"] = observations
+        entry["facts"] = {key: not disabled for key in entry["facts"]}
+    return [UNREAD_ENABLE] if disabled and hooks else []
 
 
 @exclude_account_files
