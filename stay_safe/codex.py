@@ -67,18 +67,19 @@ def app_tool_setting(table, path, key, default, errors):
     return UNKNOWN
 
 
-def unaliased_directory(path):
+def directory_identity(path):
     if path.anchor != "/" or ".." in path.parts:
-        return False
+        return UNKNOWN
     for component in (*reversed(path.parents), path):
         try:
-            if not stat.S_ISDIR(component.stat(follow_symlinks=False).st_mode):
-                return False
+            info = component.stat(follow_symlinks=False)
         except FileNotFoundError:
-            return True
+            return None
         except (OSError, ValueError):
-            return False
-    return True
+            return UNKNOWN
+        if not stat.S_ISDIR(info.st_mode):
+            return UNKNOWN
+    return info.st_dev, info.st_ino
 
 
 class Reader:
@@ -152,16 +153,19 @@ class Reader:
         target = Path(self.workspace).absolute() / ".codex"
         if not any(Path(root) == target for root in roots):
             return
-        if not unaliased_directory(target):
+        target_id = directory_identity(target)
+        if target_id is UNKNOWN:
             self.gap(WORKSPACE_UNKNOWN)
             return
         home = os.environ.get("CODEX_HOME")
         if not home and os.environ.get("HOME"):
             home = Path(os.environ["HOME"]) / ".codex"
-        if home and Path(home).absolute() == target:
+        home = Path(home).absolute() if home else None
+        home_id = directory_identity(home) if home is not None else UNKNOWN
+        if home == target or (target_id is not None and target_id == home_id):
             self.gap(WORKSPACE_HOME)
             return
-        if not home or not unaliased_directory(Path(home).absolute()):
+        if home_id is UNKNOWN:
             self.gap(WORKSPACE_HOME_UNKNOWN)
             return
         self.add(["sandbox_workspace_write", "writable_roots"], "permission",

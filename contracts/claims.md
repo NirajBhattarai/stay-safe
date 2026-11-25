@@ -73,6 +73,7 @@ Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
 - I use empty, inactive or invalid roots or select a profile and see no warning from the legacy list, with unsupported inputs still named. `test_workspace.py::test_inactive_empty_invalid_and_profile_cases`
 - I omit the workspace or supply an unresolved alias and see the missing comparison in the report. `test_workspace.py::test_missing_workspace_and_unresolved_aliases_name_the_boundary`
 - I select a workspace whose settings directory is my Codex home and see why the project check does not apply. `test_workspace.py::test_user_codex_home_is_outside_the_project_settings_check`
+- I spell the Codex home path differently and see the project warning only when it identifies a different directory. `test_workspace.py::test_different_home_spellings_use_directory_identity`
 - I check normally discovered settings with a workspace and see its finding without opening or listing project contents. `test_workspace.py::test_workspace_compares_discovered_settings_without_opening_project_contents`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.

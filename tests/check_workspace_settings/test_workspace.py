@@ -134,6 +134,25 @@ class WorkspaceSettingsTests(ConfigCase):
         self.assertEqual(report["risks"], [])
         self.assertIn("Codex home", " ".join(report["inspection_gaps"]))
 
+    def test_different_home_spellings_use_directory_identity(self):
+        candidate = self.workspace / ".CODEX"
+        candidate.mkdir(exist_ok=True)
+        path = self.settings([str(self.target)])
+        with patch.dict(os.environ, {"CODEX_HOME": str(candidate)}):
+            report = self.run_report(path)
+        if candidate.samefile(self.target):
+            self.assertEqual(report["risks"], [])
+            self.assertIn("user Codex home", " ".join(report["inspection_gaps"]))
+        else:
+            self.assertEqual([r["rule"] for r in report["risks"]], ["writable_project_settings"])
+        distinct = self.workspace / "other-home"
+        distinct.mkdir()
+        with patch.dict(os.environ, {"CODEX_HOME": str(distinct)}):
+            self.assertEqual([r["rule"] for r in self.run_report(path)["risks"]], ["writable_project_settings"])
+            alternate = self.run_report(self.settings([str(candidate)]))
+            self.assertEqual(alternate["risks"], [])
+            self.assertIn("Aliases", " ".join(alternate["inspection_gaps"]))
+
     def test_workspace_compares_discovered_settings_without_opening_project_contents(self):
         home = self.root.resolve() / "private-codex-home"
         home.mkdir()
