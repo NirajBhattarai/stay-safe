@@ -164,6 +164,35 @@ class WorkspaceSettingsTests(ConfigCase):
             self.assertEqual(alternate["risks"], [])
             self.assertIn("Aliases", " ".join(alternate["inspection_gaps"]))
 
+    def test_missing_settings_directory_preserves_the_existing_parent_identity(self):
+        self.target.rmdir()
+        path = self.settings([str(self.target)])
+        other_spelling = self.workspace.with_name(self.workspace.name.upper())
+        other_spelling.mkdir(exist_ok=True)
+        distinct = self.root.resolve() / "other-home"
+        distinct.mkdir()
+        for home in (other_spelling, distinct):
+            with self.subTest(home=home.name), patch.dict(os.environ, {"HOME": str(home), "CODEX_HOME": ""}):
+                report = self.run_report(path)
+                if home.samefile(self.workspace):
+                    self.assertEqual(report["risks"], [])
+                    self.assertIn("user Codex home", " ".join(report["inspection_gaps"]))
+                else:
+                    self.assertEqual([r["rule"] for r in report["risks"]], ["writable_project_settings"])
+        with patch.dict(os.environ, {"CODEX_HOME": str(self.workspace / ".CODEX")}):
+            report = self.run_report(path)
+        self.assertEqual(report["risks"], [])
+        self.assertIn("could not be distinguished", " ".join(report["inspection_gaps"]))
+        with patch.dict(os.environ, {"CODEX_HOME": str(self.workspace / "separate-missing-home")}):
+            self.assertEqual([r["rule"] for r in self.run_report(path)["risks"]], ["writable_project_settings"])
+        selected = self.workspace / "caf\u00e9"
+        possible_home = self.workspace / "cafe\u0301" / ".codex"
+        path = self.settings([str(selected / ".codex")])
+        with patch.object(self, "workspace", selected), patch.dict(os.environ, {"CODEX_HOME": str(possible_home)}):
+            report = self.run_report(path)
+        self.assertEqual(report["risks"], [])
+        self.assertIn("could not be distinguished", " ".join(report["inspection_gaps"]))
+
     def test_workspace_compares_discovered_settings_without_opening_project_contents(self):
         home = self.root.resolve() / "private-codex-home"
         home.mkdir()

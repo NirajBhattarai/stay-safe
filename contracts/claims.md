@@ -75,6 +75,7 @@ Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
 - I list the exact project settings path through a directory symlink and see the unresolved project path named without a write warning. `test_workspace.py::test_direct_grant_through_a_target_or_workspace_symlink_names_the_unresolved_path`
 - I select a workspace whose settings directory is my Codex home and see why the project check does not apply. `test_workspace.py::test_user_codex_home_is_outside_the_project_settings_check`
 - I spell the Codex home path differently and see the project warning only when it identifies a different directory. `test_workspace.py::test_different_home_spellings_use_directory_identity`
+- I allow writes to a project settings directory that does not yet exist and see a finding only when I can distinguish it from my Codex home. `test_workspace.py::test_missing_settings_directory_preserves_the_existing_parent_identity`
 - I check normally discovered settings with a workspace and see its finding without opening or listing project contents. `test_workspace.py::test_workspace_compares_discovered_settings_without_opening_project_contents`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.

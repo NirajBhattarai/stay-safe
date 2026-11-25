@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import stat
 import tomllib
+import unicodedata
 
 MAX_BYTES = 1024 * 1024
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\Z")
@@ -70,16 +71,23 @@ def app_tool_setting(table, path, key, default, errors):
 def directory_identity(path):
     if path.anchor != "/" or ".." in path.parts:
         return UNKNOWN
-    for component in (*reversed(path.parents), path):
+    ancestor = None
+    for index, component in enumerate((*reversed(path.parents), path)):
         try:
             info = component.stat(follow_symlinks=False)
         except FileNotFoundError:
-            return None
+            return (ancestor, "/".join(path.parts[index:])) if ancestor is not None else UNKNOWN
         except (OSError, ValueError):
             return UNKNOWN
         if not stat.S_ISDIR(info.st_mode):
             return UNKNOWN
-    return info.st_dev, info.st_ino
+        ancestor = (info.st_dev, info.st_ino)
+    return ancestor, ""
+
+
+def unresolved_home_alias(target, home):
+    return (target[0] == home[0] and
+            unicodedata.normalize("NFD", target[1].casefold()) == unicodedata.normalize("NFD", home[1].casefold()))
 
 
 class Reader:
@@ -162,10 +170,10 @@ class Reader:
             home = Path(os.environ["HOME"]) / ".codex"
         home = Path(home).absolute() if home else None
         home_id = directory_identity(home) if home is not None else UNKNOWN
-        if home == target or (target_id is not None and target_id == home_id):
+        if home == target or target_id == home_id:
             self.gap(WORKSPACE_HOME)
             return
-        if home_id is UNKNOWN:
+        if home_id is UNKNOWN or unresolved_home_alias(target_id, home_id):
             self.gap(WORKSPACE_HOME_UNKNOWN)
             return
         self.add(["sandbox_workspace_write", "writable_roots"], "permission",
