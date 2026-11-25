@@ -282,7 +282,8 @@ STEPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
-        "Review `approvals_reviewer` in your `[apps]` settings yourself; without it, the app uses your main reviewer setting.",
+        "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
+        "inherit automatic review from `apps._default`.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
     "notify is not a command list with a nonempty program.":

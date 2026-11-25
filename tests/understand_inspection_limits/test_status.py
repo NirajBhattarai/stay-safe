@@ -112,6 +112,26 @@ class StatusTests(ConfigCase):
                 if expected:
                     self.assertIn("**Not checked: an app's approval reviewer.**", section(human.stdout, "Not checked"))
 
+    def test_removing_an_app_reviewer_can_leave_the_default_reviewer_in_place(self):
+        base = COMPLETE + 'shell_environment_policy={inherit="none"}\n[apps._default]\napprovals_reviewer="auto_review"\n'
+        app = '[apps.calendar]\ndefault_tools_approval_mode="prompt"\n'
+        advice = ("Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can "
+                  "still inherit automatic review from `apps._default`.")
+        gap = ("config-1: App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls "
+               "instead of asking you.")
+        checkout = copy_checkout(self.root / "checkout")
+        for name, text in (("before", base + app + 'approvals_reviewer="auto_review"\n'), ("after", base + app)):
+            with self.subTest(run=name):
+                path = str(self.config(text, f"{name}.toml"))
+                human = run_checkout(checkout, "--config", path, cwd=self.root)
+                report = json.loads(run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root).stdout)
+                self.assertEqual(report["inspection_gaps"], [gap])
+                self.assertEqual((human.returncode, human.stderr), (2, EXPLANATION))
+                unchecked = section(human.stdout, "Not checked")
+                self.assertIn("**Not checked: an app's approval reviewer.**", unchecked)
+                self.assertIn(advice, unchecked)
+                self.assertNotIn("main reviewer", human.stdout)
+
     def test_reports_with_gaps_explain_exit_two_on_stderr_only(self):
         checkout = copy_checkout(self.root / "checkout")
         private = self.config('private_key = "secret-value"\n', "private-input-name.toml")

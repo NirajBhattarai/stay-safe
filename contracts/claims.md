@@ -53,6 +53,7 @@ Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limi
 - I give a stdio server an HTTP header helper and see why Codex rejects the setting and how to fix it. `test_status.py::test_stdio_header_helper_names_the_rejected_setting`
 - I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`
 - I let automatic review decide an app's tool calls and see that reviewer under "Not checked", while `user` or no reviewer stays clean. `test_status.py::test_app_auto_reviewer_is_named_as_unchecked`
+- I set automatic review on `apps._default` and on a named App, follow the advice and remove only the App's reviewer, and run again. The default reviewer is still under "Not checked", the run still exits 2, and the advice says the App can still inherit automatic review from `apps._default`. `test_status.py::test_removing_an_app_reviewer_can_leave_the_default_reviewer_in_place`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13
