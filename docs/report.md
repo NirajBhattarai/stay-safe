@@ -26,6 +26,23 @@ words, links to the rules and meanings sources, and what the report can't see, w
 link to the [full scope](#full-scope). The JSON report (`--format json`) keeps the catalog, full scope
 and fingerprints in their original form.
 
+## Example finding
+
+This is the full finding from the [README example](../README.md), including the
+change suggested for that configuration.
+
+> **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
+>
+> *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
+>
+> *What to do:* If you want Codex to ask before running some commands it currently blocks, choose `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (commands still can't write files). Ordinary commands can still run inside the sandbox without asking you. But commands a saved approval allows still run outside the sandbox.
+>
+> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
+>
+> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
+>
+> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
+
 ## The order of findings
 
 Each rule belongs to one group, fixed by what the rule's condition removes, as its
@@ -54,6 +71,42 @@ In the text and Markdown reports, files found automatically are named by where C
 such as `~/.codex/config.toml` or `$CODEX_HOME/config.toml`, never by your own folder.
 Saved approvals use `rules-1:prefix_rule.N`, where N is the physical line number
 in the selected rules file.
+
+### A saved tool-description flag
+
+This synthetic [Snyk Agent Scan v0.7.1 fixture](../tests/see_every_connection_and_setting/pairing/saved-scan.json)
+flags a tool description on `team.api` in `approve.toml`. Run this example from the
+checkout root. Both Codex files name that server. Select `config-2` because
+`approve.toml` is the second `--config`. The quotes in the entry ID keep the
+dotted server name together. [Scanner JSON reference, read 2026-11-24](https://github.com/snyk/agent-scan/blob/a85612713593ab8beb1c0b6964eee954c1a498b0/docs/json-output.md#agent-scan-v06-and-later)
+
+```sh
+python3 - <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+samples = Path("tests/see_every_connection_and_setting/pairing")
+saved = json.loads((samples / "saved-scan.json").read_text())
+server, = saved["scan_path_responses"][0]["server_risks"]
+report = json.loads(subprocess.check_output([
+    sys.executable, "-m", "stay_safe", "--format", "json",
+    "--config", samples / "prompt.toml", "--config", samples / "approve.toml",
+]))
+key = "config-2:mcp_servers." + json.dumps(server["name"])
+entry, = (row for row in report["catalog"] if row["id"] == key)
+approval, = (item for item in entry["observations"] if item.startswith("tool approval: "))
+flag = "prompt_injection_tool_desc"
+if flag in server["risk_indexes"]:
+    print(server["name"], flag, approval, sep=" | ")
+PY
+```
+
+The output is `team.api | prompt_injection_tool_desc | tool approval: approve`.
+Review the flagged description alongside the server’s configured default when
+deciding whether to change that setting.
+[Challenge this description](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&title=Challenge%3A%20Snyk%20Agent%20Scan%20v0.7.1&disputed-claim=Snyk%20Agent%20Scan%20v0.7.1%20reports%20a%20tool-description%20flag%20in%20server_risks%5B%5D.risk_indexes.prompt_injection_tool_desc.)
 
 ## The commit, and release archives
 

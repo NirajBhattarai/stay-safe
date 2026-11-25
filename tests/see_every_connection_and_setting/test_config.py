@@ -102,8 +102,9 @@ class CatalogTests(ConfigCase):
             ("configured_program", "config-1:notify", ["I13", "I14", "I19", "I33"]),
             ("environment_inheritance", "config-1:shell_environment_policy", ["I23"]),
         ])
-        self.assertEqual(report["inspection_gaps"], [])
-        self.assertEqual(report["file_inspection"], "complete for supported fields")
+        self.assertEqual(report["inspection_gaps"], [
+            "config-1: mcp_servers.git.env contains inline values. Check the entries for credentials."])
+        self.assertEqual(report["file_inspection"], "incomplete")
         self.assertIn("runtime overrides are not inspected", " ".join(report["scope"]))
 
     def test_files_remain_independent_and_identity_preserves_dotted_name(self):

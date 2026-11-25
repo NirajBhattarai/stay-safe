@@ -131,6 +131,8 @@ def program_server(name, file=FILE, where=WHERE):
 
 
 SAVED_STILL = "commands a saved approval allows still run outside the sandbox."
+ASK = "If you want Codex to ask before running some commands it currently blocks, choose "
+ORDINARY = "Ordinary commands can still run inside the sandbox without asking you."
 
 
 def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
@@ -140,31 +142,30 @@ def commands(sandbox=None, file=FILE, where=WHERE, other=None, profile=False):
     if profile:
         mode = f"This file sets `sandbox_mode` to `{sandbox}`. " if sandbox else ""
         return block(
-            'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
+            f'{ASK}`approval_policy = "on-request"`. {ORDINARY} '
             f"For read-only access, check that any profile you use blocks writes. Even then, {SAVED_STILL}",
             approval_only, keep, f"{mode}Review `default_permissions` in {profile} and any profile it names.")
     if sandbox == "read-only":
         return block(
-            "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to ask "
-            f"you first; commands still can't write files). But {SAVED_STILL}",
+            f"{ASK}`approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (commands still can't "
+            f"write files). {ORDINARY} But {SAVED_STILL}",
             approval_only, keep, check)
     if sandbox == "workspace-write":
         return block(
-            "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when to "
-            "ask you first; commands can still write in your workspace). Stricter: also `sandbox_mode = \"read-only\"` "
+            f"{ASK}`approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (commands can still "
+            f"write in your workspace). {ORDINARY} Stricter: also `sandbox_mode = \"read-only\"` "
             f"(commands can't write files). Either way, {SAVED_STILL}",
             approval_only, keep, check)
     if other:
         value, label = other
         return block(
-            f"Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-            f"`sandbox_mode = \"{value}\"` in `{label}`. But {SAVED_STILL}",
+            f"{ASK}`approval_policy = \"on-request\"` without loosening the "
+            f"`sandbox_mode = \"{value}\"` in `{label}`. {ORDINARY} But {SAVED_STILL}",
             approval_only, keep, check)
     return block(
-        "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in your "
-        "workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when to ask you "
-        "first). Stricter: `sandbox_mode = \"read-only\"` (commands "
-        f"can't write files). Either way, {SAVED_STILL}",
+        f"{ASK}`approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in your "
+        f"workspace and in any extra folders in `writable_roots`, so review that list). {ORDINARY} Stricter: "
+        f"`sandbox_mode = \"read-only\"` (commands can't write files). Either way, {SAVED_STILL}",
         TOP,
         f"Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`", check)
 
@@ -414,8 +415,8 @@ class WhatToDoTests(ConfigCase):
         found = self.findings(*args)
         self.assertEqual(found[("commands_without_prompts", "config-1:approval_policy")], block(
             'Set `sandbox_mode = "workspace-write"` and keep `approval_policy = "on-request"` (commands can write in '
-            'your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when to '
-            'ask you first). Stricter: `sandbox_mode = "read-only"` (commands '
+            f'your workspace and in any extra folders in `writable_roots`, so review that list). {ORDINARY} Stricter: '
+            '`sandbox_mode = "read-only"` (commands '
             "can't write files). Either way, commands a saved approval allows still run outside the sandbox.",
             "`sandbox_mode` " + TOP,
             f'Edit {FILE} to set `sandbox_mode = "workspace-write"` without changing `approval_policy`',
@@ -484,6 +485,13 @@ class WhatToDoTests(ConfigCase):
                 self.assertIn(f'ask Codex: "Edit {first} to set `sandbox_mode = "read-only"` without changing '
                               '`approval_policy`', what)
                 self.assertNotIn("workspace-write", what)
+                if approval == "on-request":
+                    self.assertEqual(what, block(
+                        'Set `sandbox_mode = "read-only"`, as `config-2` does, and keep `approval_policy = "on-request"` '
+                        f"(commands can't write files). {ORDINARY} But {SAVED_STILL}",
+                        "`sandbox_mode` " + TOP,
+                        f'Edit {first} to set `sandbox_mode = "read-only"` without changing `approval_policy`',
+                        f"Look for `approval_policy` and `sandbox_mode` in {first}."))
             with self.subTest(approval=approval, files="alone"):
                 what = self.findings(*self.files(full))[key]
                 self.assertTrue(what.startswith('*What to do:* Set `sandbox_mode = "workspace-write"`'), what)

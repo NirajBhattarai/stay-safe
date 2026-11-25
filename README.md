@@ -6,36 +6,32 @@ Check your Codex settings and saved approvals with three questions in mind.
 - **Which actions do my settings let Codex take on its own, and which need my approval?**
 - **What should I change if that’s more access than I want?**
 
-stay-safe reads settings and saved approvals from files. Only some settings are covered. The report names the defaults it uses and the checks it could not complete. It does not test live connections or what Codex will actually allow. See the [full scope](docs/report.md#full-scope).
+stay-safe is a pre-1.0 tool for Unix. Version 0.2.4 checks Codex settings and saved approvals. Starting in 0.3.0, it also reads Claude Code user settings. The report names defaults and incomplete checks. It can’t confirm live connections or what the agent will allow. See the [full scope](docs/report.md#full-scope).
 
-Here is a finding from a run on a [test configuration](tests/runs_without_a_coding_agent/sample.toml):
+Each finding names its rule and setting and links to evidence. You can [challenge a finding](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml). Coding agents help write and review changes using [Wirth](https://github.com/chalkbadger/wirth). The maintainer decides what to merge.
+
+Here’s an excerpt from a finding on a [test configuration](tests/runs_without_a_coding_agent/sample.toml).
 
 > **With these settings, Codex runs commands without asking you.** It won't ask before any command it's allowed to run, so injected or mistaken instructions could make it run code you didn't want.
 >
 > *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
->
-> *What to do:* Set `approval_policy = "on-request"` and keep `sandbox_mode = "read-only"` (Codex decides when to ask you first; commands still can't write files). But commands a saved approval allows still run outside the sandbox.
->
-> *Change it:* `approval_policy` near the top of the file, before any `[section]`, or ask Codex: "Edit `<config-1>` to set `approval_policy = "on-request"` without changing `sandbox_mode`; show only what you change."
->
-> *Check:* Look for `approval_policy` and `sandbox_mode` in `<config-1>`.
->
-> *Rule `commands_without_prompts` · setting `config-1:approval_policy` = `never`*
 
-It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
+[Read the full finding and what to change.](docs/report.md#example-finding) [See a sample report.](https://github.com/chalkbadger/stay-safe/issues/208#issuecomment-7147713051)
+
+Use Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
 the commands below. No agent is needed:
 
 ```sh
-git clone --branch v0.2.4 https://github.com/chalkbadger/stay-safe.git
+git clone --branch v0.3.0 https://github.com/chalkbadger/stay-safe.git
 cd stay-safe
 python3 -m stay_safe
 ```
 
-Without Git, [download the v0.2.4 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.2.4.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.2.4` folder, then run:
+Without Git, [download the v0.3.0 ZIP](https://github.com/chalkbadger/stay-safe/archive/refs/tags/v0.3.0.zip) and extract it. Open a terminal in the folder containing the extracted `stay-safe-0.3.0` folder, then run:
 
 ```sh
-cd stay-safe-0.2.4
+cd stay-safe-0.3.0
 python3 -m stay_safe
 ```
 
@@ -44,10 +40,10 @@ By default it reads `~/.codex/config.toml` (`$CODEX_HOME/config.toml` when `CODE
 ## Run with uv
 
 If you already use [uv](https://docs.astral.sh/uv/), run the
-[published 0.2.4 package](https://pypi.org/project/stay-safe/0.2.4/):
+[published 0.3.0 package](https://pypi.org/project/stay-safe/0.3.0/):
 
 ```sh
-uvx --python 3.11 stay-safe@0.2.4
+uvx --python 3.11 stay-safe@0.3.0
 ```
 
 The command asks uv for Python 3.11, downloading it if needed; your system Python
@@ -59,7 +55,7 @@ The clone and ZIP routes above do not require uv.
 Paste this into Codex in the ChatGPT app or the CLI:
 
 ```text
-Download stay-safe at tag v0.2.4 from https://github.com/chalkbadger/stay-safe into
+Download stay-safe at tag v0.3.0 from https://github.com/chalkbadger/stay-safe into
 a new temporary folder and run `python3 -m stay_safe` there. First identify where
 your execution tools run and which environment you will inspect. If my intended
 configuration is unavailable there, stop and explain. If Python is too old or missing,
@@ -107,6 +103,7 @@ Two challenges help improve the report. Show us a risk it missed, or a warning
 it gave even though the settings already block the action it describes.
 
 Use the [challenge form](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml) to submit the finding, revision, disputed claim and evidence.
+Read [past challenges and their outcomes](https://github.com/chalkbadger/stay-safe/issues/211#issuecomment-7147613949).
 
 ## Why stay-safe exists
 
@@ -115,8 +112,6 @@ stay-safe is part of [chalkbadger](https://github.com/chalkbadger), which works 
 Explore the [claims and their evidence](docs/report.md#where-the-claims-come-from):
 [Understanding configuration findings](docs/report.md#understanding-configuration-findings)
 or [Using and trusting the tool](docs/report.md#using-and-trusting-the-tool).
-
-[Wirth](https://github.com/chalkbadger/wirth) guides development and review. Anyone can [challenge a finding](#challenge-a-finding).
 
 ## Develop
 

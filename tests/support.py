@@ -188,6 +188,8 @@ SEEDS = {
     "MCP host": "seed-mcp-host.example",
     "command": "seed-command-<&>",
     "args": "seed-args-'&'",
+    "env key": "PrivateInlineEnvKey",
+    "header key": "PrivateInlineHeaderKey",
     "env": "seed-env-<'&'>",
     "headers": "seed-headers-<&>",
     "URL credentials": "seed-url-user",
@@ -207,16 +209,16 @@ notify = ["{SEEDS['notify']}", "{SEEDS['notify args']}"]
 [mcp_servers.local]
 command = "{SEEDS['command']}"
 args = ["{SEEDS['args']}"]
-env = {{ TOKEN = "{SEEDS['env']}" }}
+env = {{ {SEEDS['env key']} = "{SEEDS['env']}" }}
 
 [mcp_servers.remote]
 url = "https://{SEEDS['URL credentials']}@{SEEDS['MCP host']}/mcp?token={SEEDS['URL query']}"
-http_headers = {{ Authorization = "{SEEDS['headers']}" }}
+http_headers = {{ {SEEDS['header key']} = "{SEEDS['headers']}" }}
 
 [mcp_servers.disabled]
 url = "https://{SEEDS['disabled server URL']}/mcp"
 enabled = false
-http_headers = {{ Authorization = "{SEEDS['disabled server headers']}" }}
+http_headers = {{ {SEEDS['header key']} = "{SEEDS['disabled server headers']}" }}
 
 [model_providers.internal]
 name = "{SEEDS['provider name']}"

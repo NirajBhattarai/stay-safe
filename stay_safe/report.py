@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import re
 
-from .codex import APPROVALS, EXCLUDED_ACCOUNT, INVALID_APPROVAL, INVALID_BOOLEAN, read_file
+from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
@@ -168,43 +169,45 @@ LABELS_GROUP = {
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
 PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
+ASK_FOR_BLOCKED = "If you want Codex to ask before running some commands it currently blocks, choose "
+ORDINARY_STILL_RUN = "Ordinary commands can still run inside the sandbox without asking you."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
-                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + '`approval_policy = "on-request"`. ' + ORDINARY_STILL_RUN +
+                " For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
-                "ask you first; commands still can't write files). But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` "
+                "(commands still can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "workspace-write": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when "
-                "to ask you first; commands can still write in your workspace). Stricter: also "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` "
+                "(commands can still write in your workspace). " + ORDINARY_STILL_RUN + " Stricter: also "
                 "`sandbox_mode = \"read-only\"` (commands can't write files). Either way, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-                "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` without loosening the "
+                "`sandbox_mode = \"{value}\"` in `{label}`. " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "full-on-request": {
         "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
-                "in your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides "
-                "when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+                "in your workspace and in any extra folders in `writable_roots`, so review that list). "
+                + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     "full-on-request-read-only": {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
-                "(commands can't write files; Codex decides when to ask you first). But " + SAVED_STILL,
+                "(commands can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": "`sandbox_mode` " + TOP,
         "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
         "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write in "
-                "your workspace and in any extra folders in `writable_roots`, so review that list; Codex decides when "
-                "to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` "
+                "(commands can write in your workspace and in any extra folders in `writable_roots`, so review that "
+                "list). " + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
@@ -400,6 +403,8 @@ def note(report, files):
 
 WITHHELD = "The value is left out of this report."
 GAPS = {
+    INLINE_MCP_VALUES: "**Not checked: inline values in `{label}`.** stay-safe did not check these entries for credentials.",
+    INVALID_MCP_MAP: "**Codex cannot load this configuration.** `{label}` must be a table of strings.",
     "Unchecked section {label}; its settings were not evaluated.":
         "**Not checked: `{label}`.** Its settings were not evaluated.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":
@@ -602,6 +607,8 @@ ABSENT = {
         "commands Codex runs are allowed to do.",
 }
 STEPS = {
+    INLINE_MCP_VALUES: "Review the entries for credentials in your own configuration file.",
+    INVALID_MCP_MAP: "Give each entry in `{label}` a quoted string value, or remove the setting.",
     "Unchecked section {label}; its settings were not evaluated.":
         "Review the `{label}` section in your selected file yourself.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":
