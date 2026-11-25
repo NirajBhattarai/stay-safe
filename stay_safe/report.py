@@ -509,6 +509,10 @@ GAPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "**Not checked: an app's approval reviewer.** An app sets `approvals_reviewer` (in `[apps.<name>]` or "
+        "`[apps._default]`), which can let a reviewer such as automatic review decide its tool calls instead of "
+        "asking you. stay-safe doesn't assess it.",
     INVALID_APPROVAL: f"**{INVALID_APPROVAL}** Findings for other entries describe settings written in the file.",
     INVALID_BOOLEAN:
         "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
@@ -675,6 +679,9 @@ STEPS = {
         "To keep using stdio, remove `http_headers_helper` from this server's settings.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
+        "inherit automatic review from `apps._default`.",
     INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
     INVALID_BOOLEAN:
         "Set `{label}` to `true` or `false` without quotes.",

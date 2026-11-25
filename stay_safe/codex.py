@@ -334,6 +334,8 @@ class Reader:
                 facts["destructive_tools"] = destructive
             if "links" in app:
                 self.gap("Per-account app policy is not evaluated; account identifiers were withheld.")
+            if app.get("approvals_reviewer") in ("auto_review", "guardian_subagent"):
+                self.gap("App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.")
             if enabled is False and not template:
                 self.gaps = before
             for error in load_errors:
