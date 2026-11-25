@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import re
 
-from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
+from .codex import (APP_TOOL_REVIEWER_GAP, APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
                     INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
                     WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
@@ -536,6 +536,11 @@ GAPS = {
         "**Not checked: an app's approval reviewer.** An app sets `approvals_reviewer` (in `[apps.<name>]` or "
         "`[apps._default]`), which can let a reviewer such as automatic review decide its tool calls instead of "
         "asking you. stay-safe doesn't assess it.",
+    APP_TOOL_REVIEWER_GAP:
+        "**Not checked: `{label}`.** If this tool needs approval, your file asks Codex to have an AI reviewer "
+        "approve or deny the request. Your organization can limit who may review requests. For example, if its "
+        "policy allows only human review, Codex may ask you to decide. Stay-safe can’t tell from this file "
+        "which policy applies to your run.",
     INVALID_APPROVAL: f"**{INVALID_APPROVAL}** Findings for other entries describe settings written in the file.",
     INVALID_BOOLEAN:
         "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
@@ -710,6 +715,9 @@ STEPS = {
         "Check the tool and linked account first. "
         "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
         "inherit automatic review from `apps._default`.",
+    APP_TOOL_REVIEWER_GAP:
+        "Codex added this tool setting in 0.172.0. Check which reviewers your organization allows and whether "
+        "it requires AI review for your model.",
     INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
     INVALID_BOOLEAN:
         "Set `{label}` to `true` or `false` without quotes.",

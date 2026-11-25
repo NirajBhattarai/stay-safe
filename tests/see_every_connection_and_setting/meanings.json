@@ -377,6 +377,21 @@
     ]
   },
   {
+    "setting": "apps.*.tools.*.approvals_reviewer",
+    "value": "auto_review or guardian_subagent",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[apps.calendar.tools.read]\napprovals_reviewer=\"auto_review\"",
+    "entry": "apps.calendar.tools.read",
+    "gaps": [
+      "apps.calendar.tools.read.approvals_reviewer requests AI review if this tool needs approval. A policy can require human review. The effective reviewer was not checked."
+    ]
+  },
+  {
+    "setting": "apps.*.tools.*.approvals_reviewer",
+    "value": "user",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[apps.calendar.tools.read]\napprovals_reviewer=\"user\"",
+    "entry": "apps.calendar.tools.read"
+  },
+  {
     "setting": "model_providers.*",
     "value": "definition",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[model_providers.internal]\nbase_url=\"https://example.com\"",

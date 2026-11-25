@@ -92,6 +92,42 @@ class StatusTests(ConfigCase):
         output = section(run_checkout(checkout, *args, cwd=self.root).stdout, "Not checked")
         self.assertIn("**Not checked: your `aws` settings.**", output)
 
+    def test_app_tool_ai_reviewer_is_named_and_explains_policy_limits(self):
+        checkout = copy_checkout(self.root / "checkout")
+        base = COMPLETE + '[apps.calendar.tools."events/read"]\n'
+        field = 'apps.calendar.tools."events/read".approvals_reviewer'
+        named = (f"config-1: {field} requests AI review if this tool needs approval. "
+                 "A policy can require human review. The effective reviewer was not checked.")
+        generic = "config-1: tools contains fields outside reader coverage; their values were withheld."
+        wording = ("If this tool needs approval, your file asks Codex to have an AI reviewer approve or deny "
+                   "the request. Your organization can limit who may review requests. For example, if its policy "
+                   "allows only human review, Codex may ask you to decide. Stay-safe can’t tell from this file "
+                   "which policy applies to your run.")
+        unknown = 'future_field="private-test-value"\n'
+        for settings, expected in (
+            ('approvals_reviewer="auto_review"', [named]),
+            ('approvals_reviewer="guardian_subagent"', [named]),
+            (unknown + 'approvals_reviewer="auto_review"', [named, generic]),
+            (unknown, [generic]),
+            ('approvals_reviewer="user"', []),
+            (unknown + 'approvals_reviewer="user"', [generic]),
+            ('approvals_reviewer="private-test-value"', [generic]),
+            ('approvals_reviewer=["private-test-value"]', [generic]),
+            ("", []),
+        ):
+            with self.subTest(settings=settings):
+                path = str(self.config(base + settings))
+                machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
+                human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
+                self.assertCountEqual(json.loads(machine.stdout)["inspection_gaps"], expected)
+                unchecked = section(human.stdout, "Not checked")
+                self.assertEqual(f"**Not checked: `{field}`.** {wording}" in unchecked, named in expected)
+                self.assertEqual("Codex added this tool setting in 0.172.0." in unchecked, named in expected)
+                self.assertEqual("some `tools` settings" in unchecked, generic in expected)
+                for run in (machine, human):
+                    self.assertEqual((run.returncode, run.stderr), (2, EXPLANATION) if expected else (0, ""))
+                    self.assertNotIn("private-test-value", run.stdout)
+
     def test_app_auto_reviewer_is_named_as_unchecked(self):
         app = COMPLETE + 'shell_environment_policy={inherit="none"}\n[apps.calendar]\ndefault_tools_approval_mode="prompt"\n'
         gap = ("config-1: App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls "
@@ -122,13 +158,10 @@ class StatusTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         overrides = ('[apps.calendar.links.account]\napprovals_reviewer="user"\n'
                      '[apps.calendar.tools.read]\napprovals_reviewer="user"\n')
-        extra_gaps = [
-            "config-1: Per-account app policy is not evaluated; account identifiers were withheld.",
-            "config-1: tools contains fields outside reader coverage; their values were withheld.",
-        ]
+        account_gap = "config-1: Per-account app policy is not evaluated; account identifiers were withheld."
         for name, text, expected in (("before", base + app + 'approvals_reviewer="auto_review"\n', [gap]),
                                      ("after", base + app, [gap]),
-                                     ("specific", base + app + overrides, sorted([gap, *extra_gaps]))):
+                                     ("specific", base + app + overrides, sorted([gap, account_gap]))):
             with self.subTest(run=name):
                 path = str(self.config(text, f"{name}.toml"))
                 human = run_checkout(checkout, "--config", path, cwd=self.root)
