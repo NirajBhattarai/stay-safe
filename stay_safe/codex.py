@@ -2,6 +2,7 @@ import errno
 import json
 import os
 from pathlib import Path
+from posixpath import normpath
 import re
 import stat
 import tomllib
@@ -23,10 +24,12 @@ HOOKS = {"SessionStart", "SessionEnd", "PreToolUse", "PostToolUse", "UserPromptS
          "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact",
          "PreModelRequest", "PostModelRequest", "PermissionRequest", "Interrupt"}
 UNKNOWN = object()
-ROOTS_NO_WORKSPACE = ("sandbox_workspace_write.writable_roots lists extra folders commands may write. "
-                      "No --workspace was supplied to check project .codex. The folders' other effects were not assessed.")
-ROOTS_SCOPE = ("sandbox_workspace_write.writable_roots lists extra folders commands may write. Only a direct "
-               "grant to project .codex is checked. Aliases and other effects of extra folders are unassessed.")
+EXTRA_ROOTS = ("sandbox_workspace_write.writable_roots lists extra folders commands may write, "
+               "some possibly outside the workspace. Their paths are withheld. ")
+ROOTS_NO_WORKSPACE = EXTRA_ROOTS + ("No --workspace was supplied to check project .codex. "
+                                   "The folders' other effects were not assessed.")
+ROOTS_SCOPE = EXTRA_ROOTS + ("Only a direct grant to project .codex is checked. "
+                             "Aliases and other effects of extra folders are unassessed.")
 WORKSPACE_UNKNOWN = ("The project .codex comparison depends on an unresolved path, symlink or directory "
                      "that could not be checked.")
 WORKSPACE_HOME = "The selected workspace's .codex is the user Codex home, outside the project settings check."
@@ -66,6 +69,17 @@ def app_tool_setting(table, path, key, default, errors):
         message = INVALID_APPROVAL
     errors.append(message.format(label=f"{path}.{key}"))
     return UNKNOWN
+
+
+def configured_root(value):
+    if value == "~" or value.startswith("~/"):
+        home = os.environ.get("HOME")
+        if not home:
+            return None
+        value = str(Path(home) / value[1:].lstrip("/"))
+    if not value.startswith("/"):
+        return None
+    return Path(normpath("/" + value.lstrip("/")))
 
 
 def directory_identity(path):
@@ -159,11 +173,11 @@ class Reader:
         if selected_profile:
             return
         target = Path(self.workspace).absolute() / ".codex"
-        if not any(Path(root) == target for root in roots):
-            return
         target_id = directory_identity(target)
         if target_id is UNKNOWN:
             self.gap(WORKSPACE_UNKNOWN)
+            return
+        if not any(configured_root(root) == target for root in roots):
             return
         home = os.environ.get("CODEX_HOME")
         if not home and os.environ.get("HOME"):

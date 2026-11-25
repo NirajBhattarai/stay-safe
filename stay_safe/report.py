@@ -414,6 +414,9 @@ def note(report, files):
 
 
 WITHHELD = "The value is left out of this report."
+EXTRA_FOLDERS = "Some may be outside your workspace. Their paths are withheld."
+REVIEW_ROOTS = ("Review each folder in `writable_roots` and remove any that commands shouldn't change, "
+                "such as the Docker socket (`/var/run/docker.sock`).")
 GAPS = {
     INLINE_MCP_VALUES: "**Not checked: inline values in `{label}`.** stay-safe did not check these entries for credentials.",
     INVALID_MCP_MAP: "**Codex cannot load this configuration.** `{label}` must be a table of strings.",
@@ -455,12 +458,12 @@ GAPS = {
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
     ROOTS_NO_WORKSPACE: "**Not checked: extra writable folders.** Your config lists folders commands may write. "
-                        "Supply `--workspace DIR` to check for a direct grant to the project's `.codex`.",
-    ROOTS_SCOPE: "**Not checked: other effects of extra writable folders.** The project settings check covers "
-                 "a direct grant to `.codex`. Relative paths, aliases and other contents of those folders "
-                 "were not evaluated.",
-    WORKSPACE_UNKNOWN: "**Not checked: the project settings directory.** Its path contains an unresolved "
-                       "component or symlink, or its directory metadata could not be checked.",
+                        f"{EXTRA_FOLDERS} Supply `--workspace DIR` to check for a direct grant to the project's `.codex`.",
+    ROOTS_SCOPE: f"**Not checked: other effects of extra writable folders.** {EXTRA_FOLDERS} The project settings "
+                 "check covers a direct grant to `.codex`. It leaves other relative paths, aliases and the folders' "
+                 "contents unchecked.",
+    WORKSPACE_UNKNOWN: "**Not checked: the project settings directory.** A path component is a symlink, "
+                       "is not a directory, or could not be checked.",
     WORKSPACE_HOME_UNKNOWN: "**Not checked: the project settings directory.** The user Codex home is unknown "
                             "or has an unresolved path or alias.",
     WORKSPACE_HOME: "**Not checked: user Codex home.** Codex treats this folder as its user configuration folder.",
@@ -657,8 +660,8 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
-    ROOTS_NO_WORKSPACE: "Review each folder in `writable_roots` and remove any that commands shouldn't change.",
-    ROOTS_SCOPE: "Review each folder in `writable_roots` and remove any that commands shouldn't change.",
+    ROOTS_NO_WORKSPACE: REVIEW_ROOTS,
+    ROOTS_SCOPE: REVIEW_ROOTS,
     WORKSPACE_UNKNOWN: "Use the project's direct directory path and check the listed roots locally.",
     WORKSPACE_HOME_UNKNOWN: "Check the path to your Codex home and the workspace locally.",
     WORKSPACE_HOME: "Select the project directory with `--workspace` to check its settings.",

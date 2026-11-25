@@ -5,7 +5,7 @@ import unittest
 
 from tests.support import ROOT
 
-MODULES = {"argparse", "dataclasses", "errno", "hashlib", "html", "ipaddress", "json", "os", "pathlib", "re",
+MODULES = {"argparse", "dataclasses", "errno", "hashlib", "html", "ipaddress", "json", "os", "pathlib", "posixpath", "re",
            "stat", "sys", "tomllib", "unicodedata", "urllib.parse"}
 OS_NAMES = {"open", "fdopen", "fstat", "environ", "listdir", "pathsep", "O_RDONLY", "O_NONBLOCK", "O_NOFOLLOW"}
 OS_READ_FLAGS = {"O_RDONLY", "O_NONBLOCK", "O_NOFOLLOW"}

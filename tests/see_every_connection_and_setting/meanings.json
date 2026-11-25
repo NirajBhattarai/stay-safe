@@ -111,7 +111,7 @@
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"workspace-write\"\n[sandbox_workspace_write]\nwritable_roots=[\"/srv/shared\"]\n",
     "entry": "sandbox_workspace_write.writable_roots",
     "gaps": [
-      "sandbox_workspace_write.writable_roots lists extra folders commands may write. No --workspace was supplied to check project .codex. The folders' other effects were not assessed."
+      "sandbox_workspace_write.writable_roots lists extra folders commands may write, some possibly outside the workspace. Their paths are withheld. No --workspace was supplied to check project .codex. The folders' other effects were not assessed."
     ]
   },
   {
@@ -121,7 +121,7 @@
     "workspace": true,
     "entry": "sandbox_workspace_write.writable_roots",
     "gaps": [
-      "sandbox_workspace_write.writable_roots lists extra folders commands may write. Only a direct grant to project .codex is checked. Aliases and other effects of extra folders are unassessed."
+      "sandbox_workspace_write.writable_roots lists extra folders commands may write, some possibly outside the workspace. Their paths are withheld. Only a direct grant to project .codex is checked. Aliases and other effects of extra folders are unassessed."
     ]
   },
   {

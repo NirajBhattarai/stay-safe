@@ -68,6 +68,10 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/35
 Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
 
 - I list the project settings directory twice and see one finding tied to its setting with the other effects of extra folders still unchecked. `test_workspace.py::test_direct_grant_warns_once_and_keeps_the_unchecked_effects_visible`
+- I spell the root with my home directory or parent components and see a warning only when Codex's path names the project settings directory. `test_workspace.py::test_equivalent_home_and_parent_spellings_identify_only_direct_grants`
+- I select a symlink or file as the workspace and see the missing project comparison when my settings list active roots. `test_workspace.py::test_unusable_workspace_names_the_gap_even_with_a_differently_spelled_root`
+- I select two workspaces and see a usage error that withholds both paths. `test_workspace.py::test_repeated_workspace_is_rejected_without_disclosing_either_directory`
+- I list extra writable folders and see that they may reach outside the workspace while their paths stay private. `test_workspace.py::test_extra_folder_gap_explains_outside_access_and_withheld_paths`
 - I remove the direct grant and the finding disappears while the other listed folders still need review. `test_workspace.py::test_removing_direct_grant_leaves_parent_sibling_lookalike_and_narrower_roots_without_a_warning`
 - I select two settings files and see a finding only on the file that both selects workspace writes and lists the directory. `test_workspace.py::test_mode_and_roots_must_appear_in_the_same_selected_snapshot`
 - I use empty, inactive or invalid roots or select a profile and see no warning from the legacy list, with unsupported inputs still named. `test_workspace.py::test_inactive_empty_invalid_and_profile_cases`

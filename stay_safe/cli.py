@@ -233,7 +233,7 @@ def discover_runs(args, agents):
 def main(argv=None):
     parser = Parser(prog=PROG, description="Read Codex and Claude Code settings and print a shareable report.")
     parser.add_argument("--config", action="append", metavar="FILE", help="Inspect this file independently; repeat for more files.")
-    parser.add_argument("--workspace", metavar="DIR",
+    parser.add_argument("--workspace", action="append", metavar="DIR",
                         help="Compare Codex extra writable folders with this project's .codex directory.")
     parser.add_argument("--rules", action="append", metavar="FILE", help="Inspect one saved-rules file independently.")
     parser.add_argument("--agent", action="append", choices=AGENTS,
@@ -247,6 +247,9 @@ def main(argv=None):
         parser.exit(2, f"--save takes no path. It saves {NAME} in {SAVE_FOLDER}.\n")
     if extra:
         parser.error("Unexpected arguments.")
+    if args.workspace and len(args.workspace) > 1:
+        parser.exit(2, "Select only one directory with --workspace.\n")
+    args.workspace = args.workspace[0] if args.workspace else None
     if args.workspace == "":
         parser.exit(2, "--workspace needs a directory. Use --help.\n")
     if args.rules and len(args.rules) != 1:

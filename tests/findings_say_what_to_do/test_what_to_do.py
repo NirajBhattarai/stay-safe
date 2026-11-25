@@ -430,7 +430,8 @@ class WhatToDoTests(ConfigCase):
 
     def test_following_the_sandbox_advice_with_writable_roots_leaves_them_to_review(self):
         roots = '[sandbox_workspace_write]\nwritable_roots = ["/outside-project"]\n'
-        gap = ("config-1: sandbox_workspace_write.writable_roots lists extra folders commands may write. "
+        gap = ("config-1: sandbox_workspace_write.writable_roots lists extra folders commands may write, "
+               "some possibly outside the workspace. Their paths are withheld. "
                "No --workspace was supplied to check project .codex. The folders' other effects were not assessed.")
         for approval, key in (("on-request", ("commands_without_prompts", "config-1:approval_policy")), ("never", ("automatic_tools", "config-1:approval_policy"))):
             with self.subTest(approval=approval):
