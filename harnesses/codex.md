@@ -49,7 +49,9 @@ Additional positive and negative cases live under
 
 Unless a row or section names another release,
 Codex source links are pinned to OpenAI Codex `rust-v0.172.0`
-(`3d86e43b075adeba2193ec5c22ac92f55afd82e6`) and were rechecked on 2026-11-25.
+(`3d86e43b075adeba2193ec5c22ac92f55afd82e6`). On 2026-11-25 we rechecked the cited
+passages for the meanings below. The [release scan](https://github.com/chalkbadger/stay-safe/pull/131#issuecomment-7176657473)
+tracks new and changed configuration fields that still need review.
 The configuration reference was read on 2026-11-02 for retired values.
 The `auto` default is defined by [AppToolApproval][tool-default].
 
@@ -108,7 +110,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `apps.*.destructive_enabled` | `false inherited from _default` | Codex follows [the order above](#codex-configuration-meanings). Catalog: `configured enabled`, `destructive tools disabled by apps._default.destructive_enabled`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [app-tool-policy] | documented in source |
 | `apps.*` | `non-boolean open_world_enabled or destructive_enabled on a named App or _default` | A malformed `open_world_enabled` or `destructive_enabled` on a named App or its [default template][app-default-destructive] prevents Codex from loading the file. Other entries describe settings written in that file. Catalog: `Codex cannot load this configuration file`, `tool approval: auto (default)`. Rules: none. Gap: yes. | [app-config] | documented in source |
 | `apps.*.links` | `per-account policy` | Account-specific policy is outside reader coverage and account identities are withheld. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [apps] | open |
-| `apps.*.approvals_reviewer` | `per-app reviewer` | For an Apps approval prompt, Codex checks the matching tool’s reviewer, then the linked account, the app and `apps._default`. The tool’s raw name takes precedence over its title ([matching][app-tool-match]). Model and managed requirements can constrain the choice. `user` routes to the user and `auto_review` (alias `guardian_subagent`) routes to automatic review ([values][reviewer-values], [routing][reviewer-routing]). An app or Apps default set to automatic review gets the named gap. Tool and linked-account settings remain outside the reader’s coverage. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [app-reviewer] | documented in source |
+| `apps.*.approvals_reviewer` | `per-app reviewer` | In [0.171.0][app-reviewer-0-171], Codex checked the linked account, the app and then `apps._default` for an Apps approval prompt. In 0.172.0 it checks the matching tool’s reviewer first, using the [raw tool name before its title][app-tool-match], then follows the same order. Model and managed requirements can constrain the choice. `user` routes to the user and `auto_review` (alias `guardian_subagent`) routes to automatic review ([values][reviewer-values], [routing][reviewer-routing]). An app or Apps default set to automatic review gets the named gap. Tool and linked-account settings remain outside the reader’s coverage. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [app-reviewer] | documented in source |
 | `model_providers.*` | `definition` | The provider name is catalogued; endpoints and credentials are withheld and no provider selection is inferred. See the rows below for credential commands. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: no. | [schema] | documented |
 | `model_providers.*.auth` | `command-backed authentication` | Command-backed provider authentication is outside reader coverage. This row covers the provider’s `auth` command. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [schema] | open |
 | `model_providers.*.aws` | `credential commands` | Each `credential_export` or `auth_refresh` setting present is named as unchecked, whether or not the file selects the provider. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [provider-auth] | documented in source |
@@ -264,8 +266,9 @@ observations, not source readings. The environment Check lists variable names wi
 [tool-approval-caller-0-167]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1564-L1610
 [tool-approval-caller-0-172]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L1731-L1778
 [apps]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs
-[provider-auth]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/model-provider-info/src/lib.rs#L241-L311
+[provider-auth]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/model-provider-info/src/lib.rs#L241-L253
 [app-tool-match]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L517-L524
+[app-reviewer-0-171]: https://github.com/openai/codex/blob/ccf9be8cc458bd6b8336fe84d68d8893f2691a5e/codex-rs/core/src/connectors.rs#L523-L535
 [app-reviewer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/connectors.rs#L511-L561
 [reviewer-values]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/config_types.rs#L183-L190
 [reviewer-routing]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/guardian-reviewer/src/routing.rs#L59-L67
@@ -292,7 +295,7 @@ observations, not source readings. The environment Check lists variable names wi
 [explicit-workspace]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/config_tests.rs#L3750-L3790
 [writable-roots]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/mod.rs#L3918-L3939
 [restricted-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L897-L936
-[rule-prompts]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L422-L481
+[rule-prompts]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L436-L494
 [full-access-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L897-L925
 [dangerous-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/shell-command/src/command_safety/is_dangerous_command.rs#L132-L160
 [full-access-tools]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/codex-mcp/src/mcp/mod.rs#L96-L115
