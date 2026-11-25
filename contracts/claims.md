@@ -10,7 +10,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I follow the saved scanner example and see the flagged server and its default approval for the configuration I selected. `test_saved_scan_example.py::test_published_example_pairs_the_flag_with_the_selected_snapshot`
 - I have no default config file and see the assessed defaults and remaining gaps. `test_defaults.py::test_both_formats_report_cited_defaults_and_retained_gaps`
 - I inspect saved approvals and see each supported record identified separately. `test_saved_rules.py::test_saved_lines_keep_line_numbers_part_counts_and_broad_labels`
-- I let commands in `workspace-write` mode write to extra folders and see that setting under "Not checked", without the folders' paths. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
+- I omit the workspace while allowing commands to write to extra folders and see the missing workspace under "Not checked" with the folder paths withheld. `test_unlisted_settings.py::test_active_writable_roots_give_a_gap_and_no_entry_or_risk`
 - I see on the ChatGPT Apps connection whether apps my file doesn't name are off and where their `destructive_enabled` comes from. `test_chatgpt_apps.py::test_chatgpt_apps_connection_says_whether_apps_not_named_can_change_data`
 - My Codex folder has skills in `skills` and an `environments.toml` file, and I see each under "Not checked" without their contents. `test_skills_and_environments.py::test_skills_and_environments_toml_each_give_their_own_gap`
 - My Codex folder reaches a skill folder by a short route and by a longer link, and I still see the skills under "Not checked". `test_skills_and_environments.py::test_a_skill_in_the_skills_folder_gives_the_gap_and_exits_2`
@@ -62,6 +62,18 @@ Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limi
 - I see which AWS credential commands were left unchecked even when the provider is selected elsewhere. `test_status.py::test_aws_credentials_name_each_unchecked_command`
 - I let automatic review decide an app's tool calls and see that reviewer under "Not checked", while `user` or no reviewer stays clean. `test_status.py::test_app_auto_reviewer_is_named_as_unchecked`
 - I set automatic review on `apps._default` and on a named App, follow the advice and remove only the App's reviewer, and run again. The default reviewer is still under "Not checked", the run still exits 2, and the advice says the App can still inherit automatic review from `apps._default`. `test_status.py::test_removing_an_app_reviewer_can_leave_the_default_reviewer_in_place`
+
+## [check_workspace_settings] I name my Codex workspace and see when my settings grant commands write access to its project settings directory.
+Issue: https://github.com/chalkbadger/stay-safe/issues/35
+Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
+
+- I list the project settings directory twice and see one finding tied to its setting with the other effects of extra folders still unchecked. `test_workspace.py::test_direct_grant_warns_once_and_keeps_the_unchecked_effects_visible`
+- I remove the direct grant and the finding disappears while the other listed folders still need review. `test_workspace.py::test_removing_direct_grant_leaves_parent_sibling_lookalike_and_narrower_roots_without_a_warning`
+- I select two settings files and see a finding only on the file that both selects workspace writes and lists the directory. `test_workspace.py::test_mode_and_roots_must_appear_in_the_same_selected_snapshot`
+- I use empty, inactive or invalid roots or select a profile and see no warning from the legacy list, with unsupported inputs still named. `test_workspace.py::test_inactive_empty_invalid_and_profile_cases`
+- I omit the workspace or supply an unresolved alias and see the missing comparison in the report. `test_workspace.py::test_missing_workspace_and_unresolved_aliases_name_the_boundary`
+- I select a workspace whose settings directory is my Codex home and see why the project check does not apply. `test_workspace.py::test_user_codex_home_is_outside_the_project_settings_check`
+- I check normally discovered settings with a workspace and see its finding without opening or listing project contents. `test_workspace.py::test_workspace_compares_discovered_settings_without_opening_project_contents`
 
 ## [each_risk_shows_its_cause] Each warning identifies the setting and evidence behind it.
 Issue: https://github.com/chalkbadger/stay-safe/issues/13

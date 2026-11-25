@@ -233,6 +233,8 @@ def discover_runs(args, agents):
 def main(argv=None):
     parser = Parser(prog=PROG, description="Read Codex and Claude Code settings and print a shareable report.")
     parser.add_argument("--config", action="append", metavar="FILE", help="Inspect this file independently; repeat for more files.")
+    parser.add_argument("--workspace", metavar="DIR",
+                        help="Compare Codex extra writable folders with this project's .codex directory.")
     parser.add_argument("--rules", action="append", metavar="FILE", help="Inspect one saved-rules file independently.")
     parser.add_argument("--agent", action="append", choices=AGENTS,
                         help="Check this coding agent; repeat for both. With no files selected, inspect the agent folders found.")
@@ -245,6 +247,8 @@ def main(argv=None):
         parser.exit(2, f"--save takes no path. It saves {NAME} in {SAVE_FOLDER}.\n")
     if extra:
         parser.error("Unexpected arguments.")
+    if args.workspace == "":
+        parser.exit(2, "--workspace needs a directory. Use --help.\n")
     if args.rules and len(args.rules) != 1:
         parser.error("Only one rules file may be selected.")
     if args.save and args.format == "json":
@@ -252,6 +256,8 @@ def main(argv=None):
     agents = list(dict.fromkeys(args.agent or []))
     if args.config and len(agents) > 1:
         parser.exit(2, "--config needs one --agent: choose codex or claude.\n")
+    if args.workspace is not None and agents == ["claude"]:
+        parser.exit(2, "--workspace checks Codex settings only.\n")
     if args.rules and "claude" in agents:
         parser.exit(2, "--rules reads Codex files only.\n")
     if args.config or args.rules:
@@ -303,4 +309,4 @@ def codex_run(args):
             gaps.extend(gap for gap in (skills(home), environments_toml(home)) if gap)
             if system_config():
                 gaps.append("System config folder: /etc/codex holds Codex configuration that was not inspected.")
-    return inspect(paths, rules_path=rules, discovered=defaults, gaps=gaps), files
+    return inspect(paths, rules_path=rules, discovered=defaults, gaps=gaps, workspace=args.workspace), files

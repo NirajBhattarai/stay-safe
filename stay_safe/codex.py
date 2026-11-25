@@ -22,6 +22,14 @@ HOOKS = {"SessionStart", "SessionEnd", "PreToolUse", "PostToolUse", "UserPromptS
          "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact",
          "PreModelRequest", "PostModelRequest", "PermissionRequest", "Interrupt"}
 UNKNOWN = object()
+ROOTS_NO_WORKSPACE = ("sandbox_workspace_write.writable_roots lists extra folders commands may write. "
+                      "No --workspace was supplied to check project .codex. The folders' other effects were not assessed.")
+ROOTS_SCOPE = ("sandbox_workspace_write.writable_roots lists extra folders commands may write. Only a direct "
+               "grant to project .codex is checked. Aliases and other effects of extra folders are unassessed.")
+WORKSPACE_UNKNOWN = ("The project .codex comparison depends on an unresolved path, symlink or directory "
+                     "that could not be checked.")
+WORKSPACE_HOME = "The selected workspace's .codex is the user Codex home, outside the project settings check."
+WORKSPACE_HOME_UNKNOWN = "The project settings directory could not be distinguished from the user Codex home."
 PREFERENCES = {"model", "review_model", "model_reasoning_effort", "model_reasoning_summary",
                "model_verbosity", "service_tier", "personality", "tui", "notice", "history",
                "check_for_update_on_startup", "disable_paste_burst", "hide_agent_reasoning",
@@ -59,9 +67,24 @@ def app_tool_setting(table, path, key, default, errors):
     return UNKNOWN
 
 
+def unaliased_directory(path):
+    if path.anchor != "/" or ".." in path.parts:
+        return False
+    for component in (*reversed(path.parents), path):
+        try:
+            if not stat.S_ISDIR(component.stat(follow_symlinks=False).st_mode):
+                return False
+        except FileNotFoundError:
+            return True
+        except (OSError, ValueError):
+            return False
+    return True
+
+
 class Reader:
-    def __init__(self, source):
+    def __init__(self, source, workspace=None):
         self.source = source
+        self.workspace = workspace
         self.entries = []
         self.gaps = set()
 
@@ -119,6 +142,32 @@ class Reader:
         else:
             self.gap("approval_policy is unsupported or invalid; its value was withheld.")
 
+    def writable_roots(self, roots, selected_profile):
+        if self.workspace is None:
+            self.gap(ROOTS_NO_WORKSPACE)
+            return
+        self.gap(ROOTS_SCOPE)
+        if selected_profile:
+            return
+        target = Path(self.workspace).absolute() / ".codex"
+        if not any(Path(root) == target for root in roots):
+            return
+        if not unaliased_directory(target):
+            self.gap(WORKSPACE_UNKNOWN)
+            return
+        home = os.environ.get("CODEX_HOME")
+        if not home and os.environ.get("HOME"):
+            home = Path(os.environ["HOME"]) / ".codex"
+        if home and Path(home).absolute() == target:
+            self.gap(WORKSPACE_HOME)
+            return
+        if not home or not unaliased_directory(Path(home).absolute()):
+            self.gap(WORKSPACE_HOME_UNKNOWN)
+            return
+        self.add(["sandbox_workspace_write", "writable_roots"], "permission",
+                 ["selected workspace's .codex directory explicitly listed"],
+                 {"writable_project_settings": True})
+
     def sandbox(self, data):
         profile = "default_permissions" in data
         if profile or "permissions" in data:
@@ -142,9 +191,7 @@ class Reader:
                 if not (isinstance(roots, list) and all(isinstance(r, str) for r in roots)):
                     self.gap("sandbox_workspace_write.writable_roots is invalid; its value was withheld.")
                 elif roots and active:
-                    self.gap("sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
-                             "workspace-write mode, some possibly outside the workspace; their paths were withheld "
-                             "and were not evaluated.")
+                    self.writable_roots(roots, "profile" in data)
             if "network_access" in table:
                 value = self.boolean(table, "network_access", False, "sandbox_workspace_write")
                 if value is not None:
@@ -484,8 +531,8 @@ def open_input(path):
 
 
 @exclude_account_files
-def read_file(path: Path, source: str, *, discovered=False):
-    reader = Reader(source)
+def read_file(path: Path, source: str, *, discovered=False, workspace=None):
+    reader = Reader(source, workspace)
     try:
         try:
             fd = open_input(path)

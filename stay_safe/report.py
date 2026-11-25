@@ -4,7 +4,8 @@ from pathlib import Path
 import re
 
 from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
-                    INVALID_BOOLEAN, INVALID_MCP_MAP, read_file)
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
+                    WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
@@ -38,12 +39,12 @@ SCOPE = [
 ]
 
 
-def inspect(paths, *, rules_path=None, discovered=False, gaps=()):
+def inspect(paths, *, rules_path=None, discovered=False, gaps=(), workspace=None):
     entries, gaps = [], list(gaps)
     hashes = fingerprints()
     provenance = identify(hashes=hashes)
     for index, path in enumerate(paths, 1):
-        found, missing = read_file(path, f"config-{index}", discovered=discovered)
+        found, missing = read_file(path, f"config-{index}", discovered=discovered, workspace=workspace)
         entries.extend(found)
         gaps.extend(missing)
     if rules_path is not None:
@@ -110,6 +111,11 @@ FINDINGS = {
         "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. "
                "A Claude Code user reported losing SSH keys and cloud credentials when a PowerShell cleanup "
                "deleted files in their home directory."},
+    "writable_project_settings": {
+        "headline": "Your config lists the project's `.codex` directory as writable.",
+        "why": "A sandboxed command could change project settings that a later trusted Codex run uses.",
+        "how": "Injected text got GitHub Copilot to change its approval settings. In another report, intruders "
+               "changed project settings that Claude Code used at startup."},
     "configured_program": {
         "headline": "{Subject} can start a program on your computer.",
         "why": PROGRAM,
@@ -288,6 +294,12 @@ ADVICE = {
         "what": "If you don't need this tool, set `enabled = false` for it.",
         "where": "under `[{table}]`",
         "ask": "Edit {file} to set `enabled = false` for the `{tool}` tool of my `{name}` app"},
+    ("writable_project_settings", "sandbox_workspace_write", 2): {
+        "what": "Remove the project's `.codex` directory from `writable_roots`. You can keep the workspace writable.",
+        "where": "under `[sandbox_workspace_write]`, remove each entry for that directory",
+        "ask": "Edit {file} to remove the entries for <project directory>/.codex from `writable_roots`, "
+               "keeping the other entries",
+        "check": "Rerun stay-safe with the same `--workspace` and config selection."},
     ("network_access", "sandbox_workspace_write", 2): {
         "what": "Set `network_access = false` unless commands need the network.",
         "where": "under `[sandbox_workspace_write]`",
@@ -442,10 +454,16 @@ GAPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
-    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
-        "**Not checked: extra folders commands can write to.** Your config lists folders in `writable_roots` that "
-        "commands may write to in `workspace-write` mode. Some may be outside your workspace. stay-safe doesn't "
-        "check what those folders are. Their paths are left out of this report.",
+    ROOTS_NO_WORKSPACE: "**Not checked: extra writable folders.** Your config lists folders commands may write. "
+                        "Supply `--workspace DIR` to check for a direct grant to the project's `.codex`.",
+    ROOTS_SCOPE: "**Not checked: other effects of extra writable folders.** The project settings check covers "
+                 "a direct grant to `.codex`. Relative paths, aliases and other contents of those folders "
+                 "were not evaluated.",
+    WORKSPACE_UNKNOWN: "**Not checked: the project settings directory.** Its path contains an unresolved "
+                       "component or symlink, or its directory metadata could not be checked.",
+    WORKSPACE_HOME_UNKNOWN: "**Not checked: the project settings directory.** The user Codex home is unknown "
+                            "or has an unresolved path or alias.",
+    WORKSPACE_HOME: "**Not checked: user Codex home.** Codex treats this folder as its user configuration folder.",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.":
         "**Not checked: extra folders commands can write to.** Your `writable_roots` isn't a list of folder "
         f"paths, so stay-safe can't tell where commands can write. {WITHHELD}",
@@ -639,9 +657,11 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
-    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
-        "Review each folder in `writable_roots` yourself, and remove any that commands shouldn't change, such as "
-        "the Docker socket (`/var/run/docker.sock`).",
+    ROOTS_NO_WORKSPACE: "Review each folder in `writable_roots` and remove any that commands shouldn't change.",
+    ROOTS_SCOPE: "Review each folder in `writable_roots` and remove any that commands shouldn't change.",
+    WORKSPACE_UNKNOWN: "Use the project's direct directory path and check the listed roots locally.",
+    WORKSPACE_HOME_UNKNOWN: "Check the path to your Codex home and the workspace locally.",
+    WORKSPACE_HOME: "Select the project directory with `--workspace` to check its settings.",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.": "Make `writable_roots` a list of folder paths, or remove it.",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
         "Set it to `\"read-only\"`, `\"workspace-write\"` or `\"danger-full-access\"`.",
@@ -815,6 +835,7 @@ def gap(text, absent, files, contexts=None):
 
 SETUP_LABELS = {("approval_policy",): "Approval", ("sandbox_mode",): "Sandbox",
                 ("sandbox_workspace_write", "network_access"): "Network access for commands",
+                ("sandbox_workspace_write", "writable_roots"): "Extra writable folders",
                 ("shell_environment_policy",): "Environment for commands", ("web_search",): "Web search",
                 ("notify",): "Notifications", ("apps", "_default"): "Defaults for all apps (`_default`)",
                 ("features", "apps"): "ChatGPT Apps connection"}
@@ -970,7 +991,7 @@ GROUPS = (
     ("Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. "
      "That does not make them minor.",
      ("rests on Codex's source code alone", "rest on Codex's source code alone"),
-     ("self_described_tools",)),
+     ("self_described_tools", "writable_project_settings")),
 )
 PLACE = {rule: (group, position) for group, (_, _, rules) in enumerate(GROUPS) for position, rule in enumerate(rules)}
 NUMBERS = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")

@@ -52,9 +52,8 @@ class UnlistedSettingTests(ConfigCase):
                 self.assertEqual(report["inspection_gaps"], [])
 
     def test_active_writable_roots_give_a_gap_and_no_entry_or_risk(self):
-        writable = ("config-1: sandbox_workspace_write.writable_roots lists extra folders that commands may write in "
-                    "workspace-write mode, some possibly outside the workspace; their paths were withheld and were "
-                    "not evaluated.")
+        writable = ("config-1: sandbox_workspace_write.writable_roots lists extra folders commands may write. "
+                    "No --workspace was supplied to check project .codex. The folders' other effects were not assessed.")
         invalid = "config-1: sandbox_workspace_write.writable_roots is invalid; its value was withheld."
         read_only = SANDBOX.replace('"workspace-write"', '"read-only"')
         read_only_catalog = {**SANDBOX_CATALOG, "sandbox_mode": ["read-only"],

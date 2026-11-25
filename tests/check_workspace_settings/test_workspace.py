@@ -1,17 +1,22 @@
 import io
 import json
 import os
-from contextlib import redirect_stderr, redirect_stdout
+import subprocess
+import sys
+from contextlib import chdir, redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
 from stay_safe.cli import main
-from tests.support import ConfigCase, INCOMPLETE, finding_items, section
+from tests.support import ConfigCase, INCOMPLETE, ROOT, finding_items, section
 
 
 class WorkspaceSettingsTests(ConfigCase):
     def setUp(self):
         super().setUp()
         self.workspace = self.root.resolve() / "private-project-name"
+        home = patch.dict(os.environ, {"HOME": str(self.root.resolve() / "user-home")})
+        home.start()
+        self.addCleanup(home.stop)
         self.workspace.mkdir()
         self.target = self.workspace / ".codex"
         self.target.mkdir()
@@ -46,13 +51,14 @@ class WorkspaceSettingsTests(ConfigCase):
                          [("writable_project_settings", "config-1:sandbox_workspace_write.writable_roots")])
         risk = report["risks"][0]
         self.assertIn("later trusted", risk["explanation"])
-        self.assertIn("other", " ".join(report["inspection_gaps"]).lower())
+        self.assertEqual(len(report["inspection_gaps"]), 1)
+        self.assertIn("other effects of extra folders", report["inspection_gaps"][0])
         markdown = self.run_report(path, fmt="markdown")
         finding, = finding_items(markdown)
         self.assertIn("later trusted", finding)
         self.assertIn("writable_roots", finding)
         self.assertIn("remove", finding.lower())
-        self.assertIn("other", section(markdown, "Not checked").lower())
+        self.assertIn("other effects of extra writable folders", section(markdown, "Not checked"))
 
     def test_removing_direct_grant_leaves_parent_sibling_lookalike_and_narrower_roots_without_a_warning(self):
         roots = [self.workspace, self.workspace.parent / "sibling", self.workspace / ".codex-backup",
@@ -91,9 +97,18 @@ class WorkspaceSettingsTests(ConfigCase):
     def test_missing_workspace_and_unresolved_aliases_name_the_boundary(self):
         path = self.settings([str(self.target)])
         for fmt in ["json", "markdown"]:
-            report = self.run_report(path, workspace=False, fmt=fmt)
+            with chdir(self.workspace):
+                report = self.run_report(path, workspace=False, fmt=fmt)
+            if fmt == "json":
+                self.assertEqual(report["risks"], [])
             gap = " ".join(report["inspection_gaps"]) if fmt == "json" else section(report, "Not checked")
             self.assertIn("--workspace", gap)
+        err = io.StringIO()
+        with chdir(self.workspace), redirect_stderr(err), redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as invalid:
+                main(["--workspace", "", "--config", str(path)])
+        self.assertEqual(invalid.exception.code, 2)
+        self.assertIn("--workspace needs a directory", err.getvalue())
         alias = self.workspace / "private-alias"
         alias.symlink_to(self.target, target_is_directory=True)
         for candidate in [str(alias), "../private-project-name/.codex"]:
@@ -112,3 +127,36 @@ class WorkspaceSettingsTests(ConfigCase):
             report = self.run_report(path)
         self.assertEqual(report["risks"], [])
         self.assertIn("Codex home", " ".join(report["inspection_gaps"]))
+        alias = self.root / "private-home-alias"
+        alias.symlink_to(self.target, target_is_directory=True)
+        with patch.dict(os.environ, {"CODEX_HOME": str(alias)}):
+            report = self.run_report(path)
+        self.assertEqual(report["risks"], [])
+        self.assertIn("Codex home", " ".join(report["inspection_gaps"]))
+
+    def test_workspace_compares_discovered_settings_without_opening_project_contents(self):
+        home = self.root.resolve() / "private-codex-home"
+        home.mkdir()
+        self.settings([str(self.target)]).rename(home / "config.toml")
+        for name in ["config.toml", "auth.json", "AGENTS.md"]:
+            (self.target / name).write_text("private-project-contents", encoding="utf-8")
+        script = """
+import sys
+from pathlib import Path
+from stay_safe.cli import main
+
+workspace = Path(sys.argv[1])
+def guard(event, args):
+    if event in ("open", "os.listdir", "os.scandir") and isinstance(args[0], str):
+        path = Path(args[0])
+        if path == workspace or workspace in path.parents:
+            raise RuntimeError("opened project contents")
+sys.addaudithook(guard)
+raise SystemExit(main(["--agent", "codex", "--workspace", str(workspace), "--format", "json"]))
+"""
+        run = subprocess.run([sys.executable, "-B", "-c", script, str(self.workspace)],
+                             cwd=ROOT, env={**os.environ, "CODEX_HOME": str(home)},
+                             capture_output=True, text=True, timeout=10)
+        self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE))
+        self.assertNotIn("private-", run.stdout)
+        self.assertEqual([r["rule"] for r in json.loads(run.stdout)["risks"]], ["writable_project_settings"])
