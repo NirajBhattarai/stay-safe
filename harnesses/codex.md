@@ -10,8 +10,9 @@ inferred. The [tool-approval] and [shell-environment-input] sources define the
 defaults below. The rules follow the selected file's policy,
 not uninspected runtime layers or actual tool annotations. An open tool catalog can
 retain a parent policy risk; a closed allowlist loses it when every allowed tool is
-denied or has its own approval override. A tool without its own approval mode inherits
-its server's or app's mode, and `apps._default` is a policy template for named apps;
+denied or has its own approval override. Without a tool override, the reader uses the
+server or app default. Codex can also apply an account-specific or managed App policy
+([order][app-unnamed-approval]). `apps._default` is a policy template for named apps;
 [each_risk_shows_its_cause](../contracts/claims.md#each_risk_shows_its_cause-each-warning-identifies-the-setting-and-evidence-behind-it)
 says which entry carries each resulting risk. An approval mode alone does not determine a live call’s outcome.
 Tool overrides belong to named apps. Tool allow and deny lists (`enabled_tools`,
@@ -47,8 +48,8 @@ Additional positive and negative cases live under
 [each_risk_shows_its_cause](../tests/each_risk_shows_its_cause/test_conditions.py).
 
 Unless a row or section names another release,
-Codex source links are pinned to OpenAI Codex `rust-v0.167.0`
-(`086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a`) and were re-checked there on 2026-11-09.
+Codex source links are pinned to OpenAI Codex `rust-v0.172.0`
+(`3d86e43b075adeba2193ec5c22ac92f55afd82e6`) and were rechecked on 2026-11-25.
 The configuration reference was read on 2026-11-02 for retired values.
 The `auto` default is defined by [AppToolApproval][tool-default].
 
@@ -57,10 +58,10 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `approval_policy` | `never` | Permitted commands do not ask for approval; the sandbox remains separate. Catalog: `never`. Rules: `commands_without_prompts`. Gap: no. | [approval] | documented |
 | `approval_policy` | `on-request` | The model decides when to request approval; this is not blanket preapproval. In a restricted sandbox, a command that no execution rule matches runs inside the sandbox without asking unless Codex flags it as dangerous, which `never` refuses and `on-request` can ask about ([fallback][restricted-commands]); a matching rule can still require a prompt, even for an ordinary command ([rules][rule-prompts]). Catalog: `on-request`. Rules: none. Gap: no. | [approval] | documented |
 | `approval_policy` | `on-request with danger-full-access` | With no sandbox, a command that no execution rule matches runs without asking unless Codex flags it as dangerous ([decision][full-access-commands]); the flag covers forced deletes ([flag][dangerous-commands]). A matching rule can still ask; the reader does not read rules for this row. Catalog: `on-request`, `with danger-full-access, ordinary commands can run without asking`. Rules: `commands_without_prompts`. Gap: no. | [full-access-commands] | documented in source |
-| `approval_policy` | `never with danger-full-access` | With no sandbox, MCP and app tool calls can run without asking even when their approval mode requests approval, unless strict automatic review is on ([approval][full-access-tools], [call][full-access-tool-call]); the reader reports it when an enabled MCP server or the ChatGPT Apps connection is present. Catalog: `never`, `with danger-full-access, MCP and app tool calls can run without asking`. Rules: `commands_without_prompts`, `automatic_tools`. Gap: no. | [full-access-tools] | documented in source |
+| `approval_policy` | `never with danger-full-access` | With `never`, Codex can skip an MCP or App tool prompt even when the tool requests one. This path requires strict automatic review to be off and uses the server’s effective permission profile ([approval][full-access-tools], [call][full-access-tool-call]). The reader flags the configured combination when an enabled MCP server or the ChatGPT Apps connection is present. Catalog: `never`, `with danger-full-access, MCP and app tool calls can run without asking`. Rules: `commands_without_prompts`, `automatic_tools`. Gap: no. | [full-access-tools] | documented in source |
 | `approval_policy` | `untrusted` | The configuration reference retires this unsupported value; the reader leaves it unhandled. Catalog: none. Rules: none. Gap: yes. | [configuration-reference] | documented: retired |
-| `approval_policy` | `on-failure` | The configuration reference deprecates this value; the reader leaves it unhandled. Catalog: none. Rules: none. Gap: yes. | [configuration-reference] | documented: deprecated |
-| `approval_policy` | `granular` | A category set to `false` rejects its approval requests automatically instead of asking, as `never` does; the reader leaves this policy unhandled. Catalog: none. Rules: none. Gap: yes. | [approval-granular] | open |
+| `approval_policy` | `on-failure` | The configuration reference deprecates this spelling. Codex parses it as `on-request` ([alias][approval-alias]) and the reader leaves it unhandled. Catalog: none. Rules: none. Gap: yes. | [configuration-reference] | documented: deprecated |
+| `approval_policy` | `granular` | A disabled category rejects requests in that category. Turning off sandbox-escalation prompts still permits certain dangerous commands to request approval within existing permissions ([decision][rule-prompts]). The reader leaves this policy unhandled. Catalog: none. Rules: none. Gap: yes. | [approval-granular] | open |
 | `sandbox_mode` | `read-only` | The configured legacy sandbox is read-only. Catalog: `read-only`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_mode` | `workspace-write` | The configured legacy sandbox permits workspace writes. Catalog: `workspace-write`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_mode` | `danger-full-access` | The configured legacy policy removes sandbox restrictions. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: no. | [sandbox] | documented |
@@ -107,7 +108,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `apps.*.destructive_enabled` | `false inherited from _default` | Codex follows [the order above](#codex-configuration-meanings). Catalog: `configured enabled`, `destructive tools disabled by apps._default.destructive_enabled`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [app-tool-policy] | documented in source |
 | `apps.*` | `non-boolean open_world_enabled or destructive_enabled on a named App or _default` | A malformed `open_world_enabled` or `destructive_enabled` on a named App or its [default template][app-default-destructive] prevents Codex from loading the file. Other entries describe settings written in that file. Catalog: `Codex cannot load this configuration file`, `tool approval: auto (default)`. Rules: none. Gap: yes. | [app-config] | documented in source |
 | `apps.*.links` | `per-account policy` | Account-specific policy is outside reader coverage and account identities are withheld. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [apps] | open |
-| `apps.*.approvals_reviewer` | `per-app reviewer` | A reviewer set for an app or in `apps._default` replaces the default reviewer for that app's tool calls; `user` asks you, as the default does, and `auto_review` (alias `guardian_subagent`, [values][reviewer-values]) sends on-request prompts to automatic review ([routing][reviewer-routing]). Only those two values give a gap; the reviewer is outside reader coverage. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [app-reviewer] | documented in source |
+| `apps.*.approvals_reviewer` | `per-app reviewer` | For an Apps approval prompt, Codex checks the matching tool’s reviewer, then the linked account, the app and `apps._default`. The tool’s raw name takes precedence over its title ([matching][app-tool-match]). Model and managed requirements can constrain the choice. `user` routes to the user and `auto_review` (alias `guardian_subagent`) routes to automatic review ([values][reviewer-values], [routing][reviewer-routing]). An app or Apps default set to automatic review gets the named gap. Tool and linked-account settings remain outside the reader’s coverage. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: yes. | [app-reviewer] | documented in source |
 | `model_providers.*` | `definition` | The provider name is catalogued; endpoints and credentials are withheld and no provider selection is inferred. See the rows below for credential commands. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: no. | [schema] | documented |
 | `model_providers.*.auth` | `command-backed authentication` | Command-backed provider authentication is outside reader coverage. This row covers the provider’s `auth` command. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [schema] | open |
 | `model_providers.*.aws` | `credential commands` | Each `credential_export` or `auth_refresh` setting present is named as unchecked, whether or not the file selects the provider. Catalog: `configured; endpoint and credentials withheld`. Rules: none. Gap: yes. | [provider-auth] | documented in source |
@@ -122,7 +123,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `web_search` | `live` | The reader records this recognized configured mode without inferring live network availability. Catalog: `live`. Rules: none. Gap: no. | [schema] | documented |
 | `web_search` | `unrecognized string` | An unrecognized mode is withheld and produces a coverage gap. Catalog: none. Rules: none. Gap: yes. | [schema] | open |
 | `mcp_servers.*.default_tools_approval_mode` | `omitted` | The documented [auto default](#tool-approval-by-version) applies to an enabled server when no tool override replaces it. Catalog: `configured enabled`, `HTTP; endpoint withheld`, `tool approval: auto (default)`. Rules: `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
-| `apps.*.default_tools_approval_mode` | `omitted without _default mode` | The documented [auto default](#tool-approval-by-version) applies to a named enabled app when no app or tool override replaces it. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
+| `apps.*.default_tools_approval_mode` | `omitted without _default mode` | The documented [auto default](#tool-approval-by-version) applies to a named enabled app when no managed, tool, linked-account or app mode replaces it. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: auto (default)`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [tool-approval] | documented in source |
 | `apps.*.default_tools_approval_mode` | `writes inherited from _default` | The named app inherits the writes policy from its default; the hint-dependent meaning is defined in the mode rows above. Catalog: `configured enabled`, `destructive tools enabled by Codex default`, `tool approval: writes`. Rules: `destructive_tools`, `self_described_tools`. Gap: no. | [apps] | documented |
 | `shell_environment_policy` | `omitted` | Catalog: `inherit: all (default)`, `ignore_default_excludes: true (default)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment-input] | documented in source |
 | `shell_environment_policy.inherit` | `all` | Codex still withholds its own non-inheritable launch variables ([list][shell-launch], [use][shell-launch-use]). Catalog: `inherit: all (explicit)`, `ignore_default_excludes: true (default)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment] | documented in source |
@@ -131,7 +132,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `shell_environment_policy.ignore_default_excludes` | `true` | Catalog: `inherit: all (default)`, `ignore_default_excludes: true (explicit)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment] | documented in source |
 | `shell_environment_policy.ignore_default_excludes` | `false` | Catalog: `inherit: all (default)`, `ignore_default_excludes: false (explicit)`. Rules: `environment_inheritance`. Gap: no. | [shell-environment] | documented in source |
 | `shell_environment_policy` | `additional fields` | Catalog: none. Rules: none. Gap: yes. | [shell-environment] | open |
-| `features.apps` | `omitted` | Codex's apps feature is on by default ([default][apps-feature]). When Codex is signed in with ChatGPT, it adds an MCP connection to ChatGPT named `codex_apps` ([connection][apps-connection], [sign-in][apps-sign-in]); `false` removes it. The reader does not check sign-in. An app the file does not name takes `apps._default`, then Codex's defaults ([enabled][app-enabled], [order][app-tool-policy]), so this entry says whether such apps are off and where their `destructive_enabled` comes from; Codex's own default gives no finding. A missing value takes Codex's default; an invalid `apps`, `apps._default` or `enabled` makes the entry say `settings unknown`, as does an invalid `open_world_enabled` on an enabled template. An invalid `destructive_enabled` says `destructive tools unknown`. Catalog: `ChatGPT Apps`, `exists only if Codex is signed in with ChatGPT, which is not checked`, `features.apps = false turns it off`, `apps not named in this file: destructive tools enabled by Codex default`. Rules: none. Gap: no. | [apps-feature] | documented in source |
+| `features.apps` | `omitted` | Codex's apps feature is on by default ([default][apps-feature]). A non-isolated session can add the implicit `codex_apps` connection. Host-owned Apps also requires a suitable ChatGPT sign-in ([connection][apps-connection], [sign-in][apps-sign-in]). The reader checks neither session isolation nor sign-in. An app the file does not name takes `apps._default`, then Codex's defaults ([enabled][app-enabled], [order][app-tool-policy]), so this entry says whether such apps are off and where their `destructive_enabled` comes from; Codex's own default gives no finding. A missing value takes Codex's default; an invalid `apps`, `apps._default` or `enabled` makes the entry say `settings unknown`, as does an invalid `open_world_enabled` on an enabled template. An invalid `destructive_enabled` says `destructive tools unknown`. Catalog: `ChatGPT Apps`, `exists only if Codex is signed in with ChatGPT, which is not checked`, `features.apps = false turns it off`, `apps not named in this file: destructive tools enabled by Codex default`. Rules: none. Gap: no. | [apps-feature] | documented in source |
 | `features.apps` | `false` | Reported apps and tools show as off and produce no findings, unless the legacy `connectors` flag can turn Apps back on ([alias][apps-alias], [application order][apps-feature-order]). Catalog: `disabled by features.apps = false`, `tool approval: auto (default)`. Rules: none. Gap: no. | [apps-connection] | documented in source |
 
 ## Tool approval by version
@@ -145,8 +146,8 @@ Permission policy and saved approvals also affect whether the user is asked.
 
 | Checked stable releases | Hint used when both are true | Codex source |
 | --- | --- | --- |
-| 0.167.0–0.168.0 | Destructive (`destructiveHint`) | [0.167.0][tool-approval], [0.168.0][tool-approval-0-168] |
-| 0.169.0–0.172.0 | Read-only (`readOnlyHint`) | [0.169.0][tool-approval-0-169], [0.172.0][tool-approval-0-172] |
+| 0.167.0–0.168.0 | Destructive (`destructiveHint`) | [0.167.0][tool-approval-0-167], [0.168.0][tool-approval-0-168] |
+| 0.169.0–0.172.0 | Read-only (`readOnlyHint`) | [0.169.0][tool-approval-0-169], [0.172.0][tool-approval] |
 
 For MCP and App tools, both `auto` and `writes` use hints supplied by the server.
 When a tool omits the read-only hint or sets it to `false`, `auto` requires approval
@@ -197,7 +198,7 @@ it finds is an inspection gap.
   `/etc/codex` for the System layer. The User layer is added even without a `config.toml`
   ([missing file][user-layer-missing], [layer][user-layer]). Codex loads the file only when Rust's
   `Path::is_file` is true ([check][hooks-json-is-file]), which follows links and is true only for a regular
-  file ([Rust 1.95.0][rust-is-file], [toolchain][rust-toolchain]).
+  file ([Rust 1.99.1][rust-is-file], [toolchain][rust-toolchain]).
 - `rules/`: Codex looks for `rules` in each layer's config folder ([folders][policy-files]) and loads every
   regular file whose extension is exactly `rules`. A missing folder gives none; any other listing error
   fails ([collect][collect-policy-files]).
@@ -244,121 +245,123 @@ The two refusals were observed with Codex 0.167.0 when the advice was reviewed, 
 observations, not source readings. The environment Check lists variable names with awk's `ENVIRON`:
 `env | cut -d= -f1` would print each line of a multi-line value that has no `=`.
 
-[saved-writer]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/execpolicy/src/amend.rs
-[saved-runtime]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs
-[saved-match]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/execpolicy/src/rule.rs#L55-L72
-[saved-precedence]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/execpolicy/src/policy.rs#L584-L595
-[saved-decisions]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/execpolicy/src/decision.rs
+[saved-writer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/amend.rs
+[saved-runtime]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs
+[saved-match]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/rule.rs#L55-L72
+[saved-precedence]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/policy.rs#L584-L595
+[saved-decisions]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/decision.rs
 
-[schema]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/config.schema.json
-[approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/protocol.rs
-[approval-granular]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/protocol.rs#L1158-L1168
-[sandbox]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/protocol.rs
-[mcp]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs
-[tool-approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L2595-L2626
+[schema]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/config.schema.json
+[approval]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs
+[approval-alias]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs#L1204-L1215
+[approval-granular]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs#L1217-L1227
+[sandbox]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs
+[mcp]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs
+[tool-approval]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L2893-L2920
 [tool-approval-0-168]: https://github.com/openai/codex/blob/9480ec100c3edee9fc69172e8e80a4730444094d/codex-rs/core/src/mcp_tool_call.rs#L2744-L2775
 [tool-approval-0-169]: https://github.com/openai/codex/blob/d32063f96c2dff1dc96af839b3952abb6acfeda4/codex-rs/core/src/mcp_tool_call.rs#L2757-L2784
-[tool-approval-0-172]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L2893-L2920
+[tool-approval-0-167]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L2595-L2626
 [tool-approval-caller-0-167]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1564-L1610
 [tool-approval-caller-0-172]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L1731-L1778
-[apps]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs
-[provider-auth]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/model-provider-info/src/lib.rs#L177-L260
-[app-reviewer]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/connectors.rs#L525-L545
-[reviewer-values]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/config_types.rs#L183-L190
-[reviewer-routing]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/guardian-reviewer/src/routing.rs#L58-L66
-[app-tool-policy]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L279-L305
-[app-config]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L534-L576
-[app-default-destructive]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L471-L476
-[app-enabled]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L174-L185
-[app-unnamed-approval]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy.rs#L263-L270
-[app-enabled-field]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L537-L540
-[apps-alias]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/legacy.rs#L11-L15
-[apps-feature-order]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/lib.rs#L695-L789
-[apps-feature]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/features/src/lib.rs#L1658-L1663
-[apps-connection]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp.rs#L464-L479
-[apps-sign-in]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/mcp/mod.rs#L358-L360
+[apps]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs
+[provider-auth]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/model-provider-info/src/lib.rs#L241-L311
+[app-tool-match]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L517-L524
+[app-reviewer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/connectors.rs#L511-L561
+[reviewer-values]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/config_types.rs#L183-L190
+[reviewer-routing]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/guardian-reviewer/src/routing.rs#L59-L67
+[app-tool-policy]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/connectors/src/app_tool_policy.rs#L274-L300
+[app-config]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L548-L590
+[app-default-destructive]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L472-L477
+[app-enabled]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/connectors/src/app_tool_policy.rs#L174-L185
+[app-unnamed-approval]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/connectors/src/app_tool_policy.rs#L249-L265
+[app-enabled-field]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L551-L554
+[apps-alias]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/features/src/legacy.rs#L11-L15
+[apps-feature-order]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/features/src/lib.rs#L751-L852
+[apps-feature]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/features/src/lib.rs#L1783-L1788
+[apps-connection]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp.rs#L503-L525
+[apps-sign-in]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/codex-mcp/src/mcp/mod.rs#L404-L406
 [app-enabled-run]: https://github.com/chalkbadger/stay-safe-archive/issues/90#issuecomment-6726050010
-[app-tool-policy-tests]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/connectors/src/app_tool_policy_tests.rs#L685-L770
-[roots-type]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs#L1257-L1263
-[roots-layer]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L1620-L1651
-[roots-home]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/utils/absolute-path/src/lib.rs#L27-L56
-[roots-parents]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/utils/absolute-path/src/absolutize.rs#L22-L44
-[legacy-profile]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/config_toml.rs#L860-L910
-[project-settings-write]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/permissions.rs#L3419-L3505
-[project-layer]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L1863-L1893
-[explicit-workspace]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/config/config_tests.rs#L3690-L3730
-[writable-roots]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/config/mod.rs#L3769-L3790
-[restricted-commands]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L836-L875
-[rule-prompts]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L378-L455
-[full-access-commands]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L857-L864
-[dangerous-commands]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/shell-command/src/command_safety/is_dangerous_command.rs#L132-L160
-[full-access-tools]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/mcp/mod.rs#L91-L110
-[full-access-tool-call]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1577-L1588
-[hooks]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs
-[mcp-url]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L407
-[mcp-inline-fields]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L389-L411
-[mcp-transport]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L512-L566
-[hook-matcher]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/matcher.rs#L32-L40
-[hook-handlers]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L140-L188
-[hook-skipped]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L782-L801
-[hook-empty]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L665-L671
-[hook-command-windows]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L150-L155
-[hook-windows-choice]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L660-L671
-[hook-mcp-tool]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L729-L781
-[hook-trust]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L917-L923
-[hook-trust-check]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L1000-L1027
-[hook-state]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/config_rules.rs#L15-L45
-[notify-program]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/registry.rs#L407-L421
+[app-tool-policy-tests]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/connectors/src/app_tool_policy_tests.rs#L687-L773
+[roots-type]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/types.rs#L1324-L1330
+[roots-layer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L1661-L1698
+[roots-home]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/utils/absolute-path/src/lib.rs#L27-L56
+[roots-parents]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/utils/absolute-path/src/absolutize.rs#L22-L44
+[legacy-profile]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/permission_config.rs#L80-L103
+[project-settings-write]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/permissions_tests.rs#L774-L861
+[project-layer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L1909-L1939
+[explicit-workspace]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/config_tests.rs#L3750-L3790
+[writable-roots]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/mod.rs#L3918-L3939
+[restricted-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L897-L936
+[rule-prompts]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L422-L481
+[full-access-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L897-L925
+[dangerous-commands]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/shell-command/src/command_safety/is_dangerous_command.rs#L132-L160
+[full-access-tools]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/codex-mcp/src/mcp/mod.rs#L96-L115
+[full-access-tool-call]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L1747-L1758
+[hooks]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs
+[mcp-url]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L413
+[mcp-inline-fields]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L395-L417
+[mcp-transport]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L518-L572
+[hook-matcher]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/matcher.rs#L32-L40
+[hook-handlers]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/hooks.rs#L140-L188
+[hook-skipped]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L792-L811
+[hook-empty]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L674-L680
+[hook-command-windows]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/hooks.rs#L150-L155
+[hook-windows-choice]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L669-L680
+[hook-mcp-tool]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L738-L790
+[hook-trust]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L928-L934
+[hook-trust-check]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L1011-L1038
+[hook-state]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/config_rules.rs#L15-L45
+[notify-program]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/registry.rs#L412-L426
 [configuration-reference]: https://learn.chatgpt.com/docs/config-file/config-reference
-[tool-default]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L26-L34
-[shell-environment]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/config_types.rs#L205-L272
-[shell-environment-input]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/shell_environment_policy.rs#L133-L169
-[mcp-allowlist]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/tools.rs#L63-L95
-[shell-launch]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L14-L22
-[shell-launch-use]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L170-L172
-[shell-core]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L178-L181
-[shell-set]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/shell_environment.rs#L153-L158
-[hook-groups]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L632-L650
-[hook-events]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L113-L137
-[hook-group]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/hooks.rs#L140-L145
-[hook-group-written]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server/tests/suite/v2/hooks_list.rs#L80-L87
-[mcp-command]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L393-L397
-[mcp-headers-helper]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/mcp_types.rs#L411
-[sandbox-profile]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/config/mod.rs#L2711-L2723
-[never-refuses]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_tool_call.rs#L1691-L1699
-[codex-home]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/utils/home-dir/src/lib.rs#L13-L62
-[hooks-json]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L176-L181
-[config-folder]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/state.rs#L218-L243
-[user-layer-missing]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L617-L619
-[user-layer]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L293-L328
-[hooks-json-is-file]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/hooks/src/engine/discovery.rs#L390-L397
-[rust-toolchain]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/rust-toolchain.toml#L2
-[policy-files]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L688-L712
-[collect-policy-files]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/exec_policy.rs#L1177-L1227
-[plugin-cache]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core-plugin-common/src/installed.rs#L11
-[plugin-store]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core-plugins/src/store.rs#L87-L88
-[plugin-install]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core-plugins/src/store.rs#L112-L120
-[plugin-active]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core-plugin-common/src/installed.rs#L47-L68
-[skills-root]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/host_roots.rs#L134-L140
-[skill-name]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/mod.rs#L19
-[skill-discovery]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/discovery.rs#L142-L154
-[skill-recursive]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/host.rs#L104-L110
-[skill-depth]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/mod.rs#L24
-[skill-walk]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/discovery.rs#L69-L72
-[skill-listing]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L860-L863
-[skill-links]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/host.rs#L164-L167
-[skill-file-links]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L837-L839
-[skill-hidden]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/host.rs#L176-L180
-[skill-system]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/skills/src/lib.rs#L66-L104
-[skill-system-startup]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/host_service.rs#L432
-[skill-not-folder]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/local_file_system.rs#L765-L767
-[skill-missing]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/loader/discovery.rs#L88
-[skill-mcp]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/mcp_skill_dependencies.rs#L40-L83
-[environments-path]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment_toml.rs#L234-L246
-[environments-load]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment.rs#L194-L209
-[environments-program]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment_toml.rs#L183-L198
-[environments-read]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/exec-server/src/environment_toml.rs#L330-L341
-[system-config]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L275-L290
-[system-managed]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/layer_io.rs#L222-L232
-[system-requirements]: https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/loader/mod.rs#L734-L737
-[rust-is-file]: https://github.com/rust-lang/rust/blob/59807616e1fa2540724bfbac14d7976d7e4a3860/library/std/src/path.rs#L3480-L3511
+[tool-default]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L26-L34
+[shell-environment]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/config_types.rs#L205-L272
+[shell-environment-input]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/shell_environment_policy.rs#L133-L169
+[mcp-allowlist]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/codex-mcp/src/tools.rs#L84-L116
+[shell-launch]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/shell_environment.rs#L18-L29
+[shell-launch-use]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/shell_environment.rs#L177-L179
+[shell-core]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/shell_environment.rs#L185-L188
+[shell-set]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/shell_environment.rs#L160-L165
+[hook-groups]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L633-L651
+[hook-events]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/hooks.rs#L113-L137
+[hook-group]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/hooks.rs#L140-L145
+[hook-group-written]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/app-server/tests/suite/v2/hooks_list.rs#L80-L87
+[mcp-command]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L399-L403
+[mcp-headers-helper]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/mcp_types.rs#L417
+[sandbox-profile]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/permission_config.rs#L62-L74
+[never-refuses]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_tool_call.rs#L1923-L1931
+[codex-home]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/utils/home-dir/src/lib.rs#L13-L62
+[hooks-json]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L177-L182
+[config-folder]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/state.rs#L225-L250
+[user-layer-missing]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L657-L659
+[user-layer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L295-L330
+[hooks-json-is-file]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/hooks/src/engine/discovery.rs#L391-L398
+[rust-toolchain]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/rust-toolchain.toml#L2
+[policy-files]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L749-L773
+[collect-policy-files]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/exec_policy.rs#L1238-L1288
+[plugin-cache]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core-plugin-common/src/installed.rs#L11
+[plugin-store]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core-plugins/src/store.rs#L87-L88
+[plugin-install]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core-plugins/src/store.rs#L112-L120
+[plugin-active]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core-plugin-common/src/installed.rs#L47-L68
+[skills-root]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/host_roots.rs#L151-L158
+[skill-name]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/mod.rs#L21
+[skill-discovery]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/discovery.rs#L147-L159
+[skill-recursive]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/host.rs#L105-L111
+[skill-depth]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/mod.rs#L26
+[skill-walk]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/discovery.rs#L71-L74
+[skill-listing]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/local_file_system.rs#L872-L875
+[skill-links]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/host.rs#L161-L164
+[skill-file-links]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/local_file_system.rs#L849-L851
+[skill-hidden]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/host.rs#L174-L178
+[skill-system]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/skills/src/lib.rs#L66-L104
+[skill-system-startup]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/host_service.rs#L503
+[skill-not-folder]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/local_file_system.rs#L777-L779
+[skill-missing]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/ext/skills/src/loader/discovery.rs#L90
+[skill-mcp]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/mcp_skill_dependencies.rs#L40-L83
+[environments-path]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/environment_toml.rs#L234-L246
+[environments-load]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/environment.rs#L194-L209
+[environments-program]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/environment_toml.rs#L183-L198
+[environments-read]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/exec-server/src/environment_toml.rs#L330-L341
+[system-config]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L277-L292
+[system-managed]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/layer_io.rs#L223-L233
+[system-requirements]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L774-L777
+[rust-is-file]: https://github.com/rust-lang/rust/blob/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/path.rs#L3584-L3615
