@@ -707,6 +707,7 @@ STEPS = {
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
     "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "Check the tool and linked account first. "
         "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
         "inherit automatic review from `apps._default`.",
     INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
