@@ -1,3 +1,4 @@
+from tests.support import without_rule_links
 import errno
 import io
 import json
@@ -18,12 +19,10 @@ class TerminalTests(ConfigCase):
     def terminal(self, *args, cwd=ROOT):
         master, slave = pty.openpty()
         try:
-            # Capture stderr separately: only stdout determines the display.
             child = subprocess.Popen([sys.executable, '-B', '-m', 'stay_safe', *args], cwd=cwd,
                                      stdout=slave, stderr=subprocess.PIPE)
             os.close(slave)
             slave = None
-            # Drain the terminal concurrently with the child to avoid filling its buffer.
             import threading
             output = []
             def read():
@@ -57,8 +56,8 @@ class TerminalTests(ConfigCase):
         path = self.config(SEEDED)
         checkout = copy_checkout(self.root / 'checkout')
         status, output, errors = self.terminal('--config', str(path), cwd=checkout)
-        self.assertEqual(status, 0)
-        self.assertEqual(errors, HINT)
+        self.assertEqual(status, 2)
+        self.assertEqual(errors, HINT + INCOMPLETE)
         self.assertTrue(output.startswith('Codex configuration diagnostic\n\n'))
         headings = ['Findings', 'Not checked', 'Your setup', 'Sources', "What this report can't see"]
         positions = [output.index('\n' + heading + '\n') for heading in headings]
@@ -105,7 +104,7 @@ class TerminalTests(ConfigCase):
         self.assertIn('Your ' + name + ' MCP server', output)
         self.assertIn('MCP server ' + name + ':', output)
         self.assertIn('Change it: under [mcp_servers.' + json.dumps(name) + ']', output)
-        self.assertIn('Rule configured_program · setting config-1:mcp_servers.' + json.dumps(name) + ' = configured enabled;', output)
+        self.assertIn('Rule configured_program · setting config-1:mcp_servers.' + json.dumps(name) + ' = configured enabled;', without_rule_links(output))
         self.assertIn('Sandbox: read-only', output)
         self.assertNotIn('private-command', output)
 

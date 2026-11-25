@@ -1,5 +1,3 @@
-"""Risk rules consume observations, not a harness's configuration syntax."""
-
 from dataclasses import dataclass
 
 
@@ -13,16 +11,20 @@ class Rule:
 RULES = (
     Rule("saved_approval",
          "A saved rule declares matching commands allowed outside the sandbox without prompting.",
-         ("I26",)),
+         ("I26", "I30")),
     Rule("commands_without_prompts",
          "Permitted commands run without asking; injected or mistaken instructions could execute code. The configured sandbox still applies.",
          ("I2", "I3", "I24")),
     Rule("unrestricted_filesystem",
          "The configuration removes the filesystem sandbox; a mistaken command could damage files outside the project.",
-         ("I1", "I3")),
+         ("I1", "I3", "I32")),
+    Rule("writable_project_settings",
+         "This file explicitly grants sandboxed commands write access to the selected workspace's .codex directory. "
+         "A command could change project settings that a later trusted Codex run uses.",
+         ("I20", "I33")),
     Rule("configured_program",
          "The configuration can launch a program; a compromised command or configuration could execute unwanted code.",
-         ("I13", "I14", "I19")),
+         ("I13", "I14", "I19", "I33")),
     Rule("automatic_tools",
          "Tool approval mode is approve; untrusted tool content could lead to unwanted operations.",
          ("I15", "I20")),
@@ -44,7 +46,6 @@ RULES = (
 
 
 def evaluate(entries):
-    """Return stable rule results for supported explicit or defaulted conditions."""
     return [
         {"rule": rule.id, "entry": entry["id"], "explanation": rule.explanation,
          "incidents": list(rule.incidents)}

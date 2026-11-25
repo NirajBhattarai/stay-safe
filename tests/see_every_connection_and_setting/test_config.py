@@ -4,23 +4,17 @@ import unittest
 from stay_safe.report import inspect, markdown
 from tests.support import CHATGPT_APPS, ConfigCase, section
 
-# Tool approval/default expectations are documented in ../../harnesses/codex.md,
-# citing openai/codex@086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a.
 
 FIXTURE = Path(__file__).with_name("known.toml")
 
 
 class CatalogTests(ConfigCase):
     def test_named_apps_respect_the_apps_switch_in_each_file(self):
-        # Alhibb: https://github.com/chalkbadger/stay-safe/issues/109#issuecomment-6998454778
-        # openai/codex 086ccc8: core/src/mcp.rs L465–486 and core/src/mcp_tool_call.rs L223–237.
         apps = '[apps.calendar]\nenabled=true\ndefault_tools_approval_mode="approve"\n[apps.drive]\n'
         override = '[apps.calendar.tools.delete]\nenabled=true\napproval_mode="approve"\n'
         for tool in ("", override):
             with self.subTest(tool=bool(tool)):
                 off = self.config('features.apps=false\n' + apps + tool, "off.toml")
-                # Both spellings map to Apps. Codex applies the sorted keys, so connectors wins in either order:
-                # openai/codex 086ccc8 features/src/legacy.rs L11–15 and features/src/lib.rs L695–696, L776–789.
                 active = ("", "features.apps=true\n", "features.apps=false\nfeatures.connectors=true\n",
                           "features.connectors=true\nfeatures.apps=false\n", "features.apps=0\n",
                           "features.apps=false\nfeatures.connectors=0\n")
@@ -86,7 +80,7 @@ class CatalogTests(ConfigCase):
             ("apps._default", "app policy", ["disabled", "tool approval: auto (default)"]),
             ("apps.backup", "app policy", ["disabled", "tool approval: approve"]),
             ("apps.calendar", "app policy", ["configured enabled", "destructive tools disabled by destructive_enabled", "tool approval: writes"]),
-            ("features.apps", "MCP server", CHATGPT_APPS),
+            ("features.apps", "MCP server", CHATGPT_APPS[:3] + ["apps not named in this file: disabled by apps._default.enabled"]),
             ("mcp_servers.git", "MCP server", ["configured enabled", "stdio; command withheld", "tool approval: prompt"]),
             ("mcp_servers.lookup", "MCP server", ["configured enabled", "HTTP; endpoint withheld", "tool approval: approve"]),
             ("mcp_servers.lookup.disabled_tools", "tool filter", ["configured names: delete"]),
@@ -104,12 +98,13 @@ class CatalogTests(ConfigCase):
         self.assertEqual([(r["rule"], r["entry"], r["incidents"]) for r in report["risks"]], [
             ("commands_without_prompts", "config-1:approval_policy", ["I2", "I3", "I24"]),
             ("self_described_tools", "config-1:apps.calendar", ["I15", "I21"]),
-            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19"]),
-            ("configured_program", "config-1:notify", ["I13", "I14", "I19"]),
+            ("configured_program", "config-1:mcp_servers.git", ["I13", "I14", "I19", "I33"]),
+            ("configured_program", "config-1:notify", ["I13", "I14", "I19", "I33"]),
             ("environment_inheritance", "config-1:shell_environment_policy", ["I23"]),
         ])
-        self.assertEqual(report["inspection_gaps"], [])
-        self.assertEqual(report["file_inspection"], "complete for supported fields")
+        self.assertEqual(report["inspection_gaps"], [
+            "config-1: mcp_servers.git.env contains inline values. Check the entries for credentials."])
+        self.assertEqual(report["file_inspection"], "incomplete")
         self.assertIn("runtime overrides are not inspected", " ".join(report["scope"]))
 
     def test_files_remain_independent_and_identity_preserves_dotted_name(self):
@@ -166,7 +161,6 @@ disabled_tools=["delete"]
 approval_mode="approve"
 ''')
         report = inspect([path])
-        # The explicitly enabled tool can run even if destructive (archived issue #63).
         self.assertEqual([(r["rule"], r["entry"]) for r in report["risks"]],
                          [("destructive_tools", "config-1:apps.calendar.tools.lookup"),
                           ("environment_inheritance", "config-1:shell_environment_policy")])
@@ -178,9 +172,6 @@ approval_mode="approve"
         self.assertEqual(entries["mcp_servers.search.tools.delete"]["observations"], ["disabled or enablement unknown", "tool approval: approve"])
 
     def test_unsupported_default_does_not_disable_app_tools(self):
-        # The same with the template disabled: apps._default.enabled = false disables no named app (archived issue #90;
-        # app_tool_policy.rs L174-L185 at 086ccc8), and Codex still reads the template's other settings for it
-        # (L255-L270, L287-L301), so the template's unsupported field keeps its gap.
         for template in ("", "enabled=false\n"):
             with self.subTest(template=template):
                 report = inspect([self.config('''approval_policy="on-request"
@@ -251,7 +242,7 @@ approval_mode="approve"
         self.assertIn("Named permission profiles are outside reader coverage", " ".join(report["inspection_gaps"]))
         self.assertIn("default_permissions and sandbox_mode conflict", " ".join(report["inspection_gaps"]))
         definitions = inspect([self.config('approval_policy="on-request"\nsandbox_mode="danger-full-access"\n[permissions.example]\nextends=":read-only"')])
-        self.assertEqual([r["rule"] for r in definitions["risks"]], ["unrestricted_filesystem", "environment_inheritance"])
+        self.assertEqual([r["rule"] for r in definitions["risks"]], ["commands_without_prompts", "unrestricted_filesystem", "environment_inheritance"])
 
     def test_preapproved_tools_are_distinct_from_auto_and_keep_slash_names(self):
         path = self.config('''approval_policy="on-request"
@@ -340,8 +331,6 @@ approval_mode="prompt"
             ("mcp_servers.a", ["configured enabled", "transport unknown", "tool approval: auto (default)"]),
             ("shell_environment_policy", ["inherit: all (default)", "ignore_default_excludes: true (default)"]),
         ])
-        # Codex reads `connectors` as a legacy alias for `apps`, so this file may turn the connection back on:
-        # openai/codex@086ccc8 codex-rs/features/src/legacy.rs L11-L15, L58-L66.
         alias = inspect([self.config('approval_policy="on-request"\nsandbox_mode="read-only"\n[features]\napps=false\nconnectors=true\n')])
         self.assertEqual(alias["inspection_gaps"], ["config-1: features contains fields outside reader coverage; their values were withheld."])
         self.assertNotIn("features.apps", [e["name"] for e in alias["catalog"]])
@@ -349,8 +338,6 @@ approval_mode="prompt"
         self.assertEqual(not_table["inspection_gaps"], ["config-1: features must be a table."])
 
     def test_any_string_url_without_command_is_http_and_withheld(self):
-        # Codex chooses HTTP for any string `url` without `command` and checks no URL form there:
-        # openai/codex@086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a codex-rs/config/src/mcp_types.rs#L407, #L512-L566.
         for url in ("https://mcp_server.internal/mcp", "localhost:8080/mcp", "https://?private-host-marker",
                     "https://example.com:70000", "https://[invalid", "https://999.1.1.1", "https://alice:fake-secret@/private",
                     "http://[::1]:3000/mcp", "https://example.com/m cp", ""):
