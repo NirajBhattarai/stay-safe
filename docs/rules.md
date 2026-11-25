@@ -22,6 +22,13 @@
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+unrestricted_filesystem+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+unrestricted_filesystem)
 
+## writable_project_settings
+
+- Settings: [Codex meanings](../harnesses/codex.md) row `sandbox_workspace_write.writable_roots`
+- Incidents: [I20](../incidents.md#i20-injected-text-turned-off-approvals) (GitHub Copilot edited its settings), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) (intruders edited Claude Code project settings)
+- Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+writable_project_settings+in%3Atitle%2Cbody)
+- [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+writable_project_settings)
+
 ## configured_program
 
 - Settings: [Codex meanings](../harnesses/codex.md) rows `mcp_servers.*.command`, `mcp_servers.*.http_headers_helper`, `notify`, `hooks.*`, `hooks.state`

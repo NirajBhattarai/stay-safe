@@ -61,7 +61,7 @@ the JSON report keeps its own order.
 | 2 | Network access, credentials, and connected tools | `environment_inheritance` | [I23](../incidents.md#i23-production-tables-dropped-by-a-dev-only-migration-command) |
 | 2 | Network access, credentials, and connected tools | `automatic_tools` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I20](../incidents.md#i20-injected-text-turned-off-approvals) |
 | 3 | Something else has to be tampered with first | `configured_program` | [I13](../incidents.md#i13-repository-settings-run-commands-on-collaborators-machines), [I14](../incidents.md#i14-readme-injection-bypassed-a-command-allowlist), [I19](../incidents.md#i19-worm-persisted-through-agent-startup-hooks), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) |
-| Not ranked | Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. That does not make them minor. | `self_described_tools` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets) |
+| Not ranked | Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. That does not make them minor. | `self_described_tools`<br>`writable_project_settings` | [I15](../incidents.md#i15-prompt-injection-through-github-issues), [I21](../incidents.md#i21-issue-content-steered-an-agent-toward-workflow-secrets)<br>[I20](../incidents.md#i20-injected-text-turned-off-approvals), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) |
 
 ## Entry IDs
 

@@ -59,6 +59,22 @@ Explicit `--config` and `--rules` options inspect only the selected files as
 independent snapshots. Select at most one rules file. The report goes to standard
 output and nothing is written. Redirect it to a new file to share it; never redirect onto an input file.
 
+To check whether a Codex settings file explicitly grants sandboxed commands write access to a
+project’s `.codex` directory, name the project you use with Codex:
+
+```sh
+python3 -m stay_safe --workspace /path/to/project --config /path/to/config.toml
+```
+
+You can also use `--workspace DIR` with the usual Codex settings discovery. The option supplies a
+directory for comparison. It does not select any additional configuration files. Use a direct
+path to the project. stay-safe compares each file's absolute and home-relative roots after applying
+Codex's path normalization. A home-relative root needs an absolute `HOME`. If it is missing or
+relative, the report names those unchecked entries and still reports any independent direct grant.
+Other relative roots, unresolved aliases and the wider effects of the
+folders remain under “Not checked.”
+See the [Codex meanings](../harnesses/codex.md) for the configured boundary.
+
 ## How files are found
 
 For a Codex report with no file arguments, the reader opens `config.toml` and `rules/default.rules`

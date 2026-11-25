@@ -47,10 +47,10 @@ PLAIN = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
-    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
-        "**Not checked: extra folders commands can write to.** Your config lists folders in `writable_roots` that "
-        "commands may write to in `workspace-write` mode. Some may be outside your workspace. stay-safe doesn't "
-        "check what those folders are. Their paths are left out of this report.",
+    "sandbox_workspace_write.writable_roots lists extra folders commands may write, some possibly outside the workspace. Their paths are withheld. No --workspace was supplied to check project .codex. The folders' other effects were not assessed.":
+        "**Not checked: extra writable folders.** Your config lists folders commands may write. "
+        "Some may be outside your workspace. Their paths are withheld. Supply `--workspace DIR` to check for a "
+        "direct grant to the project's `.codex`.",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.":
         "**Not checked: extra folders commands can write to.** Your `writable_roots` isn't a list of folder "
         f"paths, so stay-safe can't tell where commands can write. {WITHHELD}",
@@ -237,8 +237,8 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
-    "sandbox_workspace_write.writable_roots lists extra folders that commands may write in workspace-write mode, some possibly outside the workspace; their paths were withheld and were not evaluated.":
-        "Review each folder in `writable_roots` yourself, and remove any that commands shouldn't change, such as "
+    "sandbox_workspace_write.writable_roots lists extra folders commands may write, some possibly outside the workspace. Their paths are withheld. No --workspace was supplied to check project .codex. The folders' other effects were not assessed.":
+        "Review each folder in `writable_roots` and remove any that commands shouldn't change, such as "
         "the Docker socket (`/var/run/docker.sock`).",
     "sandbox_workspace_write.writable_roots is invalid; its value was withheld.": "Make `writable_roots` a list of folder paths, or remove it.",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
