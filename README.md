@@ -6,7 +6,9 @@ Check your Codex settings and saved approvals with three questions in mind.
 - **Which actions do my settings let Codex take on its own, and which need my approval?**
 - **What should I change if that’s more access than I want?**
 
-stay-safe reads settings and saved approvals from files. Only some settings are covered. The report names the defaults it uses and the checks it could not complete. It does not test live connections or what Codex will actually allow. See the [full scope](docs/report.md#full-scope).
+stay-safe is a pre-1.0 tool for Unix. Version 0.2.4 checks Codex settings and saved approvals. Starting in 0.3.0, it also reads Claude Code user settings. The report names defaults and incomplete checks. It can’t confirm live connections or what the agent will allow. See the [full scope](docs/report.md#full-scope).
+
+Each finding names its rule and setting and links to evidence. You can [challenge a finding](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml). Coding agents help write and review changes using [Wirth](https://github.com/chalkbadger/wirth). The maintainer decides what to merge.
 
 Here’s an excerpt from a finding on a [test configuration](tests/runs_without_a_coding_agent/sample.toml).
 
@@ -16,7 +18,7 @@ Here’s an excerpt from a finding on a [test configuration](tests/runs_without_
 
 [Read the full finding and what to change.](docs/report.md#example-finding) [See a sample report.](https://github.com/chalkbadger/stay-safe/issues/208#issuecomment-7147713051)
 
-It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
+Use Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
 the commands below. No agent is needed:
 
@@ -110,8 +112,6 @@ stay-safe is part of [chalkbadger](https://github.com/chalkbadger), which works 
 Explore the [claims and their evidence](docs/report.md#where-the-claims-come-from):
 [Understanding configuration findings](docs/report.md#understanding-configuration-findings)
 or [Using and trusting the tool](docs/report.md#using-and-trusting-the-tool).
-
-[Wirth](https://github.com/chalkbadger/wirth) guides development and review. Anyone can [challenge a finding](#challenge-a-finding).
 
 ## Develop
 
