@@ -355,9 +355,11 @@ class Reader:
             enabled = app_tool_setting(config, label, "enabled", tools_enabled, errors)
             mode = app_tool_setting(config, label, "approval_mode", None, errors)
             known = {"approval_mode", "enabled"}
-            if config.get("approvals_reviewer") in AUTO_REVIEW_VALUES:
-                self.gap(APP_TOOL_REVIEWER_GAP.format(label=f"{label}.approvals_reviewer"))
+            reviewer = config.get("approvals_reviewer")
+            if reviewer in ("user", *AUTO_REVIEW_VALUES):
                 known.add("approvals_reviewer")
+            if reviewer in AUTO_REVIEW_VALUES:
+                self.gap(APP_TOOL_REVIEWER_GAP.format(label=f"{label}.approvals_reviewer"))
             if tool is not None:
                 self.unknown(config, known, "tools")
             yield tool, enabled, mode, config.get("enabled") is True

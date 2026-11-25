@@ -716,7 +716,8 @@ STEPS = {
         "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
         "inherit automatic review from `apps._default`.",
     APP_TOOL_REVIEWER_GAP:
-        "Check which reviewers your organization allows and whether it requires AI review for your model.",
+        "Codex added this tool setting in 0.172.0. Check which reviewers your organization allows and whether "
+        "it requires AI review for your model.",
     INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
     INVALID_BOOLEAN:
         "Set `{label}` to `true` or `false` without quotes.",
