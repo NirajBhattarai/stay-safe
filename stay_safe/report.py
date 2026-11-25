@@ -297,7 +297,7 @@ ADVICE = {
     ("writable_project_settings", "sandbox_workspace_write", 2): {
         "what": "Remove the project's `.codex` directory from `writable_roots`. You can keep the workspace writable.",
         "where": "under `[sandbox_workspace_write]`, remove each entry for that directory",
-        "ask": "Edit {file} to remove the entries for <project directory>/.codex from `writable_roots`, "
+        "ask": "Edit {file} to remove the selected project's `.codex` directory from `writable_roots`, "
                "keeping the other entries",
         "check": "Rerun stay-safe with the same `--workspace` and config selection."},
     ("network_access", "sandbox_workspace_write", 2): {

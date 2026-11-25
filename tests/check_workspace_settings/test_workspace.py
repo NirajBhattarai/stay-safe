@@ -57,7 +57,8 @@ class WorkspaceSettingsTests(ConfigCase):
         finding, = finding_items(markdown)
         self.assertIn("later trusted", finding)
         self.assertIn("writable_roots", finding)
-        self.assertIn("remove", finding.lower())
+        edit_prompt = finding.split("or ask Codex: ", 1)[1].splitlines()[0]
+        self.assertIn("remove the selected project's `.codex` directory from `writable_roots`", edit_prompt)
         self.assertIn("other effects of extra writable folders", section(markdown, "Not checked"))
 
     def test_removing_direct_grant_leaves_parent_sibling_lookalike_and_narrower_roots_without_a_warning(self):
@@ -115,11 +116,21 @@ class WorkspaceSettingsTests(ConfigCase):
             report = self.run_report(self.settings([candidate]))
             self.assertEqual(report["risks"], [])
             self.assertRegex(" ".join(report["inspection_gaps"]).lower(), r"alias|symlink|relative")
-        self.target.rmdir()
-        self.target.symlink_to(self.root, target_is_directory=True)
-        report = self.run_report(path)
-        self.assertEqual(report["risks"], [])
-        self.assertRegex(" ".join(report["inspection_gaps"]).lower(), r"alias|symlink")
+
+    def test_direct_grant_through_a_target_or_workspace_symlink_names_the_unresolved_path(self):
+        workspace_link = self.root.resolve() / "private-workspace-alias"
+        workspace_link.symlink_to(self.workspace, target_is_directory=True)
+        linked_target_workspace = self.root.resolve() / "private-project-symlink"
+        linked_target_workspace.mkdir()
+        (linked_target_workspace / ".codex").symlink_to(self.target, target_is_directory=True)
+        expected = ("config-1: The project .codex comparison depends on an unresolved path, symlink or directory "
+                    "that could not be checked.")
+        for workspace in (linked_target_workspace, workspace_link):
+            with self.subTest(workspace=workspace.name), patch.object(self, "workspace", workspace):
+                path = self.settings([str(workspace / ".codex")])
+                report = self.run_report(path)
+                self.assertIn(expected, report["inspection_gaps"])
+                self.assertEqual(report["risks"], [])
 
     def test_user_codex_home_is_outside_the_project_settings_check(self):
         path = self.settings([str(self.target)])

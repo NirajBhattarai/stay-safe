@@ -72,6 +72,7 @@ Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
 - I select two settings files and see a finding only on the file that both selects workspace writes and lists the directory. `test_workspace.py::test_mode_and_roots_must_appear_in_the_same_selected_snapshot`
 - I use empty, inactive or invalid roots or select a profile and see no warning from the legacy list, with unsupported inputs still named. `test_workspace.py::test_inactive_empty_invalid_and_profile_cases`
 - I omit the workspace or supply an unresolved alias and see the missing comparison in the report. `test_workspace.py::test_missing_workspace_and_unresolved_aliases_name_the_boundary`
+- I list the exact project settings path through a directory symlink and see the unresolved project path named without a write warning. `test_workspace.py::test_direct_grant_through_a_target_or_workspace_symlink_names_the_unresolved_path`
 - I select a workspace whose settings directory is my Codex home and see why the project check does not apply. `test_workspace.py::test_user_codex_home_is_outside_the_project_settings_check`
 - I spell the Codex home path differently and see the project warning only when it identifies a different directory. `test_workspace.py::test_different_home_spellings_use_directory_identity`
 - I check normally discovered settings with a workspace and see its finding without opening or listing project contents. `test_workspace.py::test_workspace_compares_discovered_settings_without_opening_project_contents`
