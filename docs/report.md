@@ -106,6 +106,7 @@ PY
 The output is `team.api | prompt_injection_tool_desc | tool approval: approve`.
 Review the flagged description alongside the server’s configured default when
 deciding whether to change that setting.
+[Challenge this description](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&title=Challenge%3A%20Snyk%20Agent%20Scan%20v0.7.1&disputed-claim=Snyk%20Agent%20Scan%20v0.7.1%20reports%20a%20tool-description%20flag%20in%20server_risks%5B%5D.risk_indexes.prompt_injection_tool_desc.)
 
 ## The commit, and release archives
 
