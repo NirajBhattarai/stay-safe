@@ -14,7 +14,7 @@ Here’s an excerpt from a finding on a [test configuration](tests/runs_without_
 >
 > *How it has gone wrong:* Agents running commands without approval have run a delete command aimed at a home directory and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance. [I2](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i2-home-directory-added-to-a-delete-command), [I3](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i3-windows-drive-wiped), [I24](https://github.com/chalkbadger/stay-safe/blob/v0.2.4/incidents.md#i24-driver-update-followed-by-boot-and-network-failures) (reported, not verified).
 
-[Read the full finding and what to change.](docs/report.md#example-finding)
+[Read the full finding and what to change.](docs/report.md#example-finding) [See a sample report.](https://github.com/chalkbadger/stay-safe/issues/208#issuecomment-7147713051)
 
 It runs on Unix with Python 3.11 or newer. If your Python is older or missing,
 follow [Python setup](docs/usage.md#python-setup), then use that interpreter in
