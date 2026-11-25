@@ -88,6 +88,7 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/13
 Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 
 - I see the expected warnings tied to their settings and reported incidents. `test_report.py::test_cli_risks_have_expected_entries_incidents_and_status_in_both_formats`
+- I turn the sandbox off and see that commands could change Codex's own configuration, saved approvals and instructions. `test_conditions.py::test_sandbox_off_explains_changes_to_settings_saved_approvals_and_instructions`
 - I change command or sandbox settings and get warnings only when their conditions apply. `test_conditions.py::test_command_prompt_and_filesystem_rules_have_independent_positive_and_negative_cases`
 - I set a hook whose only command is its Windows command and see that it can start a program. `test_hooks.py::test_windows_command_alone_reports_program`
 - I combine `danger-full-access` with `on-request` or `never` and see that ordinary commands, or MCP and app tool calls, can run without asking. `test_conditions.py::test_full_access_lets_on_request_commands_and_never_tool_calls_run_without_asking`

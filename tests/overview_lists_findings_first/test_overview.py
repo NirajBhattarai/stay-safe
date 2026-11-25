@@ -17,7 +17,7 @@ LEAD_IN = "Here are the findings for you to review, with actionable advice."
 NO_FINDINGS = ("None of stay-safe's rules matched your settings. That doesn't mean your setup is safe: "
                "see what stay-safe didn't check and what this report can't see, below.")
 
-SANDBOX_OFF = "Your config turns off Codex's sandbox."
+SANDBOX_OFF = "Your config turns off Codex’s sandbox."
 
 QUIET = 'approval_policy = "on-request"\nsandbox_mode = "read-only"\nshell_environment_policy = { inherit = "none" }\n'
 EVERY_GROUP = """approval_policy = "never"
