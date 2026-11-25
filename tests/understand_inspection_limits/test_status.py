@@ -120,15 +120,24 @@ class StatusTests(ConfigCase):
         gap = ("config-1: App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls "
                "instead of asking you.")
         checkout = copy_checkout(self.root / "checkout")
-        for name, text in (("before", base + app + 'approvals_reviewer="auto_review"\n'), ("after", base + app)):
+        overrides = ('[apps.calendar.links.account]\napprovals_reviewer="user"\n'
+                     '[apps.calendar.tools.read]\napprovals_reviewer="user"\n')
+        extra_gaps = [
+            "config-1: Per-account app policy is not evaluated; account identifiers were withheld.",
+            "config-1: tools contains fields outside reader coverage; their values were withheld.",
+        ]
+        for name, text, expected in (("before", base + app + 'approvals_reviewer="auto_review"\n', [gap]),
+                                     ("after", base + app, [gap]),
+                                     ("specific", base + app + overrides, sorted([gap, *extra_gaps]))):
             with self.subTest(run=name):
                 path = str(self.config(text, f"{name}.toml"))
                 human = run_checkout(checkout, "--config", path, cwd=self.root)
                 report = json.loads(run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root).stdout)
-                self.assertEqual(report["inspection_gaps"], [gap])
+                self.assertEqual(report["inspection_gaps"], expected)
                 self.assertEqual((human.returncode, human.stderr), (2, EXPLANATION))
                 unchecked = section(human.stdout, "Not checked")
                 self.assertIn("**Not checked: an app's approval reviewer.**", unchecked)
+                self.assertIn("Check the tool and linked account first.", unchecked)
                 self.assertIn(advice, unchecked)
                 self.assertNotIn("main reviewer", human.stdout)
 
