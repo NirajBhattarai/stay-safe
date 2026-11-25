@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
-                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
                     WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
@@ -462,6 +462,8 @@ GAPS = {
     ROOTS_SCOPE: f"**Not checked: other effects of extra writable folders.** {EXTRA_FOLDERS} The project settings "
                  "check covers a direct grant to `.codex`. It leaves other relative paths, aliases and the folders' "
                  "contents unchecked.",
+    ROOT_HOME_UNKNOWN: "**Not checked: home-relative writable folders.** The file uses `~` or `~/`, "
+                       "but `HOME` does not give an absolute path for the comparison.",
     WORKSPACE_UNKNOWN: "**Not checked: the project settings directory.** A path component is a symlink, "
                        "is not a directory, or could not be checked.",
     WORKSPACE_HOME_UNKNOWN: "**Not checked: the project settings directory.** The user Codex home is unknown "
@@ -662,6 +664,8 @@ STEPS = {
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
     ROOTS_NO_WORKSPACE: REVIEW_ROOTS,
     ROOTS_SCOPE: REVIEW_ROOTS,
+    ROOT_HOME_UNKNOWN: "Check these entries locally or rerun with `HOME` set to the absolute path of the "
+                       "intended user's home.",
     WORKSPACE_UNKNOWN: "Use the project's direct directory path and check the listed roots locally.",
     WORKSPACE_HOME_UNKNOWN: "Check the path to your Codex home and the workspace locally.",
     WORKSPACE_HOME: "Select the project directory with `--workspace` to check its settings.",

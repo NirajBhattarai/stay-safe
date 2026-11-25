@@ -69,6 +69,7 @@ Tests: [tests/check_workspace_settings/](../tests/check_workspace_settings/)
 
 - I list the project settings directory twice and see one finding tied to its setting with the other effects of extra folders still unchecked. `test_workspace.py::test_direct_grant_warns_once_and_keeps_the_unchecked_effects_visible`
 - I spell the root with my home directory or parent components and see a warning only when Codex's path names the project settings directory. `test_workspace.py::test_equivalent_home_and_parent_spellings_identify_only_direct_grants`
+- I list a home-relative folder without an absolute home path and see which comparison is missing while an independent direct grant still gives its warning. `test_workspace.py::test_home_relative_root_with_unknown_home_keeps_independent_direct_grants`
 - I select a symlink or file as the workspace and see the missing project comparison when my settings list active roots. `test_workspace.py::test_unusable_workspace_names_the_gap_even_with_a_differently_spelled_root`
 - I select two workspaces and see a usage error that withholds both paths. `test_workspace.py::test_repeated_workspace_is_rejected_without_disclosing_either_directory`
 - I list extra writable folders and see that they may reach outside the workspace while their paths stay private. `test_workspace.py::test_extra_folder_gap_explains_outside_access_and_withheld_paths`

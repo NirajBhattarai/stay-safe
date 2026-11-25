@@ -91,6 +91,36 @@ class WorkspaceSettingsTests(ConfigCase):
                 self.assertEqual([r["entry"] for r in report["risks"]],
                                  ["config-1:sandbox_workspace_write.writable_roots"] if expected else [])
 
+    def test_home_relative_root_with_unknown_home_keeps_independent_direct_grants(self):
+        tilde = "~/private-project-name/.codex"
+        direct = str(self.target)
+        for home in (None, "", "private-relative-home", str(self.workspace.parent)):
+            with patch.dict(os.environ, {"CODEX_HOME": str(self.root.resolve() / "private-codex-home")}):
+                if home is None:
+                    os.environ.pop("HOME", None)
+                else:
+                    os.environ["HOME"] = home
+                known = home == str(self.workspace.parent)
+                for roots in ([tilde], ["~"], [tilde, direct], [direct, tilde], [direct], ["~user"], ["relative"]):
+                    with self.subTest(home=home, roots=roots):
+                        report = self.run_report(self.settings(roots))
+                        needs_home = tilde in roots or "~" in roots
+                        named = [g for g in report["inspection_gaps"] if "HOME" in g and "absolute" in g]
+                        self.assertEqual(len(named), int(needs_home and not known))
+                        self.assertTrue(any("outside the workspace" in g for g in report["inspection_gaps"]))
+                        self.assertNotIn("private-relative-home", json.dumps(report))
+                        self.assertEqual([r["entry"] for r in report["risks"]],
+                                         ["config-1:sandbox_workspace_write.writable_roots"]
+                                         if direct in roots or tilde in roots and known else [])
+                if not known:
+                    with self.subTest(home=home, fmt="markdown"):
+                        markdown = self.run_report(self.settings([tilde, direct]), fmt="markdown")
+                        gap = section(markdown, "Not checked")
+                        self.assertIn("home-relative", gap)
+                        self.assertIn("HOME", gap)
+                        self.assertIn("absolute", gap)
+                        self.assertNotIn("private-relative-home", markdown)
+
     def test_unusable_workspace_names_the_gap_even_with_a_differently_spelled_root(self):
         alias = self.root.resolve() / "private-alias"
         alias.symlink_to(self.workspace, target_is_directory=True)

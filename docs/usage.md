@@ -69,7 +69,9 @@ python3 -m stay_safe --workspace /path/to/project --config /path/to/config.toml
 You can also use `--workspace DIR` with the usual Codex settings discovery. The option supplies a
 directory for comparison. It does not select any additional configuration files. Use a direct
 path to the project. stay-safe compares each file's absolute and home-relative roots after applying
-Codex's path normalization. Other relative roots, unresolved aliases and the wider effects of the
+Codex's path normalization. A home-relative root needs an absolute `HOME`. If it is missing or
+relative, the report names those unchecked entries and still reports any independent direct grant.
+Other relative roots, unresolved aliases and the wider effects of the
 folders remain under “Not checked.”
 See the [Codex meanings](../harnesses/codex.md) for the configured boundary.
 

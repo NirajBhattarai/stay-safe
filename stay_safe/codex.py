@@ -30,6 +30,8 @@ ROOTS_NO_WORKSPACE = EXTRA_ROOTS + ("No --workspace was supplied to check projec
                                    "The folders' other effects were not assessed.")
 ROOTS_SCOPE = EXTRA_ROOTS + ("Only a direct grant to project .codex is checked. "
                              "Aliases and other effects of extra folders are unassessed.")
+ROOT_HOME_UNKNOWN = ("sandbox_workspace_write.writable_roots contains a home-relative path but HOME is missing "
+                     "or is not absolute. The home-relative roots could not be compared with project .codex.")
 WORKSPACE_UNKNOWN = ("The project .codex comparison depends on an unresolved path, symlink or directory "
                      "that could not be checked.")
 WORKSPACE_HOME = "The selected workspace's .codex is the user Codex home, outside the project settings check."
@@ -74,8 +76,8 @@ def app_tool_setting(table, path, key, default, errors):
 def configured_root(value):
     if value == "~" or value.startswith("~/"):
         home = os.environ.get("HOME")
-        if not home:
-            return None
+        if not home or not home.startswith("/"):
+            return UNKNOWN
         value = str(Path(home) / value[1:].lstrip("/"))
     if not value.startswith("/"):
         return None
@@ -172,12 +174,15 @@ class Reader:
         self.gap(ROOTS_SCOPE)
         if selected_profile:
             return
+        normalized = {configured_root(root) for root in roots}
+        if UNKNOWN in normalized:
+            self.gap(ROOT_HOME_UNKNOWN)
         target = Path(self.workspace).absolute() / ".codex"
         target_id = directory_identity(target)
         if target_id is UNKNOWN:
             self.gap(WORKSPACE_UNKNOWN)
             return
-        if not any(configured_root(root) == target for root in roots):
+        if target not in normalized:
             return
         home = os.environ.get("CODEX_HOME")
         if not home and os.environ.get("HOME"):
