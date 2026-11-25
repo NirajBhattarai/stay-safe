@@ -1,7 +1,7 @@
 import re
 
-from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, DECIDES, HTTP, PROJECT, UNREAD_ENABLE, apply_disable,
-                     read_file)
+from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+                     resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
@@ -49,12 +49,8 @@ HEADLINES = {
     ("configured_program", None): "This file's `{name}` setting runs a command on your computer.",
     ("network_access", HTTP): "This file has an HTTP hook that sends hook data to a web address.",
 }
-PROGRAM_SCOPE = {
-    DECIDES: " A hook on `PreToolUse` or `PermissionRequest` can also approve tool calls without asking you and "
-             "change what they do.",
-    PROJECT: " Claude Code runs it from a project's settings in a `claude -p` run, or when you trusted only a parent "
-             "folder, without asking you to trust this folder.",
-}
+TRUST = (" Claude Code runs {} from a project's settings in a `claude -p` run, or when you trusted a parent folder "
+         "whose trust extends to this folder, without asking you to trust this folder.")
 WHY = {
     "commands_without_prompts": "If this mode applies, injected or mistaken instructions could make Claude Code "
                                 "run code you didn't want.",
@@ -114,6 +110,13 @@ GAPS = {
         "**Not checked: whether hooks stay off.** `disableAllHooks` turns them off in the files read, but "
         "`.claude/settings.local.json`, managed settings and `--settings` can set it back to `false`.",
         "Look for `disableAllHooks` in those."),
+    UNKNOWN_EVENT: (
+        "**Not checked: a hook event.** An event name under `hooks` isn't one Claude Code documents, so its hooks "
+        "weren't read. The name is withheld.",
+        "Review the `hooks` block yourself."),
+    "allowedHttpHookUrls is not a list of URL patterns; it was not evaluated.": (
+        "**Not checked: `allowedHttpHookUrls`.** It isn't a list of URL patterns.",
+        "Review `allowedHttpHookUrls` yourself."),
     "disableAllHooks has an invalid boolean; its behavior is unknown.": (
         "**Not checked: `disableAllHooks`.** It isn't `true` or `false`, so stay-safe treats your hooks as on.",
         "Set it to `true` or `false`."),
@@ -159,15 +162,14 @@ def inspect(paths, *, discovered=False, gaps=(), scopes=()):
                                    scope=scopes[index - 1])
         entries.extend(found)
         gaps.extend(missing)
-    if discovered:
-        gaps.extend(apply_disable(entries))
+    gaps.extend(resolve(entries, discovered))
     risks = evaluate(entries)
     revision = provenance["source_revision"]
     by_id = {entry["id"]: entry for entry in entries}
     for risk in risks:
         entry = by_id[risk["entry"]]
         risk["configured_evidence"] = list(entry["observations"])
-        risk["explanation"] = headline(risk)
+        risk["explanation"] = hook_headline(risk["rule"], entry["facts"]) if entry["kind"] == "hook" else headline(risk)
         if risk["rule"] == "commands_without_prompts":
             risk["explanation"] += sandbox_mode_change(entry["source"], by_id, gaps)
         risk["rule_source"] = source_link(revision, "stay_safe/rules.py")
@@ -186,6 +188,8 @@ def inspect(paths, *, discovered=False, gaps=(), scopes=()):
     return {"format_version": 3, "harness": HARNESS, "provenance": provenance, "scope": list(SCOPE),
             "file_inspection": "incomplete" if gaps else "complete for supported fields", "sources_read": sources_read,
             "catalog": [{k: v for k, v in entry.items() if k != "facts"} for entry in entries],
+            "_hooks": {entry["id"]: {key: entry["facts"][key] for key in ("handlers", "allowlist", "project")}
+                       for entry in entries if entry["kind"] == "hook"},
             "risks": risks, "incident_status": INCIDENT_STATUS,
             "incident_links": {i: links[i] for i in cited if links.get(i)}, "inspection_gaps": gaps}
 
@@ -199,10 +203,52 @@ def scope(risk):
                  if value in ("broad: every command", "every address", "every domain", HTTP)), None)
 
 
+def place(record):
+    return f"`{record['event']}` (matcher group {record['group']}, hook {record['position']})"
+
+
+def subject(record):
+    return f"The `{record['event']}` hook at matcher group {record['group']}, hook {record['position']}"
+
+
+def where(record):
+    return f"hook {record['position']} of matcher group {record['group']} under `hooks.{record['event']}`"
+
+
+def series(items, last):
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + last + items[-1]
+
+
+def hook_headline(rule, facts):
+    records = facts["handlers"]
+    running = [record for record in records if runs(record)]
+    places = series([f"on {place(record)}" for record in running], " and ")
+    if rule == "configured_program":
+        count = "a command hook" if len(running) == 1 else f"{len(running)} command hooks"
+        lead = f"This file's `hooks` setting runs {count} on your computer: {places}."
+    else:
+        count = "an HTTP hook" if len(running) == 1 else f"{len(running)} HTTP hooks"
+        lead = f"This file's `hooks` setting has {count} set to send hook data to a web address: {places}."
+    for record in records:
+        if decides(record):
+            lead += f" {subject(record)} can also approve tool calls without asking you and change what they do."
+        if record["background"]:
+            lead += f" {subject(record)} runs in the background, so it can't block, approve or rewrite the call."
+        if record["if_state"] == "filters":
+            lead += f" {subject(record)} runs only for tool calls that match its `if` rule."
+        if record["if_state"] == "never_runs":
+            lead += f" {subject(record)} has an `if` rule on an event without tool calls, so it never runs."
+    if facts["allowlist"]:
+        lead += (" `allowedHttpHookUrls` is set, so Claude Code sends only if the address matches it; stay-safe didn't "
+                 "check whether it does.")
+    if facts["project"]:
+        lead += TRUST.format("it" if len(running) == 1 else "them")
+    return lead
+
+
 def headline(risk):
     observations = risk["configured_evidence"]
     lead = HEADLINES[risk["rule"], scope(risk)].format(name=risk["entry"].partition(":")[2])
-    lead += "".join(text for key, text in PROGRAM_SCOPE.items() if key in observations)
     overrides = [key for key in ("deny", "ask") if f"{key} rules present" in observations]
     if overrides:
         effect = {"deny": "block this action", "ask": "require approval"}
@@ -230,24 +276,46 @@ def sandbox_mode_change(source, entries, gaps):
     return ""
 
 
-def finding(risk, path, number):
+def hook_advice(rule, details, path):
+    running = [record for record in details["handlers"] if runs(record)]
+    places = [where(record) for record in running]
+    ask = (f"ask Claude Code: \"Show me {places[0]} in {path} and remove only that hook; show only what you "
+           "change.\"")
+    if len(places) == 1:
+        change = f"*Change it:* in {path}, remove {places[0]}, or {ask}"
+    else:
+        change = f"*Change it:* in {path}, remove only the hook you don't want: {series(places, ', or ')}. Or {ask}"
+    owner = "this hook's" if len(running) == 1 else "each hook's"
+    what = WHAT[rule, HTTP if rule == "network_access" else None]
+    if rule == "network_access":
+        check = (f"*Check:* In {path}, {owner} `url` is the address it sends to. Find out who controls it before you "
+                 "trust it.")
+        if details["allowlist"]:
+            what = ("Keep it if you trust the address. Stricter: remove the HTTP hook, or check that "
+                    "`allowedHttpHookUrls` lists only addresses you trust.")
+    else:
+        if not any(record["exec"] for record in running):
+            target = f"{owner} `command` is what it runs"
+        elif len(running) == 1:
+            target = "this hook's `command` and its `args` list are what it runs, so a script can be named in either"
+        else:
+            target = ("each hook's `command` is what it runs, and for a hook with `args`, its `args` list too, so a "
+                      "script can be named in either")
+        check = (f"*Check:* In {path}, {target}. If it runs a script file, check that file too: changes to the script "
+                 f"don't show in {path}. Find out who wrote them before you trust them.")
+    if details["project"]:
+        check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
+    why = WHY[rule, HTTP] if rule == "network_access" else WHY[rule]
+    return what, change, check, why
+
+
+def finding(risk, path, number, details=None):
     from .report import FINDINGS
     rule = risk["rule"]
     what = WHAT[rule, scope(risk)]
-    evidence = risk["configured_evidence"]
-    if risk["entry"].partition(":")[2].split(".")[0] == "hooks":
-        kind = "HTTP hooks" if HTTP in evidence else "command hooks"
-        change = (f"*Change it:* `hooks` in {path}, or ask Claude Code: \"Show me the {kind} under `hooks` in {path} "
-                  "and remove them; show only what you change.\"")
-        if HTTP in evidence:
-            check = (f"*Check:* In {path}, each HTTP hook's `url` is the address it sends to. Find out who controls it "
-                     "before you trust it.")
-        else:
-            check = (f"*Check:* In {path}, each command hook's `command` is what it runs. If it runs a script file, "
-                     f"check that file too: changes to the script don't show in {path}. Find out who wrote them before "
-                     "you trust them.")
-        if PROJECT in evidence:
-            check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
+    why = WHY.get((rule, scope(risk)), WHY[rule])
+    if details is not None:
+        what, change, check, why = hook_advice(rule, details, path)
     elif rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
                   f"`permissions.defaultMode` to `default`; show only what you change.\"")
@@ -257,7 +325,6 @@ def finding(risk, path, number):
         change = (f"*Change it:* rule {number} of `permissions.allow` in {path}, or ask Claude Code: \"Show me rule "
                   f"{number} of `permissions.allow` in {path} and remove it; show only what you change.\"")
         check = f"*Check:* Look at `permissions.allow` in {path}."
-    why = WHY.get((rule, scope(risk)), WHY[rule])
     return (f"**{risk['explanation']}** {why}", FINDINGS[rule]["how"],
             "\n\n".join([f"*What to do:* {what}", change, check]))
 
@@ -312,7 +379,7 @@ def markdown(report, files=None):
     for number, risk in enumerate(risks, 1):
         source, _, name = risk["entry"].partition(":")
         path = f"`{files[source]}`" if source in files else f"`<{source}>`"
-        lead, how, step = finding(risk, path, name.rsplit(".", 1)[-1])
+        lead, how, step = finding(risk, path, name.rsplit(".", 1)[-1], report.get("_hooks", {}).get(risk["entry"]))
         titles.append(lead[2:].split("**", 1)[0] if lead.startswith("**") else lead)
         citations = ", ".join(f"[{i}]({report['incident_links'][i]})" if i in report["incident_links"] else i
                               for i in risk["incidents"])

@@ -168,16 +168,18 @@ class ClaudeAdviceTests(ConfigCase):
                 "use it.")
         script = ("If it runs a script file, check that file too: changes to the script don't show in {}. Find out who "
                   "wrote them before you trust them.")
+        user = "hook 1 of matcher group 1 under `hooks.PostToolUse`"
+        project = "hook 1 of matcher group 1 under `hooks.Stop`"
         self.assertEqual(steps, [
             [keep,
-             "*Change it:* `hooks` in `~/.claude/settings.json`, or ask Claude Code: \"Show me the command hooks under "
-             "`hooks` in `~/.claude/settings.json` and remove them; show only what you change.\"",
-             "*Check:* In `~/.claude/settings.json`, each command hook's `command` is what it runs. "
+             f"*Change it:* in `~/.claude/settings.json`, remove {user}, or ask Claude Code: \"Show me {user} in "
+             "`~/.claude/settings.json` and remove only that hook; show only what you change.\"",
+             "*Check:* In `~/.claude/settings.json`, this hook's `command` is what it runs. "
              + script.format("`~/.claude/settings.json`")],
             [keep,
-             "*Change it:* `hooks` in `.claude/settings.json`, or ask Claude Code: \"Show me the command hooks under "
-             "`hooks` in `.claude/settings.json` and remove them; show only what you change.\"",
-             "*Check:* In `.claude/settings.json`, each command hook's `command` is what it runs. "
+             f"*Change it:* in `.claude/settings.json`, remove {project}, or ask Claude Code: \"Show me {project} in "
+             "`.claude/settings.json` and remove only that hook; show only what you change.\"",
+             "*Check:* In `.claude/settings.json`, this hook's `command` is what it runs. "
              + script.format("`.claude/settings.json`")
              + " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."],
         ])
