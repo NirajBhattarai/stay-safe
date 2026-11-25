@@ -133,6 +133,42 @@
     "entry": "mcp_servers.remote"
   },
   {
+    "setting": "mcp_servers.*.env",
+    "value": "nonempty stdio table",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.docs]\ncommand=\"private-command\"\ndefault_tools_approval_mode=\"prompt\"\nenv={Private=\"example\"}\n",
+    "entry": "mcp_servers.docs.env",
+    "gaps": [
+      "mcp_servers.docs.env contains inline values. Check the entries for credentials."
+    ]
+  },
+  {
+    "setting": "mcp_servers.*.http_headers",
+    "value": "nonempty HTTP table",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.docs]\nurl=\"https://example.invalid\"\ndefault_tools_approval_mode=\"prompt\"\nhttp_headers={Private=\"example\"}\n",
+    "entry": "mcp_servers.docs.http_headers",
+    "gaps": [
+      "mcp_servers.docs.http_headers contains inline values. Check the entries for credentials."
+    ]
+  },
+  {
+    "setting": "mcp_servers.*.env_vars",
+    "value": "stdio references",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.docs]\ncommand=\"private-command\"\ndefault_tools_approval_mode=\"prompt\"\nenv_vars=[\"REF\"]\n",
+    "entry": "mcp_servers.docs.env_vars"
+  },
+  {
+    "setting": "mcp_servers.*.env_http_headers",
+    "value": "HTTP references",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.docs]\nurl=\"https://example.invalid\"\ndefault_tools_approval_mode=\"prompt\"\nenv_http_headers={Private=\"REF\"}\n",
+    "entry": "mcp_servers.docs.env_http_headers"
+  },
+  {
+    "setting": "mcp_servers.*.bearer_token_env_var",
+    "value": "HTTP reference",
+    "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.docs]\nurl=\"https://example.invalid\"\ndefault_tools_approval_mode=\"prompt\"\nbearer_token_env_var=\"REF\"\n",
+    "entry": "mcp_servers.docs.bearer_token_env_var"
+  },
+  {
     "setting": "mcp_servers.*.http_headers_helper",
     "value": "nonempty command",
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[mcp_servers.remote]\nurl=\"https://example.com\"\nhttp_headers_helper=\"synthetic-helper\"",
