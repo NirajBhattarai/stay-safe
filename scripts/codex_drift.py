@@ -1,5 +1,3 @@
-"""Report source drift for fetched Codex releases; never mark behavior reviewed."""
-
 import argparse
 import difflib
 from functools import lru_cache
@@ -54,7 +52,6 @@ def citations(path):
 
 
 def mapped_range(old, new, bounds):
-    """Track line boundaries, including replacements and boundary insertions."""
     if bounds is None:
         return None
     operations = difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes()
@@ -111,7 +108,6 @@ def changed_source(old, new, ranges, before, after, path):
 
 
 def schema_fields(schema):
-    """Expand local references into setting paths; retain each branch's metadata."""
     if not isinstance(schema, dict) or not isinstance(schema.get("properties"), dict):
         raise ValueError("configuration schema must be an object with properties")
     fields = {}

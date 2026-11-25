@@ -16,7 +16,7 @@ uses the stable tags present locally, sorted by version, and starts after
 
 ```sh
 python3 scripts/codex_drift.py --codex-repo ../codex-source \
-  --from-tag rust-v0.167.0 --to-tag rust-v0.171.0 > codex-release-scan.md
+  --from-tag rust-v0.167.0 --to-tag rust-v0.172.0 > codex-release-scan.md
 ```
 
 Exit 0 means the scan completed; exit 2 names an input or Git failure. The checker

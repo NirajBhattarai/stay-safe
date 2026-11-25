@@ -1,21 +1,21 @@
-"""Produce the code-only report from bounded, public observations."""
-
 from html import escape, unescape
 import json
 from pathlib import Path
 import re
 
-from .codex import read_file
+from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
+                    WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
 
 INCIDENTS = resource("incidents.md")
 INCIDENT_STATUS = "reported, not verified"
+APPROVAL_OPTIONS = ", ".join(f'`"{mode}"`' for mode in APPROVALS[:-1]) + f' or `"{APPROVALS[-1]}"`'
 
 
 def incident_links(path=INCIDENTS, revision=None):
-    """Derive GitHub heading anchors from the single committed incident catalog."""
     links = {}
     text = path.read_text(encoding="utf-8")
     for heading in re.findall(r"^## (I\d+\. .+)$", text, re.MULTILINE):
@@ -39,12 +39,12 @@ SCOPE = [
 ]
 
 
-def inspect(paths, *, rules_path=None, discovered=False, gaps=()):
+def inspect(paths, *, rules_path=None, discovered=False, gaps=(), workspace=None):
     entries, gaps = [], list(gaps)
     hashes = fingerprints()
     provenance = identify(hashes=hashes)
     for index, path in enumerate(paths, 1):
-        found, missing = read_file(path, f"config-{index}", discovered=discovered)
+        found, missing = read_file(path, f"config-{index}", discovered=discovered, workspace=workspace)
         entries.extend(found)
         gaps.extend(missing)
     if rules_path is not None:
@@ -83,16 +83,11 @@ def cell(value):
     return escape(value, quote=True).replace("|", "&#124;").replace("\n", "&#10;")
 
 
-# Plain wording for the Markdown report (archived issue #105 and its reading check). The JSON report keeps each
-# rule's explanation and each gap's text; these lines say the same thing to the person whose setup it is, say how
-# the rule's cited incidents went wrong and what to do, then give the ids.
 PROGRAM = "If that program or your config file were tampered with, it could run code you didn't intend."
 AUTOMATIC = "Untrusted tool content could lead to unwanted actions."
 DESTRUCTIVE = "A mistaken operation could change or delete data in the connected service."
 SOURCE_ONLY = "Based on Codex's source code, not yet seen in a live run."
 INJECTION = ("Instructions hidden in public GitHub issues and issue comments could take over agents that read them.")
-# Rule -> headline, why and how its cited incidents went wrong (incidents.md). A pair gives the wording for a server
-# or app, then for one tool. What to do is in ADVICE, below.
 FINDINGS = {
     "saved_approval": {
         "headline": "A saved approval on line {line} of your rules file says matching commands may run outside the "
@@ -100,7 +95,9 @@ FINDINGS = {
         "why": "It covers every command that starts with its saved words. A rule that asks first or forbids the "
                "command can override it, and stay-safe doesn't check whether one does.",
         "how": "A Codex user reported that a saved approval for `curl` let later `curl` commands run without asking, "
-               "even after restarting in another workspace."},
+               "even after restarting in another workspace. A Claude Code user reported that a broad Railway "
+               "approval let a command print secrets into the transcript while commands to release a new version "
+               "stayed blocked."},
     "commands_without_prompts": {
         "headline": "With these settings, Codex runs commands without asking you.",
         "why": "It won't ask before any command it's allowed to run, so injected or mistaken instructions could make "
@@ -111,12 +108,20 @@ FINDINGS = {
         "headline": "Your config turns off Codex's sandbox.",
         "why": "Commands Codex runs aren't limited to your project, so a mistaken command could damage files "
                "elsewhere on your computer.",
-        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command."},
+        "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. "
+               "A Claude Code user reported losing SSH keys and cloud credentials when a PowerShell cleanup "
+               "deleted files in their home directory."},
+    "writable_project_settings": {
+        "headline": "Your config lists the project's `.codex` directory as writable.",
+        "why": "A sandboxed command could change project settings that a later trusted Codex run uses.",
+        "how": "Injected text got GitHub Copilot to change its approval settings. In another report, intruders "
+               "changed project settings that Claude Code used at startup."},
     "configured_program": {
         "headline": "{Subject} can start a program on your computer.",
         "why": PROGRAM,
         "how": "Flaws in other agents let repository settings run commands on collaborators' machines, and a worm "
-               "wrote itself into an agent's settings so its code ran at every start."},
+               "wrote itself into an agent's settings so its code ran at every start. Google reported that intruders "
+               "changed project settings so Claude Code would download a backdoor at startup."},
     "automatic_tools": {
         "headline": ("{Subject}'s tool approval mode is `approve`.", "{Subject} has approval mode `approve`."),
         "why": AUTOMATIC,
@@ -144,18 +149,6 @@ FINDINGS = {
         "how": "An agent that could read a production database URL dropped all 22 production tables with a migration "
                "command."},
 }
-# What to do (archived issue #119; reviews of archived PR #129 at 143ba19 and 29d5a8c): one line with the lower-friction
-# option, if the Codex meanings table (harnesses/codex.md) backs one, and its trade-off in brackets, then "Stricter:";
-# one Change it line with where the setting goes and a sentence to ask Codex; and a Check that changes nothing and
-# shows no values. What every finding shares is said once, in NOTE. Keyed by rule, then by the entry's first
-# configuration key and number of keys, so findings can later be grouped by rule without changing this table.
-# Fields: {file} and {where} name the file (a found file by where Codex keeps it, a passed file by a placeholder with
-# its label, since the report withholds its path); {table} is the entry's TOML table, {name} its server, app or hook
-# event, {tool} its tool, {kind} "MCP server" or "app", {line} its rules line; {value} and {label} a sandbox another
-# inspected file sets.
-# The note: `codex --help` (0.167.0) lists `-a, --ask-for-approval`, `-s, --sandbox`, `-p, --profile` and
-# `-c, --config`, which override a file. Codex can allow or block a call without showing a prompt.
-# (openai/codex 086ccc8, codex-mcp/src/mcp/mod.rs L91-L110, core/src/mcp_tool_call.rs L1691-L1698).
 NOTE = ("*Before you change anything:* {placeholders}Codex reads the whole file to edit it. The app, profiles and flags "
         "such as `--ask-for-approval`, `--sandbox`, `--profile` and `-c` can override any file. Codex can allow or "
         "block a tool call without asking you. This report does not test which calls Codex allows.")
@@ -167,70 +160,100 @@ TOOL_PROMPT = {
     "what": "Set `approval_mode = \"prompt\"` for this tool.",
     "where": "under `[{table}]`",
     "ask": "Edit {file} to set `approval_mode = \"prompt\"` for the `{tool}` tool of my `{name}` {kind}"}
-# Approval mode settings: harnesses/codex.md.
 AUTOMATIC_GROUP = {
     "what": "Set `default_tools_approval_mode = \"writes\"` (uses server hints){allowlist}. "
             "Stricter: `default_tools_approval_mode = \"prompt\"`.",
     "allowlist": ", or list only the tools you use in `enabled_tools`",
     "where": "under `[{table}]`",
     "ask": "Edit {file} to set `default_tools_approval_mode = \"writes\"` for my `{name}` {kind}"}
-# Rows: default_tools_approval_mode `prompt`, tools.*.approval_mode `approve`, enabled_tools (MCP servers only).
 LABELS_GROUP = {
     "what": "Set `default_tools_approval_mode = \"prompt\"` with `approval_mode = \"approve\"` only for tools you trust"
             "{allowlist}. Stricter: `default_tools_approval_mode = \"prompt\"` for every tool.",
     "allowlist": ", or list only the tools you use in `enabled_tools`",
     "where": "under `[{table}]`, with each trusted tool's `approval_mode` under `[{table}.tools.<tool>]`",
     "ask": "Edit {file} so my `{name}` {kind} uses `default_tools_approval_mode = \"prompt\"` with `approval_mode = \"approve\"` only for these tools I trust: <tool names>"}
-# Rows: approval_policy `on-request`, sandbox_mode `workspace-write` and `read-only`. The advice never suggests a
-# sandbox looser than one set by the finding's file or another inspected file: `workspace-write` only when none sets
-# the stricter `read-only`. A later layer can replace a profile with sandbox_mode, so edit approval alone
-# if any inspected file sets default_permissions (openai/codex 086ccc8, core/src/config/mod.rs L2712-L2722).
 KEEP_SANDBOX = "Edit {file} to set `approval_policy = \"on-request\"` without changing `sandbox_mode`"
 PROFILE_CHECK = "Review `default_permissions` in {profile} and any profile it names."
 COMMANDS_CHECK = "Look for `approval_policy` and `sandbox_mode` in {where}."
+ASK_FOR_BLOCKED = "If you want Codex to ask before running some commands it currently blocks, choose "
+ORDINARY_STILL_RUN = "Ordinary commands can still run inside the sandbox without asking you."
 APPROVAL_ONLY = "`approval_policy` " + TOP
 COMMANDS = {
     "profile": {
-        "what": 'Set `approval_policy = "on-request"` (Codex decides when to ask you first). '
-                "For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + '`approval_policy = "on-request"`. ' + ORDINARY_STILL_RUN +
+                " For read-only access, check that any profile you use blocks writes. Even then, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": "{mode_note}" + PROFILE_CHECK},
     "read-only": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` (Codex decides when to "
-                "ask you first; commands still can't write files). But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"read-only\"` "
+                "(commands still can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "workspace-write": {
-        "what": "Set `approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` (Codex decides when "
-                "to ask you first; commands can still write in your workspace). Stricter: also "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` and keep `sandbox_mode = \"workspace-write\"` "
+                "(commands can still write in your workspace). " + ORDINARY_STILL_RUN + " Stricter: also "
                 "`sandbox_mode = \"read-only\"` (commands can't write files). Either way, " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
     "other": {
-        "what": "Set `approval_policy = \"on-request\"` (Codex decides when to ask you first) without loosening the "
-                "`sandbox_mode = \"{value}\"` in `{label}`. But " + SAVED_STILL,
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` without loosening the "
+                "`sandbox_mode = \"{value}\"` in `{label}`. " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
         "where": APPROVAL_ONLY, "ask": KEEP_SANDBOX, "check": COMMANDS_CHECK},
+    "full-on-request": {
+        "what": "Set `sandbox_mode = \"workspace-write\"` and keep `approval_policy = \"on-request\"` (commands can write "
+                "in your workspace and in any extra folders in `writable_roots`, so review that list). "
+                + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files). Either way, " + SAVED_STILL,
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`",
+        "check": COMMANDS_CHECK},
+    "full-on-request-read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does, and keep `approval_policy = \"on-request\"` "
+                "(commands can't write files). " + ORDINARY_STILL_RUN + " But " + SAVED_STILL,
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`",
+        "check": COMMANDS_CHECK},
     None: {
-        "what": "Set `approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` (commands can write only "
-                "in your workspace; Codex decides when to ask you first). Stricter: `sandbox_mode = \"read-only\"` "
+        "what": ASK_FOR_BLOCKED + "`approval_policy = \"on-request\"` with `sandbox_mode = \"workspace-write\"` "
+                "(commands can write in your workspace and in any extra folders in `writable_roots`, so review that "
+                "list). " + ORDINARY_STILL_RUN + " Stricter: `sandbox_mode = \"read-only\"` "
                 "(commands can't write files). Either way, " + SAVED_STILL,
         "where": TOP,
         "ask": "Edit {file} to set `approval_policy = \"on-request\"` and `sandbox_mode = \"workspace-write\"`",
         "check": COMMANDS_CHECK}}
-# Rows: sandbox_mode `workspace-write` and `read-only`; with `read-only` in another inspected file, `workspace-write`
-# would be looser, so only `read-only` is offered.
 SANDBOX = {
     "read-only": {
         "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"read-only\"`"},
     None: {
-        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write only in your workspace). Stricter: "
+        "what": "Set `sandbox_mode = \"workspace-write\"` (commands can write in your workspace and in any extra "
+                "folders in `writable_roots`, so review that list). Stricter: "
                 "`sandbox_mode = \"read-only\"` (commands can't write files).",
         "where": TOP, "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"`"}}
+FULL_ACCESS_TOOLS = {
+    "read-only": {
+        "what": "Set `sandbox_mode = \"read-only\"`, as `{label}` does (each server's and app's tool approval mode then "
+                "applies, Codex refuses calls that need approval instead of asking, and commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"read-only\"` without changing `approval_policy`"},
+    None: {
+        "what": "Set `sandbox_mode = \"workspace-write\"` (each server's and app's tool approval mode then applies, and "
+                "Codex refuses calls that need approval instead of asking), and review any extra folders in "
+                "`writable_roots`. Stricter: `sandbox_mode = \"read-only\"` "
+                "(commands can't write files).",
+        "where": "`sandbox_mode` " + TOP,
+        "ask": "Edit {file} to set `sandbox_mode = \"workspace-write\"` without changing `approval_policy`"}}
+FULL_ACCESS_HEADLINES = {
+    "commands_without_prompts": ("With these settings, Codex runs most commands without asking you.",
+                                 "With `sandbox_mode = \"danger-full-access\"`, ordinary commands can run without "
+                                 "asking, including ones that delete or change files. For commands without a matching "
+                                 "rule, Codex asks first only if it flags the command as dangerous, such as a forced "
+                                 "`rm`."),
+    "automatic_tools": ("With these settings, Codex can use MCP server and app tools without asking you.",
+                        "`approval_policy = \"never\"` with `sandbox_mode = \"danger-full-access\"` can allow MCP "
+                        "server and app tools to run without asking you, even when a tool's approval mode requests "
+                        "approval. " + AUTOMATIC)}
 ADVICE = {
     ("commands_without_prompts", "approval_policy", 1): COMMANDS,
+    ("automatic_tools", "approval_policy", 1): FULL_ACCESS_TOOLS,
     ("unrestricted_filesystem", "sandbox_mode", 1): SANDBOX,
-    # Keeping a trusted program changes nothing; turning it off to see what breaks changes the setup, so it is the
-    # stricter option, not the Check. A stdio server runs `command` with `args` (openai/codex 086ccc8,
-    # config/src/mcp_types.rs L393-L397), so with a launcher or interpreter what runs is in `args`;
-    # `http_headers_helper` is a program too (L411). Row mcp_servers.*.enabled `false`.
     ("configured_program", "mcp_servers", 2): {
         "what": "Keep it if you trust the program it starts. Stricter: `enabled = false`; if nothing you use stops "
                 "working, leave it off.",
@@ -239,17 +262,12 @@ ADVICE = {
         "check": "Under `[{table}]` in {where}, the program is `command` with its `args` (or `http_headers_helper`); "
                  "for a launcher such as `npx`, `uvx`, `docker`, `node` or `python`, what runs is named in `args`. Find "
                  "out who publishes it before you trust it."},
-    # `notify` is a list whose first item is the program; it can continue over several lines, and Codex 0.167.0
-    # refuses a file with only its first line deleted.
     ("configured_program", "notify", 1): {
         "what": "Keep it if you trust the program it starts. Stricter: remove `notify` if you don't need notifications.",
         "where": "delete the `notify` setting, including any lines its list continues on",
         "ask": "Edit {file} to remove the `notify` setting",
         "check": "In {where}, the first item in the `notify` list is the program it starts; for a launcher such as "
                  "`node` or `npx`, the next items name what runs. Find out who publishes it before you trust it."},
-    # Codex writes each matcher group's handlers as `[[hooks.<Event>.hooks]]` sections (MatcherGroup, openai/codex
-    # 086ccc8 protocol/src/hooks.rs L140-L145); deleting only the `[[hooks.<Event>]]` lines leaves those sections,
-    # which Codex 0.167.0 refuses to load.
     ("configured_program", "hooks", 2): {
         "what": "Keep them if you trust the commands they run. Stricter: remove these hooks if you don't use them.",
         "where": "delete each `[[{table}]]` section with everything under it, including its `[[{table}.hooks]]` "
@@ -265,8 +283,6 @@ ADVICE = {
     ("self_described_tools", "apps", 2): LABELS_GROUP,
     ("self_described_tools", "mcp_servers", 4): TOOL_PROMPT,
     ("self_described_tools", "apps", 4): TOOL_PROMPT,
-    # Rows: apps.*.destructive_enabled `false inherited from _default`, apps.*.default_tools_enabled `true` (which
-    # turns destructive tools back on), apps.*.enabled `false`, apps.*.tools.*.enabled `false`.
     ("destructive_tools", "apps", 2): {
         "what": "Set `destructive_enabled = false` and leave `default_tools_enabled` unset (tools the app marks as not "
                 "destructive stay on; tools marked destructive, or not marked, turn off). Stricter: `enabled = false`, "
@@ -278,15 +294,16 @@ ADVICE = {
         "what": "If you don't need this tool, set `enabled = false` for it.",
         "where": "under `[{table}]`",
         "ask": "Edit {file} to set `enabled = false` for the `{tool}` tool of my `{name}` app"},
-    # Row: sandbox_workspace_write.network_access `false`. No lower-friction option has a row yet (archived issue #127).
+    ("writable_project_settings", "sandbox_workspace_write", 2): {
+        "what": "Remove the project's `.codex` directory from `writable_roots`. You can keep the workspace writable.",
+        "where": "under `[sandbox_workspace_write]`, remove each entry for that directory",
+        "ask": "Edit {file} to remove the selected project's `.codex` directory from `writable_roots`, "
+               "keeping the other entries",
+        "check": "Rerun stay-safe with the same `--workspace` and config selection."},
     ("network_access", "sandbox_workspace_write", 2): {
         "what": "Set `network_access = false` unless commands need the network.",
         "where": "under `[sandbox_workspace_write]`",
         "ask": "Edit {file} to set `network_access = false` under `[sandbox_workspace_write]`"},
-    # Rows: shell_environment_policy.inherit `core` and `none`. Core variables on Unix include HOME and PATH, and Codex
-    # adds `set` entries after `inherit` (openai/codex 086ccc8, protocol/src/shell_environment.rs L153-L158,
-    # L178-L181). The Check prints names only: `env | cut -d= -f1` would print each line of a multi-line value that
-    # has no `=`, so it uses awk's ENVIRON.
     ("environment_inheritance", "shell_environment_policy", 1): {
         "what": "Set `inherit = \"core\"` (commands get only core variables, such as `HOME` and `PATH`, plus any you "
                 "list under `set`). Stricter: `inherit = \"none\"` (no inherited variables).",
@@ -295,8 +312,6 @@ ADVICE = {
         "check": "In a terminal like the one you start Codex from, run "
                  "`awk 'BEGIN {{ for (name in ENVIRON) print name }}'` to list the names of your environment variables "
                  "without their values, and look for names that suggest credentials."},
-    # Saved approval records: a record covers every command that starts with its pattern's words (openai/codex
-    # 086ccc8, execpolicy/src/rule.rs L55-L72), so a pattern with more words covers fewer commands.
     ("saved_approval", "prefix_rule", 2): {
         "what": "Replace it with a rule whose `pattern` has more words (it then covers only the commands you meant), "
                 "for example `[\"git\", \"status\"]` instead of `[\"git\"]`. Stricter: delete line {line}.",
@@ -304,16 +319,27 @@ ADVICE = {
         "ask": "Edit {file} to replace line {line} with a rule that allows only <the command you meant>",
         "check": "Open {where} and read line {line}: its `pattern` lists the words a command must start with."},
 }
+TEMPLATE_HEADLINES = {
+    "automatic_tools": "Apps your config doesn't name use tool approval mode `approve`, set in `apps._default`.",
+    "destructive_tools": "Apps your config doesn't name have tools that can change or delete data turned on, set in "
+                         "`apps._default`."}
+TEMPLATE_ADVICE = {
+    "automatic_tools": {
+        "what": "Set `default_tools_approval_mode = \"writes\"` (uses server hints). Stricter: "
+                "`default_tools_approval_mode = \"prompt\"`. Apps you name without their own mode change too.",
+        "where": "under `[apps._default]`",
+        "ask": "Edit {file} to set `default_tools_approval_mode = \"writes\"` under `[apps._default]`"},
+    "destructive_tools": {
+        "what": "Set `destructive_enabled = false` (tools marked as not destructive stay on; tools marked destructive, "
+                "or not marked, turn off). Stricter: `enabled = false` (apps your config doesn't name turn off; apps "
+                "you name stay on).",
+        "where": "under `[apps._default]`",
+        "ask": "Edit {file} to set `destructive_enabled = false` under `[apps._default]`"}}
 KINDS = {"mcp_servers": "MCP server", "apps": "app"}
 STRICTNESS = ("read-only", "workspace-write")
 
 
 def sandbox_context(report, files):
-    """Collect configured modes, the files that set default_permissions, and the other read-only sandboxes.
-
-    The reader reports a selected profile as the conflict gap (with `sandbox_mode`), or as the named-profile gap without
-    the absent-`sandbox_mode` gap and without a `sandbox_mode` entry (stay_safe/codex.py, Reader.sandbox); unselected
-    `[permissions.*]` definitions alone give the absent gap or a plain `sandbox_mode` entry."""
     sources = {entry["source"] for entry in report["catalog"] if entry["source"].startswith("config-")}
     gaps = {}
     for text in report["inspection_gaps"]:
@@ -322,6 +348,9 @@ def sandbox_context(report, files):
     sources |= {source for source in gaps if source.startswith("config-")}
     own = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
            if entry["name"] == "sandbox_mode" and entry["observations"]}
+    full = {entry["source"]: entry["observations"][0] for entry in report["catalog"]
+            if entry["name"] == "approval_policy" and len(entry["observations"]) == 2
+            and entry["observations"][1].startswith("with danger-full-access")}
     profiles = [source for source, messages in gaps.items()
                 if "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown." in messages
                 or ("Named permission profiles are outside reader coverage; sandbox settings are not "
@@ -332,33 +361,32 @@ def sandbox_context(report, files):
     profile_files = ", ".join(f"`{files.get(source, source)}`" for source in sorted(profiles, key=source_order))
     context = {}
     for source in sources:
-        # A read-only setting still counts here when its file also selects a profile.
         others = sorted((int(other.split("-")[1]), other) for other, value in own.items()
                         if other != source and value == "read-only")
-        context[source] = {"sandbox": own.get(source), "profile": profile_files,
+        context[source] = {"sandbox": own.get(source), "profile": profile_files, "full_access": full.get(source),
                            "other": ("read-only", others[0][1]) if others else None}
     return context
 
 
 def pick_spec(spec, context):
-    """The commands and sandbox advice depend on the sandbox the finding's file and the other files set."""
     if spec is COMMANDS:
+        if context.get("full_access") == "on-request":
+            return COMMANDS["full-on-request-read-only" if context.get("other") else "full-on-request"]
         if context.get("profile"):
             return COMMANDS["profile"]
         if context.get("sandbox") in STRICTNESS:
             return COMMANDS[context["sandbox"]]
         return COMMANDS["other"] if context.get("other") else COMMANDS[None]
-    if spec is SANDBOX:
-        other = context.get("other")
-        return SANDBOX["read-only"] if other else SANDBOX[None]
+    if spec is SANDBOX or spec is FULL_ACCESS_TOOLS:
+        return spec["read-only"] if context.get("other") else spec[None]
     return spec
 
 
 def advice(risk, files, contexts):
-    """A finding's What to do, Change it and Check paragraphs; None where its rule and entry have none."""
     source, _, name = risk["entry"].partition(":")
     keys = parts(name)
-    spec = ADVICE.get((risk["rule"], keys[0], len(keys)))
+    spec = (TEMPLATE_ADVICE.get(risk["rule"]) if keys == ["apps", "_default"]
+            else ADVICE.get((risk["rule"], keys[0], len(keys))))
     if spec is None or (keys[0] == "prefix_rule" and not keys[1].isdigit()):
         return None
     context = contexts.get(source, {})
@@ -381,14 +409,17 @@ def advice(risk, files, contexts):
 
 
 def note(report, files):
-    """The note before the findings; it explains placeholders only when a finding names a passed file."""
     passed = any(risk["entry"].split(":", 1)[0] not in files for risk in report["risks"])
     return NOTE.format(placeholders=PLACEHOLDERS if passed else "")
 
 
 WITHHELD = "The value is left out of this report."
-# JSON gap text, without its source label -> Markdown lead. {label} stands for the setting a gap names.
+EXTRA_FOLDERS = "Some may be outside your workspace. Their paths are withheld."
+REVIEW_ROOTS = ("Review each folder in `writable_roots` and remove any that commands shouldn't change, "
+                "such as the Docker socket (`/var/run/docker.sock`).")
 GAPS = {
+    INLINE_MCP_VALUES: "**Not checked: inline values in `{label}`.** stay-safe did not check these entries for credentials.",
+    INVALID_MCP_MAP: "**Codex cannot load this configuration.** `{label}` must be a table of strings.",
     "Unchecked section {label}; its settings were not evaluated.":
         "**Not checked: `{label}`.** Its settings were not evaluated.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":
@@ -426,6 +457,21 @@ GAPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "**Not checked: your sandbox setting.** `sandbox_mode` isn't in your config file, so stay-safe can't tell "
         "what commands Codex runs are allowed to do.",
+    ROOTS_NO_WORKSPACE: "**Not checked: extra writable folders.** Your config lists folders commands may write. "
+                        f"{EXTRA_FOLDERS} Supply `--workspace DIR` to check for a direct grant to the project's `.codex`.",
+    ROOTS_SCOPE: f"**Not checked: other effects of extra writable folders.** {EXTRA_FOLDERS} The project settings "
+                 "check covers a direct grant to `.codex`. It leaves other relative paths, aliases and the folders' "
+                 "contents unchecked.",
+    ROOT_HOME_UNKNOWN: "**Not checked: home-relative writable folders.** The file uses `~` or `~/`, "
+                       "but `HOME` does not give an absolute path for the comparison.",
+    WORKSPACE_UNKNOWN: "**Not checked: the project settings directory.** A path component is a symlink, "
+                       "is not a directory, or could not be checked.",
+    WORKSPACE_HOME_UNKNOWN: "**Not checked: the project settings directory.** The user Codex home is unknown "
+                            "or has an unresolved path or alias.",
+    WORKSPACE_HOME: "**Not checked: user Codex home.** Codex treats this folder as its user configuration folder.",
+    "sandbox_workspace_write.writable_roots is invalid; its value was withheld.":
+        "**Not checked: extra folders commands can write to.** Your `writable_roots` isn't a list of folder "
+        f"paths, so stay-safe can't tell where commands can write. {WITHHELD}",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
         "**Not checked: your sandbox setting.** Your `sandbox_mode` value isn't one stay-safe supports, so it "
         f"can't tell what commands Codex runs are allowed to do. {WITHHELD}",
@@ -480,12 +526,20 @@ GAPS = {
     "An MCP header-helper command is invalid; its value was withheld.":
         "**Not checked: an MCP header-helper command.** An `http_headers_helper` value isn't a valid command, so "
         f"stay-safe didn't assess it. {WITHHELD}",
-    "apps has an invalid destructive_enabled flag.":
-        "**Not checked: an app's `destructive_enabled` setting.** It isn't true or false, so stay-safe can't tell "
-        "whether that app's tools that change or delete data are turned on.",
+    "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
+        "**Codex can't load this configuration.** The `{label}` server uses `command` (stdio). "
+        "Codex accepts `http_headers_helper` only on HTTP servers.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "**Not checked: per-account app settings.** An app has per-account settings (`links`), which stay-safe "
         "doesn't assess. Account identifiers are left out of this report.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "**Not checked: an app's approval reviewer.** An app sets `approvals_reviewer` (in `[apps.<name>]` or "
+        "`[apps._default]`), which can let a reviewer such as automatic review decide its tool calls instead of "
+        "asking you. stay-safe doesn't assess it.",
+    INVALID_APPROVAL: f"**{INVALID_APPROVAL}** Findings for other entries describe settings written in the file.",
+    INVALID_BOOLEAN:
+        "**Codex cannot load this configuration file.** `{label}` must be `true` or `false` without quotes. "
+        "Findings for other entries describe settings written in the file.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "**Not checked: a model provider's sign-in command.** A model provider gets its credentials by running a "
         "command (`auth`), which stay-safe doesn't assess.",
@@ -545,6 +599,18 @@ GAPS = {
     "Codex home: hooks.json exists and was not inspected.":
         "**Not checked: your `hooks.json` file.** Your Codex folder has a `hooks.json` file, which stay-safe "
         "doesn't read.",
+    "Codex home: skills holds Codex skills that were not inspected.":
+        "**Not checked: your Codex skills.** Your Codex folder has skills in `skills`, which stay-safe doesn't read.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "**Not checked: your Codex skills.** Could not check the skills folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "**Not checked: your `environments.toml` file.** Your Codex folder has an `environments.toml` file, which "
+        "stay-safe doesn't read.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "**Not checked: your `environments.toml` file.** Could not check it.",
+    "Codex home: environments.toml is not a file; Codex fails to read it.":
+        "**Not checked: your `environments.toml` file.** Your Codex folder has an `environments.toml` that isn't a "
+        "regular file, such as a folder. Codex reports an error when it tries to read it.",
     "Committed incident citations are incomplete; source links are unavailable.":
         "**Not checked: some cited incidents.** stay-safe couldn't find every cited incident in its incident list, "
         "so those incidents appear without links.",
@@ -555,7 +621,6 @@ GAPS = {
         "**Not checked: which version of stay-safe made this report.** stay-safe couldn't tell which commit it's "
         "running from, so links to its rules, evidence and incidents are left out.",
 }
-# The absent-setting gaps of a Codex config file that automatic discovery did not find.
 ABSENT = {
     "approval_policy is absent; the reader does not infer its effective value.":
         "**Not checked: your approval setting.** stay-safe found no Codex config file, so it can't tell whether "
@@ -564,8 +629,9 @@ ABSENT = {
         "**Not checked: your sandbox setting.** stay-safe found no Codex config file, so it can't tell what "
         "commands Codex runs are allowed to do.",
 }
-# JSON gap text -> what the reader can do about it (reading check). {label} stands for the setting a gap names.
 STEPS = {
+    INLINE_MCP_VALUES: "Review the entries for credentials in your own configuration file.",
+    INVALID_MCP_MAP: "Give each entry in `{label}` a quoted string value, or remove the setting.",
     "Unchecked section {label}; its settings were not evaluated.":
         "Review the `{label}` section in your selected file yourself.",
     "projects contains {label} recognized trusted declarations; project settings were not inspected.":
@@ -596,6 +662,14 @@ STEPS = {
     "sandbox_mode is absent; the reader does not infer its effective value.":
         "Check the sandbox setting wherever you run Codex (the app or the command line). To set it in a file, add "
         "`sandbox_mode = \"workspace-write\"` or `\"read-only\"` to your config file.",
+    ROOTS_NO_WORKSPACE: REVIEW_ROOTS,
+    ROOTS_SCOPE: REVIEW_ROOTS,
+    ROOT_HOME_UNKNOWN: "Check these entries locally or rerun with `HOME` set to the absolute path of the "
+                       "intended user's home.",
+    WORKSPACE_UNKNOWN: "Use the project's direct directory path and check the listed roots locally.",
+    WORKSPACE_HOME_UNKNOWN: "Check the path to your Codex home and the workspace locally.",
+    WORKSPACE_HOME: "Select the project directory with `--workspace` to check its settings.",
+    "sandbox_workspace_write.writable_roots is invalid; its value was withheld.": "Make `writable_roots` a list of folder paths, or remove it.",
     "sandbox_mode is unsupported or invalid; its value was withheld.":
         "Set it to `\"read-only\"`, `\"workspace-write\"` or `\"danger-full-access\"`.",
     "Named permission profiles are outside reader coverage; sandbox settings are not effective-permission evidence.":
@@ -618,9 +692,9 @@ STEPS = {
         "Review that entry yourself, since it isn't in this report.",
     "{label} contains an entry that is not a table.": "Rewrite it as a group of settings, then run stay-safe again.",
     "A tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A per-tool approval mode is unsupported or invalid; its value was withheld.":
-        "Set it to `\"auto\"`, `\"prompt\"`, `\"writes\"` or `\"approve\"`; use `\"prompt\"` to request approval.",
+        f'Set it to {APPROVAL_OPTIONS}; use `"prompt"` to request approval.',
     "A tool allow/deny list contains a name that cannot be included in a shareable report.":
         "Review the full list in your config file yourself.",
     "A tool allow/deny list is invalid; tool availability is unknown.":
@@ -628,9 +702,16 @@ STEPS = {
     "An MCP transport is missing, conflicting or invalid.": "Give the server either a `command` or a `url`, not both.",
     "An MCP header-helper command is invalid; its value was withheld.":
         "Set `http_headers_helper` to the command you mean to run, or remove it.",
-    "apps has an invalid destructive_enabled flag.": "Set `destructive_enabled` to `true` or `false`.",
+    "Codex cannot load this configuration because stdio MCP server {label} sets http_headers_helper.":
+        "To keep using stdio, remove `http_headers_helper` from this server's settings.",
     "Per-account app policy is not evaluated; account identifiers were withheld.":
         "Review those per-account settings yourself.",
+    "App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.":
+        "Check the reviewer on the App and on `apps._default`. If you remove the App's override, the App can still "
+        "inherit automatic review from `apps._default`.",
+    INVALID_APPROVAL: f"Set `{{label}}` to {APPROVAL_OPTIONS}.",
+    INVALID_BOOLEAN:
+        "Set `{label}` to `true` or `false` without quotes.",
     "Model-provider command-backed authentication is outside reader coverage.":
         "Review that command yourself; stay-safe doesn't check it.",
     "Model-provider setting {label} was not checked for a credential command.": "Review `{label}` in your config file.",
@@ -659,6 +740,15 @@ STEPS = {
     "Codex home: CODEX_HOME is unset and the home directory cannot be determined; no default files were inspected.":
         "Set `HOME` or `CODEX_HOME`, or select files with `--config` and `--rules`.",
     "Codex home: hooks.json exists and was not inspected.": "Review the hooks in `hooks.json` yourself.",
+    "Codex home: skills holds Codex skills that were not inspected.": "Review the skills in `skills` yourself.",
+    "Codex home: Could not check the skills folder. Check that you can open skills in your Codex folder.":
+        "Check that you can open `skills` in your Codex folder.",
+    "Codex home: environments.toml exists and was not inspected.":
+        "Review the environments in `environments.toml` yourself.",
+    "Codex home: Could not check environments.toml. Check that you can open environments.toml in your Codex folder.":
+        "Check that you can open `environments.toml` in your Codex folder.",
+    "Codex home: environments.toml is not a file; Codex fails to read it.":
+        "Replace `environments.toml` in your Codex folder with the file you meant, or remove it.",
     "System config folder: /etc/codex holds Codex configuration that was not inspected.":
         "Review the files in `/etc/codex` yourself.",
     "Codex home: Could not check the plugin cache. Check that you can open plugins/cache in your Codex folder.":
@@ -671,7 +761,6 @@ STEPS = {
     "Incomplete fingerprint: {label} could not be read.": "Restore that file, for example by cloning stay-safe again.",
     GAP: "Run stay-safe from a git clone so the report can link to the exact version.",
 }
-# With no Codex config file found, the absent-setting follow-ups say to create one.
 ABSENT_STEPS = {
     "approval_policy is absent; the reader does not infer its effective value.":
         "Check the approval setting wherever you run Codex (the app or the command line). To set it in a file, "
@@ -686,19 +775,17 @@ UNKNOWN_GAP = ("**Not checked:** {}", "Review this part of your setup yourself."
 
 
 def lookup(table, message):
-    """The table's text for a gap message, filling in the setting a labelled message names; None if it has none."""
     if message in table:
         return table[message]
     for key, text in table.items():
         if "{label}" in key:
-            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r"([\w./-]+)"), message)
+            found = re.fullmatch(re.escape(key).replace(r"\{label\}", r'([\w./"*-]+)'), message)
             if found:
                 return text.replace("{label}", found[1])
     return None
 
 
 def parts(name):
-    """Split an entry name into its configuration keys, unquoting the ones written as JSON strings."""
     return [json.loads(p) if p.startswith('"') else p for p in re.findall(r'"(?:[^"\\]|\\.)*"|[^."]+', name)]
 
 
@@ -708,7 +795,6 @@ SUBJECTS = {("mcp_servers", 2): "your {0} MCP server", ("mcp_servers", 4): "the 
 
 
 def finding(risk, files=None, contexts=None):
-    """The plain lead, incident summary and What to do of a finding; None where its rule or entry has no wording."""
     keys = parts(risk["entry"].split(":", 1)[1])
     shape = (keys[0], len(keys))
     subject = SUBJECTS.get(shape, "").format(*[f"`{key}`" for key in keys[1::2]])
@@ -718,6 +804,13 @@ def finding(risk, files=None, contexts=None):
     pick = lambda text: (text.get(keys[0]) if isinstance(text, dict)
                          else text[len(keys) == 4] if isinstance(text, tuple) else text)
     headline, why, step = pick(plain["headline"]), pick(plain["why"]), advice(risk, files or {}, contexts or {})
+    if keys == ["apps", "_default"]:
+        headline = TEMPLATE_HEADLINES.get(risk["rule"], headline)
+    source = risk["entry"].split(":", 1)[0]
+    full_access = (contexts or {}).get(source, {}).get("full_access")
+    if keys == ["approval_policy"] and (risk["rule"], full_access) in {("commands_without_prompts", "on-request"),
+                                                                      ("automatic_tools", "never")}:
+        headline, why = FULL_ACCESS_HEADLINES[risk["rule"]]
     if "{line}" in headline:
         if shape != ("prefix_rule", 2):
             return None
@@ -732,8 +825,6 @@ def finding(risk, files=None, contexts=None):
 
 
 def gap(text, absent, files, contexts=None):
-    """A gap's paragraph; absent holds the sources whose Codex config file automatic discovery did not find, and
-    files maps a source found automatically to where Codex keeps it."""
     source, separator, message = text.partition(": ")
     if not (separator and re.fullmatch(r"(config|rules)-\d+", source)):
         source, message = None, text
@@ -746,13 +837,12 @@ def gap(text, absent, files, contexts=None):
         step = PROFILE_CHECK.format(profile=contexts[source]["profile"])
     if lead is None or step is None:
         lead, step = UNKNOWN_GAP[0].format(cell(message)), UNKNOWN_GAP[1]
-    # Each part is its own paragraph: single newlines would join them when the Markdown is rendered.
     return f"{lead}\n\n*What to do:* {step}" + (f"\n\n*File `{files.get(source, source)}`*" if source else "")
 
 
-# "Your setup": each catalog entry as one plain line (archived issue #105, second reading-check edit).
 SETUP_LABELS = {("approval_policy",): "Approval", ("sandbox_mode",): "Sandbox",
                 ("sandbox_workspace_write", "network_access"): "Network access for commands",
+                ("sandbox_workspace_write", "writable_roots"): "Extra writable folders",
                 ("shell_environment_policy",): "Environment for commands", ("web_search",): "Web search",
                 ("notify",): "Notifications", ("apps", "_default"): "Defaults for all apps (`_default`)",
                 ("features", "apps"): "ChatGPT Apps connection"}
@@ -778,25 +868,27 @@ SETUP_WORDS = {
     "No default Codex configuration file was found. Assessed defaults: command environment and ChatGPT Apps.":
         "none found, so stay-safe assessed Codex's documented defaults (the environment of commands and the ChatGPT "
         "Apps connection)",
-    # The ChatGPT Apps connection (harnesses/codex.md row `features.apps` `omitted`, archived issue #121).
     "ChatGPT Apps": "an MCP connection to ChatGPT",
     "exists only if Codex is signed in with ChatGPT, which is not checked":
         "only when Codex is signed in with ChatGPT (stay-safe doesn't check sign-in)",
     "disabled by features.apps = false": "off (`features.apps = false`)",
     "features.apps = false turns it off": "`features.apps = false` turns it off",
+    "applies to apps not named in this file": "applies to apps your file doesn't name",
     "broad: one-token prefix": "covers every use of that program",
     "never": "`never` (doesn't ask before commands)", "on-request": "`on-request` (Codex can ask before commands)",
+    "with danger-full-access, ordinary commands can run without asking":
+        "but with `danger-full-access` ordinary commands can run without asking",
+    "with danger-full-access, MCP and app tool calls can run without asking":
+        "and with `danger-full-access` MCP server and app tools can run without asking",
     "read-only": "`read-only` (commands can't write files)",
     "workspace-write": "`workspace-write` (commands can write in your workspace)",
     "danger-full-access": "`danger-full-access` (no sandbox)",
 }
-APPROVAL_MODES = {"auto", "approve", "prompt", "writes"}
 INHERIT = {"all": "all variables passed on", "core": "only core variables passed on", "none": "none passed on"}
 ORIGIN = {"explicit": "you set this", "default": "default"}
 
 
 def setup_words(keys, observation):
-    """One observation in plain words; text without wording is shown as it is."""
     if keys == ["web_search"]:
         return f"`{observation}`"
     if keys == ["apps", "_default"] and observation == "disabled":
@@ -804,9 +896,19 @@ def setup_words(keys, observation):
     if observation in SETUP_WORDS:
         return SETUP_WORDS[observation]
     found = re.fullmatch(r"tool approval: (\w+)( \(default\))?", observation)
-    if found and found[1] in APPROVAL_MODES:
+    if found and found[1] in APPROVALS:
         mode = f"`{found[1]}`"
         return f"tool approval left at the default, {mode}" if found[2] else f"tool approval {mode}"
+    found = re.fullmatch(r"apps not named in this file: destructive tools (enabled|disabled) by (.+)", observation)
+    if found:
+        origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"
+        return f"apps your file doesn't name have tools that change or delete data {'on' if found[1] == 'enabled' else 'off'} ({origin})"
+    if observation == "apps not named in this file: disabled by apps._default.enabled":
+        return "apps your file doesn't name are off (`apps._default.enabled`)"
+    if observation == "apps not named in this file: destructive tools unknown":
+        return "unknown whether apps your file doesn't name have tools that change or delete data on (`apps._default.destructive_enabled` is invalid)"
+    if observation == "apps not named in this file: settings unknown":
+        return "unknown what apps your file doesn't name are allowed to do (`apps._default` is invalid)"
     found = re.fullmatch(r"destructive tools (enabled|disabled) by (.+)", observation)
     if found:
         origin = "Codex default" if found[2] == "Codex default" else f"set by `{found[2]}`"
@@ -859,7 +961,6 @@ FILE_USE = {"config": "Codex reads its settings from this file.",
 
 
 def file_heading(source, files, missing=()):
-    """A Your setup heading: where a found file lives, or which file you passed, and how Codex uses it."""
     kind = "config" if source.startswith("config-") else "rules" if source.startswith("rules-") else None
     if kind is None:
         return f"**`{source}`**"
@@ -879,20 +980,17 @@ def file_heading(source, files, missing=()):
 
 
 def made_by(provenance):
-    """The short commit, marked when it came from a release archive rather than a Git checkout (archived issue #132)."""
     label = f"`{provenance['source_revision'][:7]}`"
     return label + " (release archive)" if provenance["source_status"] == "release archive commit" else label
 
 
-# The overview before the detailed findings (issue #82). A rule's group is fixed and says what the rule's condition
-# removes; docs/report.md, "The order of findings", gives the table with each rule's incidents. Each group: its
-# heading in the list, its sentence in the introduction for one finding and for several, and its rules in order.
 GROUPS = (
     ("Nothing stands between a mistaken or injected instruction and your computer",
      ("lets commands reach your whole computer unchecked", "let commands reach your whole computer unchecked"),
      ("unrestricted_filesystem", "commands_without_prompts", "saved_approval")),
-    ("Harm is limited to one channel or service",
-     ("exposes one channel or service", "expose one channel or service"),
+    ("Network access, credentials, and connected tools",
+     ("is about network access, credentials, or connected tools",
+      "are about network access, credentials, or connected tools"),
      ("destructive_tools", "network_access", "environment_inheritance", "automatic_tools")),
     ("Something else has to be tampered with first",
      ("matters only if something else is tampered with first", "matter only if something else is tampered with first"),
@@ -900,25 +998,21 @@ GROUPS = (
     ("Based on Codex's source code and not yet seen in a live run, so stay-safe has no basis to rank these. "
      "That does not make them minor.",
      ("rests on Codex's source code alone", "rest on Codex's source code alone"),
-     ("self_described_tools",)),
+     ("self_described_tools", "writable_project_settings")),
 )
 PLACE = {rule: (group, position) for group, (_, _, rules) in enumerate(GROUPS) for position, rule in enumerate(rules)}
 NUMBERS = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 READ = {"config": "your Codex settings", "rules": "your saved approvals"}
 LEAD_IN = "Here are the findings for you to review, with actionable advice."
-# A finding's detailed part opens with this heading; GitHub and the saved page give it the anchor `finding-N`.
 TARGET = "Finding {}"
 
 
 def source_order(source):
-    """Config files in the order they were passed, then the rules file."""
     kind, _, number = source.partition("-")
     return ({"config": 0, "rules": 1}.get(kind, 2), int(number) if number.isdigit() else 0, source)
 
 
 def ordered(risks):
-    """Findings by group, then rule, then file, then setting name; a number in a name, such as a rules line, sorts
-    as a number. A rule without a group is an error here, never a finding left out or ranked by guess."""
     def key(risk):
         source, _, name = risk["entry"].partition(":")
         return (*PLACE[risk["rule"]], source_order(source),
@@ -927,12 +1021,10 @@ def ordered(risks):
 
 
 def files_read(report, files):
-    """Identify successfully inspected sources from their labels, catalog entries and per-file gaps.
-    An explicitly selected empty rules file has a source label even though it has no entries or gaps."""
     absent = {entry["source"] for entry in report["catalog"] if entry["kind"] in ("configuration file", "rules file")}
     listed = {entry["source"] for entry in report["catalog"]}
     refused = {text.partition(": ")[0] for text in report["inspection_gaps"]
-               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input "))}
+               if text.partition(": ")[2].startswith(("Rules input ", "Selected rules input ", EXCLUDED_ACCOUNT))}
     sources = {source for source in listed | set(files) | {text.partition(": ")[0] for text in report["inspection_gaps"]}
                if re.fullmatch(r"(config|rules)-\d+", source)}
     return sorted((source for source in sources - absent - refused
@@ -940,8 +1032,6 @@ def files_read(report, files):
 
 
 def introduction(report, files, read):
-    """The paragraphs after the count line: what stay-safe read, the results by group, what could not be verified,
-    and the line that leads into the list. A paragraph with nothing to count is left out."""
     risks, gaps = report["risks"], report["inspection_gaps"]
     paragraphs = []
     if read:
@@ -982,8 +1072,6 @@ def introduction(report, files, read):
 
 
 def findings_list(report, risks, titles, labelled):
-    """One numbered line per finding under its group's heading, each linking to its detailed finding, then the
-    count of things not checked, linking to that section."""
     paragraphs, group = [], None
     for number, (risk, title) in enumerate(zip(risks, titles), 1):
         if PLACE[risk["rule"]][0] != group:
@@ -998,6 +1086,9 @@ def findings_list(report, risks, titles, labelled):
 
 
 def markdown(report, files=None):
+    if report.get("harness") == "Claude Code":
+        from .claude_report import markdown as claude_markdown
+        return claude_markdown(report, files)
     files = files or {}
     risks, gaps = ordered(report["risks"]), report["inspection_gaps"]
     read = files_read(report, files)
@@ -1005,17 +1096,14 @@ def markdown(report, files=None):
              f"{count(len(risks), 'finding', 'findings')}, {count(len(gaps), 'thing', 'things')} not checked.", ""]
     for paragraph in introduction(report, files, read):
         lines += [paragraph, ""]
-    # Only automatically discovered sources have paths for headings and suggested edits.
     files = {source: path for source, path in files.items() if path is not None}
     blocks, titles = [], []
-    # The sandboxes the files set, so the advice never suggests a looser one (reviews of archived PR #129, F2 and F13).
     contexts = sandbox_context(report, files)
     for number, risk in enumerate(risks, 1):
         citations = ", ".join(f"[{i}]({report['incident_links'][i]})" if i in report["incident_links"] else i for i in risk["incidents"])
         lead, how, step = finding(risk, files, contexts) or (risk["explanation"], "See the cited incidents.",
                                                    "*What to do:* Review this setting yourself.")
         kind = "rules entry" if risk["entry"].startswith("rules-") else "setting"
-        # The title is the bold headline; a finding without plain wording has none, so its whole lead stands in.
         headline = re.search(r"^\*\*(.+?)\*\* ", lead)
         titles.append(headline[1] if headline else lead)
         rule = f"`{risk['rule']}`"
@@ -1076,7 +1164,6 @@ def markdown(report, files=None):
               "doesn't start Codex or contact any service. Watch what Codex asks before it acts.",
               "- Private values such as commands, addresses and tokens are left out, but names like `github` are "
               "shown as written: names can identify a project or a person, so check them before sharing."]
-    # Only files that were found count: a default run always lists config-1 and rules-1 (re-review F22).
     if len(set(groups) - missing) > 1:
         lines.append("- These files are read as separate snapshots, not combined: Codex may apply several of them "
                      "together, so a setting in one can change what another allows.")
@@ -1089,10 +1176,7 @@ def markdown(report, files=None):
     return "\n".join(lines) + "\n"
 
 
-# The saved page is the Markdown report as a Markdown previewer shows it (archived issue #106): the same lines, read with
-# the few Markdown forms markdown() writes. All text is escaped; links are kept only for https targets and for the
-# report's own findings and Not checked section (issue #82). A link's text may hold code spans.
-INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked)\)|\*\*|\*")
+INLINE = re.compile(r"`([^`\n]*)`|\[((?:`[^`\n]*`|[^\]`\n])*)\]\((https://[^)\s]*|#finding-\d+|#not-checked|#claude-code-finding-\d+|#claude-code-not-checked)\)|\*\*|\*")
 NUMBERED = re.compile(r"(\d+)\. (.*)")
 STYLE = """body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
 p, li { overflow-wrap: anywhere; }
@@ -1101,18 +1185,14 @@ hr { border: 0; border-top: 1px solid; margin: 1.5rem 0; }"""
 
 
 def anchor(heading):
-    """The anchor GitHub gives a heading, which the saved page gives it too: lower case, punctuation removed, spaces
-    as hyphens (docs.github.com, "Basic writing and formatting syntax", Section links)."""
     return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
 
 
 def text(value):
-    """Markdown text outside code spans shows entities such as &#124; as their character; escape that for HTML."""
     return escape(unescape(value), quote=False)
 
 
 def inline(line):
-    """One line's text, code spans, links, bold (`**`) and italic (`*`); emphasis left open closes at its end."""
     out, open_tags, position = [], [], 0
 
     def toggle(tag):
@@ -1143,12 +1223,11 @@ def inline(line):
     return "".join(out)
 
 
-def page(report, files=None):
-    """Headings, horizontal rules, then paragraphs and lists: a run of `- ` lines is a list, a run of numbered lines
-    a numbered list that starts at its first number, other lines a paragraph. Section and finding headings carry
-    the anchor GitHub gives them, so the report's own links work on the page."""
+def page(report, files=None, text=None, title=None):
     body = []
-    for block in markdown(report, files).rstrip("\n").split("\n\n"):
+    text = markdown(report, files) if text is None else text
+    title = title or text.split("\n", 1)[0].removeprefix("# ")
+    for block in text.rstrip("\n").split("\n\n"):
         if block.startswith("# "):
             body.append(f"<h1>{inline(block[2:])}</h1>")
         elif block.startswith("## "):
@@ -1177,16 +1256,11 @@ def page(report, files=None):
     return ("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-            f"<title>Codex configuration diagnostic</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
+            f"<title>{escape(title, quote=False)}</title>\n<style>\n{STYLE}\n</style>\n</head>\n<body>\n"
             + "\n".join(body) + "\n</body>\n</html>\n")
 
 
 def plain(report, files=None):
-    """Read only the Markdown forms the report writes; keep code contents and link destinations.
-
-    Names come from the reader's public-name allowlist. Unlike stripping punctuation,
-    tokenizing code spans leaves literal underscores, dots and hyphens untouched.
-    """
     def words(line):
         pieces, position = [], 0
         for found in INLINE.finditer(line):
@@ -1194,7 +1268,6 @@ def plain(report, files=None):
             if found[1] is not None:
                 pieces.append(found[1])
             elif found[2] is not None:
-                # A link to the report's own finding or section has no address to show: its number or name is the route.
                 pieces.append(words(found[2]) + ("" if found[3].startswith("#") else f" ({found[3]})"))
             position = found.end()
         pieces.append(unescape(line[position:]))
@@ -1211,12 +1284,27 @@ def plain(report, files=None):
     return "\n".join(lines) + "\n"
 
 
+def public(report):
+    return {key: value for key, value in report.items() if not key.startswith("_")}
+
+
 def render(report, format_name="markdown", files=None):
-    """files maps source labels to automatic paths, or None for an explicitly selected rules file. JSON omits paths."""
     if format_name == "json":
-        return json.dumps(report, ensure_ascii=True, indent=2) + "\n"
+        return json.dumps(public(report), ensure_ascii=True, indent=2) + "\n"
     if format_name == "plain":
         return plain(report, files)
     if format_name == "html":
         return page(report, files)
     return markdown(report, files)
+
+
+def render_all(runs, format_name="markdown"):
+    if len(runs) == 1:
+        return render(runs[0][0], format_name, runs[0][1])
+    if format_name == "json":
+        return json.dumps({"reports": [public(report) for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
+    if format_name == "html":
+        text = "\n".join(markdown(report, files) for report, files in runs)
+        return page(None, text=text, title=" and ".join(report["harness"] for report, _ in runs)
+                    + " configuration diagnostic")
+    return "\n".join(render(report, format_name, files) for report, files in runs)

@@ -1,10 +1,3 @@
-"""Synthetic Git histories exercise issue #128 without contacting a service.
-
-The authored history moves a cited range before changing it, changes an unrelated
-line, changes a schema field, and includes a prerelease. Expectations come from
-those deliberately written revisions, not from the checker's output.
-"""
-
 import json
 import os
 from pathlib import Path

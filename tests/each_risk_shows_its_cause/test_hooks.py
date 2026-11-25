@@ -1,21 +1,6 @@
 from stay_safe.report import inspect
 from tests.support import CHATGPT_APPS, ConfigCase
 
-# Expected results come from Codex at 086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a, not from the reader.
-# A `type = "command"` handler with a nonempty command becomes a command Codex can run
-# (codex-rs/hooks/src/engine/discovery.rs#L650-L727). A matcher only selects events
-# (codex-rs/hooks/src/engine/matcher.rs#L32-L40), and `timeout`, `async`, `statusMessage` and
-# `commandWindows` are handler options (codex-rs/protocol/src/hooks.rs#L140-L188).
-# Codex runs every group and every handler in it (discovery.rs#L632, #L650), so a command group counts
-# wherever it sits. A group's fields other than `matcher` and `hooks` are ignored, since `MatcherGroup`
-# does not deny unknown fields (protocol/src/hooks.rs#L140-L146).
-# `hooks.state` holds trust and enablement (discovery.rs#L917-L923, #L1000-L1027), which stay-safe
-# does not inspect, so the risk stays whatever it says. HASH matches no hook, so Codex reads an entry
-# with it as modified, not trusted (discovery.rs#L1011-L1013).
-# The handler's `type` picks its variant, which ignores fields it lacks, such as `command` on `prompt`
-# (hooks.rs#L140-L188). Codex skips `prompt` and `agent` handlers (discovery.rs#L782-L801), an
-# `mcp_tool` handler calls a tool on an MCP server (#L729-L781), and an empty command is skipped
-# (#L665-L671).
 
 BASE = 'approval_policy="on-request"\nsandbox_mode="read-only"\n'
 CATALOG = {'approval_policy': ['on-request'], 'sandbox_mode': ['read-only'],
@@ -77,3 +62,24 @@ class HookProgramTests(ConfigCase):
         ]:
             with self.subTest(handlers=handlers):
                 self.assert_hook(f'[[hooks.PreToolUse]]\nmatcher="shell"\nhooks=[{handlers}]\n', [])
+
+    def test_windows_command_alone_reports_program(self):
+        for handler in [
+            '{type="command", command="", commandWindows="private-windows"}',
+            '{type="command", command="  ", command_windows="private-windows"}',
+            '{type="command", command="private-check", commandWindows=""}',
+        ]:
+            with self.subTest(handler=handler):
+                self.assert_hook(f'[[hooks.PreToolUse]]\nhooks=[{handler}]\n', [PROGRAM])
+
+    def test_empty_or_non_string_windows_command_reports_no_program(self):
+        for handler in [
+            '{type="command", command="", commandWindows=""}',
+            '{type="command", command="", command_windows="  "}',
+            '{type="command", command="", commandWindows=1}',
+            '{type="command", command="", command_windows=["private-windows"]}',
+            '{type="command", commandWindows="private-windows"}',
+            '{type="prompt", commandWindows="private-windows"}',
+        ]:
+            with self.subTest(handler=handler):
+                self.assert_hook(f'[[hooks.PreToolUse]]\nhooks=[{handler}]\n', [])

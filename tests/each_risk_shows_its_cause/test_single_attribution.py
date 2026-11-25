@@ -1,12 +1,3 @@
-"""Each tool-approval or destructive-tool risk appears once, on the entry that sets or inherits it.
-
-Expected placement: archived issue #51 and ../../harnesses/codex.md. A tool block without its
-own approval_mode uses its server's or app's mode, and `apps._default` deserializes
-into Codex's separate AppsDefaultConfig ("Default settings that apply to all apps"),
-not into the map of named apps:
-https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/types.rs
-"""
-
 from stay_safe.report import inspect
 from tests.support import ConfigCase
 
@@ -33,7 +24,6 @@ class SingleAttributionTests(ConfigCase):
             ('[mcp_servers.r]\nurl="https://example.com"\ndefault_tools_approval_mode="writes"\n'
              'enabled_tools=["read"]\n[mcp_servers.r.tools.read]\noutput_token_limit=5',
              [("self_described_tools", "mcp_servers.r")]),
-            # A tool's own enabled = true also lets it run if destructive (archived issue #63).
             ('[apps.files]\ndefault_tools_approval_mode="approve"\n[apps.files.tools.read]\nenabled=true',
              [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
             ('[apps.files]\n[apps.files.tools.read]\nenabled=true',
@@ -42,7 +32,7 @@ class SingleAttributionTests(ConfigCase):
              '[apps.files.tools.read]\nenabled=true\n[apps.files.tools.write]',
              [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
             ('[apps._default]\ndefault_tools_approval_mode="approve"\n[apps.files]\n[apps.files.tools.read]\nenabled=true',
-             [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
+             [("automatic_tools", "apps._default"), ("automatic_tools", "apps.files"), ("destructive_tools", "apps.files"), ("destructive_tools", "apps.files.tools.read")]),
         ]:
             with self.subTest(tail=tail):
                 self.assert_tool_risks(tail, expected)
@@ -77,8 +67,9 @@ class SingleAttributionTests(ConfigCase):
         self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "mcp_servers.r.tools.read"],
                          [["configured enabled", "tool approval: approve"]])
 
-    def test_app_template_risks_appear_only_on_enabled_apps_that_inherit_them(self):
+    def test_app_template_approval_applies_to_unnamed_apps_and_inherited_risks_to_enabled_named_apps(self):
         template = '[apps._default]\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n'
+        unnamed = [("automatic_tools", "apps._default"), ("destructive_tools", "apps._default")]
         for tail, expected in [
             ('', []),
             ('[apps.files]', [("automatic_tools", "apps.files"), ("destructive_tools", "apps.files")]),
@@ -89,6 +80,17 @@ class SingleAttributionTests(ConfigCase):
             ('[apps.files]\nenabled=false\n[apps.mail]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false', []),
         ]:
             with self.subTest(tail=tail):
-                report = self.assert_tool_risks(template + tail, expected)
+                report = self.assert_tool_risks(template + tail, unnamed + expected)
                 self.assertEqual([e["observations"] for e in report["catalog"] if e["name"] == "apps._default"],
-                                 [["configured enabled", "tool approval: approve"]])
+                                 [["configured enabled", "applies to apps not named in this file",
+                                   "destructive tools enabled by apps._default.destructive_enabled",
+                                   "tool approval: approve"]])
+
+    def test_app_template_gives_no_risk_when_unnamed_apps_are_off_or_it_sets_no_risky_value(self):
+        for template in ['[apps._default]\nenabled=false\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n',
+                         '[features]\napps=false\n[apps._default]\ndefault_tools_approval_mode="approve"\ndestructive_enabled=true\n',
+                         '[apps._default]\ndefault_tools_approval_mode="prompt"\ndestructive_enabled=false\n',
+                         '[apps._default]\ndefault_tools_approval_mode="writes"\n',
+                         '[apps._default]\n']:
+            with self.subTest(template=template):
+                self.assert_tool_risks(template, [])
