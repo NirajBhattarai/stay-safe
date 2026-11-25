@@ -166,30 +166,67 @@ def claude_home(chosen):
     return home, label, status
 
 
-def claude_run(home, label, status):
-    if status != "directory":
+def claude_project(home):
+    folder = Path(".claude")
+    unchecked = "The project's .claude folder could not be checked; its settings were not inspected."
+    try:
+        names = os.listdir(folder)
+    except (FileNotFoundError, NotADirectoryError):
+        return None, None
+    except OSError:
+        return None, unchecked
+    if "settings.json" not in names:
+        return None, None
+    if home is not None:
+        try:
+            here, user = folder.stat(), home.stat()
+        except (FileNotFoundError, NotADirectoryError):
+            return folder / "settings.json", None
+        except OSError:
+            return None, unchecked
+        if (here.st_dev, here.st_ino) == (user.st_dev, user.st_ino):
+            return None, None
+    return folder / "settings.json", None
+
+
+def claude_run(home, label, status, project, required):
+    paths, scopes, files, gaps = [], [], {}, []
+    path, project_gap = project
+    if status == "directory":
+        paths, scopes, files = [home / "settings.json"], ["user"], {"settings-1": f"{label}/settings.json"}
+    elif required:
         reason = {"missing": "was not found", "not a directory": "is not a directory",
                   "unreadable": "could not be checked"}[status]
-        return claude_report.inspect([], gaps=[
-            f"Claude Code home: {label} {reason}; no Claude Code files were inspected."]), {}
-    return claude_report.inspect([home / "settings.json"], discovered=True), {"settings-1": f"{label}/settings.json"}
+        inspected = ("only the project's .claude/settings.json was inspected" if path
+                     else "no Claude Code files were inspected")
+        gaps.append(f"Claude Code home: {label} {reason}; {inspected}.")
+    if path is not None:
+        paths.append(path)
+        scopes.append("project")
+        files[f"settings-{len(paths)}"] = ".claude/settings.json"
+    if project_gap:
+        gaps.append(project_gap)
+    return claude_report.inspect(paths, discovered=True, scopes=scopes, gaps=gaps), files
 
 
 def discover_runs(args, agents):
     if agents == ["codex"]:
         return [codex_run(args)]
     home, label, status = claude_home(chosen=bool(agents))
+    project = claude_project(home if status == "directory" else None)
+    configured = bool(os.environ.get("CLAUDE_CONFIG_DIR"))
     if agents:
         include_claude, include_codex = "claude" in agents, "codex" in agents
     else:
-        include_claude = status != "missing" or bool(os.environ.get("CLAUDE_CONFIG_DIR"))
+        include_claude = status != "missing" or configured or project != (None, None)
         include_codex = True
-        if status == "directory" and not os.environ.get("CODEX_HOME"):
+        if (status == "directory" or project[0] is not None) and not os.environ.get("CODEX_HOME"):
             codex, _ = codex_home()
             include_codex = codex is not None and directory_status(codex) != "missing"
     runs = [codex_run(args)] if include_codex else []
     if include_claude:
-        runs.append(claude_run(home, label, status))
+        required = bool(agents) or configured or status != "missing"
+        runs.append(claude_run(home, label, status, project, required))
     return runs
 
 

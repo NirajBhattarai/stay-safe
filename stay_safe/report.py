@@ -1256,9 +1256,13 @@ def plain(report, files=None):
     return "\n".join(lines) + "\n"
 
 
+def public(report):
+    return {key: value for key, value in report.items() if not key.startswith("_")}
+
+
 def render(report, format_name="markdown", files=None):
     if format_name == "json":
-        return json.dumps(report, ensure_ascii=True, indent=2) + "\n"
+        return json.dumps(public(report), ensure_ascii=True, indent=2) + "\n"
     if format_name == "plain":
         return plain(report, files)
     if format_name == "html":
@@ -1270,7 +1274,7 @@ def render_all(runs, format_name="markdown"):
     if len(runs) == 1:
         return render(runs[0][0], format_name, runs[0][1])
     if format_name == "json":
-        return json.dumps({"reports": [report for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
+        return json.dumps({"reports": [public(report) for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
     if format_name == "html":
         text = "\n".join(markdown(report, files) for report, files in runs)
         return page(None, text=text, title=" and ".join(report["harness"] for report, _ in runs)

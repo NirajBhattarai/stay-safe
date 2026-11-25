@@ -97,7 +97,12 @@ python3 -m stay_safe --agent claude --config /path/to/settings.json
 ```
 
 Claude Code discovery reads `settings.json` under `$CLAUDE_CONFIG_DIR` or
-`~/.claude`. To inspect another settings file, pass `--agent claude --config FILE`.
+`~/.claude`, and the project's `.claude/settings.json` in the current folder. Run
+stay-safe from the folder where you start Claude Code to include that project file.
+Command hooks are reported as programs Claude Code starts and HTTP hooks as network
+access, with commands and addresses withheld. A project file is read even without
+`~/.claude`.
+To inspect another settings file, pass `--agent claude --config FILE`.
 Each selected file is a separate snapshot. Account data, managed settings and
 extension folders are outside discovery. The [Claude Code meanings table](../harnesses/claude-code.md)
 lists the supported settings and their sources.
