@@ -7,7 +7,7 @@ from .codex import (APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPR
                     INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
                     WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
-from .rules import evaluate
+from .rules import SANDBOX_OFF_EXPLANATION, evaluate
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link, resource
 
 INCIDENTS = resource("incidents.md")
@@ -105,12 +105,12 @@ FINDINGS = {
         "how": "Agents running commands without approval have run a delete command aimed at a home directory "
                "and wiped a drive. Another user reported an automatic driver update while getting help with GPU performance."},
     "unrestricted_filesystem": {
-        "headline": "Your config turns off Codex's sandbox.",
-        "why": "Commands Codex runs aren't limited to your project, so a mistaken command could damage files "
-               "elsewhere on your computer.",
+        "headline": "Your config turns off Codex’s sandbox.",
+        "why": SANDBOX_OFF_EXPLANATION,
         "how": "Agents have deleted a home directory and wiped a whole drive with one mistaken delete command. "
                "A Claude Code user reported losing SSH keys and cloud credentials when a PowerShell cleanup "
-               "deleted files in their home directory."},
+               "deleted files in their home directory. GitHub Copilot was tricked into editing its own approval "
+               "settings. Intruders changed project settings that Claude Code used at startup."},
     "writable_project_settings": {
         "headline": "Your config lists the project's `.codex` directory as writable.",
         "why": "A sandboxed command could change project settings that a later trusted Codex run uses.",

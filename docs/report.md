@@ -53,7 +53,7 @@ the JSON report keeps its own order.
 
 | Group | Heading in the report | Rule | Reported incidents |
 | --- | --- | --- | --- |
-| 1 | Nothing stands between a mistaken or injected instruction and your computer | `unrestricted_filesystem` | [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped), [I32](../incidents.md#i32-powershell-cleanup-deleted-files-in-the-home-directory) |
+| 1 | Nothing stands between a mistaken or injected instruction and your computer | `unrestricted_filesystem` | [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped), [I32](../incidents.md#i32-powershell-cleanup-deleted-files-in-the-home-directory), [I20](../incidents.md#i20-injected-text-turned-off-approvals), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `commands_without_prompts` | [I2](../incidents.md#i2-home-directory-added-to-a-delete-command), [I3](../incidents.md#i3-windows-drive-wiped), [I24](../incidents.md#i24-driver-update-followed-by-boot-and-network-failures) |
 | 1 | Nothing stands between a mistaken or injected instruction and your computer | `saved_approval` | [I26](../incidents.md#i26-saved-command-approval-persisted-across-sessions-and-workspaces), [I30](../incidents.md#i30-railway-credentials-printed-in-a-claude-code-transcript) |
 | 2 | Network access, credentials, and connected tools | `destructive_tools` | [I7](../incidents.md#i7-production-volumes-deleted-with-a-found-token), [I8](../incidents.md#i8-database-changes-after-an-order-to-stop) |

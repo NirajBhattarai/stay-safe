@@ -18,7 +18,7 @@
 ## unrestricted_filesystem
 
 - Settings: [Codex meanings](../harnesses/codex.md) rows `sandbox_mode`, `permissions`
-- Incidents: [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped), [I32](../incidents.md#i32-powershell-cleanup-deleted-files-in-the-home-directory)
+- Incidents: [I1](../incidents.md#i1-home-directory-deleted-by-rm--rf), [I3](../incidents.md#i3-windows-drive-wiped), [I32](../incidents.md#i32-powershell-cleanup-deleted-files-in-the-home-directory), [I20](../incidents.md#i20-injected-text-turned-off-approvals) (GitHub Copilot edited its own approval settings), [I33](../incidents.md#i33-intruders-changed-claude-code-project-settings-to-download-a-backdoor) (intruders edited Claude Code project settings)
 - Challenges: [challenges citing this rule](https://github.com/chalkbadger/stay-safe/issues?q=is%3Aissue+label%3Achallenge+unrestricted_filesystem+in%3Atitle%2Cbody)
 - [Challenge this rule](https://github.com/chalkbadger/stay-safe/issues/new?template=challenge.yml&finding=Rule+unrestricted_filesystem)
 

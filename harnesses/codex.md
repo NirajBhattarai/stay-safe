@@ -66,7 +66,7 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `approval_policy` | `granular` | A disabled category rejects requests in that category. Turning off sandbox-escalation prompts still permits certain dangerous commands to request approval within existing permissions ([decision][rule-prompts]). The reader leaves this policy unhandled. Catalog: none. Rules: none. Gap: yes. | [approval-granular] | open |
 | `sandbox_mode` | `read-only` | The configured legacy sandbox is read-only. Catalog: `read-only`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_mode` | `workspace-write` | The configured legacy sandbox permits workspace writes. Catalog: `workspace-write`. Rules: none. Gap: no. | [sandbox] | documented |
-| `sandbox_mode` | `danger-full-access` | The configured legacy policy removes sandbox restrictions. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: no. | [sandbox] | documented |
+| `sandbox_mode` | `danger-full-access` | The configured legacy policy [removes sandbox restrictions][unrestricted-policy]. `workspace-write` [protects the project’s top-level `.codex` directory by default][project-metadata-protection], even before it exists. `danger-full-access` removes that sandbox protection. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: no. | [full-access-selection] | documented in source |
 | `default_permissions` | `selected with sandbox_mode` | Named-profile selection is unhandled and conflicts with the legacy selector; legacy risk facts are suppressed. Catalog: `danger-full-access`, `permission-profile selection is uninspected`. Rules: none. Gap: yes. | [schema] | open |
 | `permissions` | `definitions without selection` | Unselected profile definitions remain unhandled without erasing the explicit legacy sandbox setting. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: yes. | [schema] | open |
 | `sandbox_workspace_write.network_access` | `true` | This workspace-write option controls outbound network access. Catalog: `true`, `workspace-write option`. Rules: `network_access`. Gap: no. | [sandbox] | documented |
@@ -290,6 +290,9 @@ observations, not source readings. The environment Check lists variable names wi
 [roots-home]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/utils/absolute-path/src/lib.rs#L27-L56
 [roots-parents]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/utils/absolute-path/src/absolutize.rs#L22-L44
 [legacy-profile]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/permission_config.rs#L80-L103
+[project-metadata-protection]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/permissions.rs#L2422-L2429
+[full-access-selection]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/permissions.rs#L2096-L2102
+[unrestricted-policy]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/permissions.rs#L630-L636
 [project-settings-write]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/permissions_tests.rs#L774-L861
 [project-layer]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L1909-L1939
 [explicit-workspace]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/config_tests.rs#L3750-L3790
