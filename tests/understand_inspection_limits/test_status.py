@@ -109,7 +109,9 @@ class StatusTests(ConfigCase):
             ('approvals_reviewer="guardian_subagent"', [named]),
             (unknown + 'approvals_reviewer="auto_review"', [named, generic]),
             (unknown, [generic]),
-            ('approvals_reviewer="user"', [generic]),
+            ('approvals_reviewer="user"', []),
+            (unknown + 'approvals_reviewer="user"', [generic]),
+            ('approvals_reviewer="private-test-value"', [generic]),
             ('approvals_reviewer=["private-test-value"]', [generic]),
             ("", []),
         ):
@@ -120,6 +122,7 @@ class StatusTests(ConfigCase):
                 self.assertCountEqual(json.loads(machine.stdout)["inspection_gaps"], expected)
                 unchecked = section(human.stdout, "Not checked")
                 self.assertEqual(f"**Not checked: `{field}`.** {wording}" in unchecked, named in expected)
+                self.assertEqual("Codex added this tool setting in 0.172.0." in unchecked, named in expected)
                 self.assertEqual("some `tools` settings" in unchecked, generic in expected)
                 for run in (machine, human):
                     self.assertEqual((run.returncode, run.stderr), (2, EXPLANATION) if expected else (0, ""))
@@ -155,13 +158,10 @@ class StatusTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         overrides = ('[apps.calendar.links.account]\napprovals_reviewer="user"\n'
                      '[apps.calendar.tools.read]\napprovals_reviewer="user"\n')
-        extra_gaps = [
-            "config-1: Per-account app policy is not evaluated; account identifiers were withheld.",
-            "config-1: tools contains fields outside reader coverage; their values were withheld.",
-        ]
+        account_gap = "config-1: Per-account app policy is not evaluated; account identifiers were withheld."
         for name, text, expected in (("before", base + app + 'approvals_reviewer="auto_review"\n', [gap]),
                                      ("after", base + app, [gap]),
-                                     ("specific", base + app + overrides, sorted([gap, *extra_gaps]))):
+                                     ("specific", base + app + overrides, sorted([gap, account_gap]))):
             with self.subTest(run=name):
                 path = str(self.config(text, f"{name}.toml"))
                 human = run_checkout(checkout, "--config", path, cwd=self.root)
