@@ -70,6 +70,62 @@ class WorkspaceSettingsTests(ConfigCase):
         self.assertEqual(report["risks"], [])
         self.assertIn("writable_roots", " ".join(report["inspection_gaps"]))
 
+    def test_equivalent_home_and_parent_spellings_identify_only_direct_grants(self):
+        elsewhere = self.workspace / "route"
+        elsewhere.symlink_to(self.root.resolve(), target_is_directory=True)
+        home = self.workspace.parent
+        for root, selected_home, expected in [
+                ("~/private-project-name/.codex", home, True),
+                ("~//private-project-name/.codex", home, True),
+                ("~", self.target, True),
+                (str(elsewhere / ".." / ".codex"), home, True),
+                (str(self.workspace / "missing" / ".." / ".codex"), home, True),
+                (str(self.target / ".."), home, False),
+                ("~/private-project-name", home, False),
+                ("~/private-project-name/.codex", self.workspace, False),
+                ("~someone/private-project-name/.codex", home, False)]:
+            with self.subTest(root=root, home=selected_home), patch.dict(os.environ, {
+                    "HOME": str(selected_home), "CODEX_HOME": str(self.root.resolve() / "private-codex-home")}):
+                path = self.settings(["relative-unknown", root])
+                report = self.run_report(path)
+                self.assertEqual([r["entry"] for r in report["risks"]],
+                                 ["config-1:sandbox_workspace_write.writable_roots"] if expected else [])
+
+    def test_unusable_workspace_names_the_gap_even_with_a_differently_spelled_root(self):
+        alias = self.root.resolve() / "private-alias"
+        alias.symlink_to(self.workspace, target_is_directory=True)
+        file = self.config("private-contents", name="private-file")
+        path = self.settings([str(self.target)])
+        for workspace in (alias, file):
+            with self.subTest(workspace=workspace.name), patch.object(self, "workspace", workspace):
+                report = self.run_report(path)
+                self.assertEqual(report["risks"], [])
+                self.assertTrue(any(g.startswith("config-1: The project .codex comparison") for g in
+                                    report["inspection_gaps"]), report["inspection_gaps"])
+                self.assertEqual(self.run_report(self.settings([], name="empty.toml"), status=0)["inspection_gaps"], [])
+
+    def test_repeated_workspace_is_rejected_without_disclosing_either_directory(self):
+        out, err = io.StringIO(), io.StringIO()
+        config = self.settings([str(self.target)])
+        with redirect_stdout(out), redirect_stderr(err), self.assertRaises(SystemExit) as rejected:
+            main(["--config", str(config), "--workspace", "private-first", "--workspace", "private-second"])
+        self.assertEqual(rejected.exception.code, 2)
+        self.assertEqual(out.getvalue(), "")
+        self.assertIn("--workspace", err.getvalue())
+        self.assertNotIn("private-", err.getvalue())
+
+    def test_extra_folder_gap_explains_outside_access_and_withheld_paths(self):
+        path = self.settings([str(self.target)])
+        for supplied in (True, False):
+            for fmt in ("markdown", "json"):
+                with self.subTest(workspace=supplied, fmt=fmt):
+                    report = self.run_report(path, workspace=supplied, fmt=fmt)
+                    gap = " ".join(report["inspection_gaps"]) if fmt == "json" else section(report, "Not checked")
+                    self.assertIn("outside", gap.lower())
+                    self.assertRegex(gap.lower(), r"paths (?:were |are )?(?:withheld|left out)")
+                    if fmt == "markdown":
+                        self.assertIn("Docker socket", gap)
+
     def test_mode_and_roots_must_appear_in_the_same_selected_snapshot(self):
         eligible = self.settings()
         roots = self.settings([str(self.target)], mode="", name="roots.toml")
@@ -112,10 +168,11 @@ class WorkspaceSettingsTests(ConfigCase):
         self.assertIn("--workspace needs a directory", err.getvalue())
         alias = self.workspace / "private-alias"
         alias.symlink_to(self.target, target_is_directory=True)
+        ordinary = self.run_report(self.settings([str(self.workspace)]))
         for candidate in [str(alias), "../private-project-name/.codex"]:
             report = self.run_report(self.settings([candidate]))
             self.assertEqual(report["risks"], [])
-            self.assertRegex(" ".join(report["inspection_gaps"]).lower(), r"alias|symlink|relative")
+            self.assertEqual(report["inspection_gaps"], ordinary["inspection_gaps"])
 
     def test_direct_grant_through_a_target_or_workspace_symlink_names_the_unresolved_path(self):
         workspace_link = self.root.resolve() / "private-workspace-alias"
@@ -162,7 +219,6 @@ class WorkspaceSettingsTests(ConfigCase):
             self.assertEqual([r["rule"] for r in self.run_report(path)["risks"]], ["writable_project_settings"])
             alternate = self.run_report(self.settings([str(candidate)]))
             self.assertEqual(alternate["risks"], [])
-            self.assertIn("Aliases", " ".join(alternate["inspection_gaps"]))
 
     def test_missing_settings_directory_preserves_the_existing_parent_identity(self):
         self.target.rmdir()
