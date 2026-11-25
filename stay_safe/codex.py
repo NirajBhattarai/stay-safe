@@ -11,6 +11,9 @@ import unicodedata
 MAX_BYTES = 1024 * 1024
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\Z")
 APPROVALS = ("auto", "prompt", "writes", "approve")
+AUTO_REVIEW_VALUES = ("auto_review", "guardian_subagent")
+APP_TOOL_REVIEWER_GAP = ("{label} requests AI review if this tool needs approval. "
+                         "A policy can require human review. The effective reviewer was not checked.")
 INVALID_APPROVAL = "Codex cannot load this configuration file because {label} is not one of " + ", ".join(APPROVALS) + "."
 INVALID_BOOLEAN = "Codex cannot load this configuration file because {label} is not a boolean."
 INLINE_MCP_VALUES = "{label} contains inline values. Check the entries for credentials."
@@ -351,8 +354,12 @@ class Reader:
             label = path + ".tools." + (config_name([tool]) if tool is not None else "*")
             enabled = app_tool_setting(config, label, "enabled", tools_enabled, errors)
             mode = app_tool_setting(config, label, "approval_mode", None, errors)
+            known = {"approval_mode", "enabled"}
+            if config.get("approvals_reviewer") in AUTO_REVIEW_VALUES:
+                self.gap(APP_TOOL_REVIEWER_GAP.format(label=f"{label}.approvals_reviewer"))
+                known.add("approvals_reviewer")
             if tool is not None:
-                self.unknown(config, {"approval_mode", "enabled"}, "tools")
+                self.unknown(config, known, "tools")
             yield tool, enabled, mode, config.get("enabled") is True
 
     def apps(self, data, apps_off):
@@ -412,7 +419,7 @@ class Reader:
                 facts["destructive_tools"] = destructive
             if "links" in app:
                 self.gap("Per-account app policy is not evaluated; account identifiers were withheld.")
-            if app.get("approvals_reviewer") in ("auto_review", "guardian_subagent"):
+            if app.get("approvals_reviewer") in AUTO_REVIEW_VALUES:
                 self.gap("App approvals_reviewer is not evaluated; Codex may let a reviewer decide an app's tool calls instead of asking you.")
             if enabled is False and not template:
                 self.gaps = before
