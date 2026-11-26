@@ -43,8 +43,11 @@ COMMAND_TYPE = '{}.type must be "command".'
 COMMAND_MISSING = "{}.command is missing."
 COMMAND_NON_TEXT = "{}.command must be text."
 COMMAND_BLANK = "{}.command is blank."
-COMMAND_SUPPRESSED = ("disableAllHooks is true, so Claude Code skips the {} command from these files. "
-                      "Stay-safe did not check whether your organization sets its own command.")
+COMMAND_DISABLE_SOURCE = "disableAllHooks is true in "
+COMMAND_SUPPRESSED = ("The settings checked set disableAllHooks to true. The {} command can still run if a "
+                      "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
+                      "any --settings used to start Claude Code, and your organization's managed settings. "
+                      "Managed settings can also supply their own command.")
 PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
@@ -347,8 +350,8 @@ def resolve(entries, discovered):
         if workspace_command:
             if disabled:
                 facts["configured_program"] = False
-                entry["observations"].append(DISABLED if source == winner["source"]
-                                             else f"turned off by disableAllHooks in {winner['source']}")
+                location = "this file" if source == winner["source"] else winner["source"]
+                entry["observations"].append(COMMAND_DISABLE_SOURCE + location)
                 if discovered:
                     gaps.append(COMMAND_SUPPRESSED.format(name))
             continue
