@@ -6,12 +6,12 @@ VALID = {"statusLine": {"type": "command", "command": "seed-status --token sk-se
 EXPECTED = [
     (None, {"statusLine": [["command withheld"], True]}),
     ("user", {"statusLine": [["command withheld"], True]}),
-    ("project", {"statusLine": [["command withheld", "project settings; runs after workspace trust"], True]}),
+    ("project", {"statusLine": [["command withheld", "project settings"], True]}),
 ]
 INVALID = [
-    ("statusLine", {"type": "static", "command": "seed"}, "statusLine is not a command object with a nonempty command; it was not evaluated."),
-    ("statusLine", {"type": "command", "command": " "}, "statusLine is not a command object with a nonempty command; it was not evaluated."),
-    ("statusLine", "seed-status", "statusLine is not a command object with a nonempty command; it was not evaluated."),
+    ("statusLine", {"type": "static", "command": "seed"}, "statusLine needs type \"command\" and a command string containing more than whitespace."),
+    ("statusLine", {"type": "command", "command": " "}, "statusLine needs type \"command\" and a command string containing more than whitespace."),
+    ("statusLine", "seed-status", "statusLine needs type \"command\" and a command string containing more than whitespace."),
 ]
 
 
