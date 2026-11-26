@@ -1,7 +1,7 @@
 import re
 
 from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_BLANK, COMMAND_MISSING, COMMAND_NON_TEXT, COMMAND_OBJECT,
-                     COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+                     COMMAND_DISABLE_SOURCE, COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      WORKSPACE_COMMANDS, resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -118,10 +118,9 @@ GAPS = {
             "Write the command you want to run as a quoted string in `{}.command`."),
            (COMMAND_BLANK, "The `command` field is blank.", "Put the command you want to run in `{}.command`."))},
     **{COMMAND_SUPPRESSED.format(name): (
-        f"**Claude Code skips the `{name}` command in these files.** `disableAllHooks` is set to `true`. "
-        f"Stay-safe did not check whether your organization sets its own `{name}` command.",
-        f"To find out whether another command can run, check your organization's managed settings for `{name}` "
-        "and `disableAllHooks`.") for name in WORKSPACE_COMMANDS},
+        f"**The `{name}` command can still run** if a higher-priority setting changes `disableAllHooks` to `false`.",
+        "Check `.claude/settings.local.json`, any `--settings` used to start Claude Code, and your organization's "
+        "managed settings. Managed settings can also supply their own command.") for name in WORKSPACE_COMMANDS},
     UNREAD_ENABLE: (
         "**Not checked: whether hooks stay off.** `disableAllHooks` turns them off in the files read, but "
         "`.claude/settings.local.json`, managed settings and `--settings` can set it back to `false`.",
@@ -396,10 +395,10 @@ def setup_line(entry, files):
                 source = note.removeprefix("overridden by ")
                 return (f"- `{name}`: The project file `{files.get(source, source)}` also sets `{name}`. "
                         "Its command takes precedence over the one in this file.")
-            if note.startswith("turned off by disableAllHooks in "):
-                source = note.removeprefix("turned off by disableAllHooks in ")
+            if note.startswith(COMMAND_DISABLE_SOURCE):
+                source = note.removeprefix(COMMAND_DISABLE_SOURCE)
                 location = "This file" if source == "this file" else f"`{files.get(source, source)}`"
-                return f"- `{name}`: {location} sets `disableAllHooks` to `true`, so Claude Code skips this command."
+                return f"- `{name}`: {location} sets `disableAllHooks` to `true`."
         return f"- `{name}`: This file specifies a command. The command text is withheld."
     keys = entry["name"].split(".")
     words = [WORDS.get(o, f"starts with `{o[9:]}`" if o.startswith("program: ") else o.removeprefix("tool: "))

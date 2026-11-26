@@ -41,7 +41,7 @@ class ClaudeFileSuggestionTests(ConfigCase):
                 self.assertNotIn("seed", json.dumps([entries, gaps]))
 
         entries, gaps = self.read({**VALID, "disableAllHooks": True}, "user")
-        self.assertEqual(self.programs(entries), {"fileSuggestion": [["command withheld", "turned off by disableAllHooks in this file"], False]})
+        self.assertEqual(self.programs(entries), {"fileSuggestion": [["command withheld", "disableAllHooks is true in this file"], False]})
 
     def test_malformed_file_suggestion_names_the_setting(self):
         for name, value, message in INVALID:

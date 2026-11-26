@@ -29,17 +29,22 @@ class ClaudeFileSuggestionRiskTests(ConfigCase):
         project = self.root / "repo"
         (project / ".claude").mkdir(parents=True)
         settings = project / ".claude" / "settings.json"
+        settings.with_name("settings.local.json").write_text(json.dumps({"disableAllHooks": False}), encoding="utf-8")
         settings.write_text(json.dumps({"disableAllHooks": True}), encoding="utf-8")
         report = json.loads(run_home(home, "--agent", "claude", "--format", "json", cwd=project).stdout)
         entries = {entry["name"]: entry["observations"] for entry in report["catalog"]}
-        self.assertEqual(entries["fileSuggestion"], ["command withheld", "turned off by disableAllHooks in settings-2"])
+        self.assertEqual(entries["fileSuggestion"], ["command withheld", "disableAllHooks is true in settings-2"])
         self.assertEqual(report["risks"], [])
         self.assertEqual(report["inspection_gaps"], [
-            "disableAllHooks is true, so Claude Code skips the fileSuggestion command from these files. Stay-safe did not check whether your organization sets its own command."
+            "The settings checked set disableAllHooks to true. The fileSuggestion command can still run if a "
+            "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
+            "any --settings used to start Claude Code, and your organization's managed settings. "
+            "Managed settings can also supply their own command."
         ])
         markdown = run_home(home, "--agent", "claude", cwd=project).stdout
-        self.assertIn("`.claude/settings.json` sets `disableAllHooks` to `true`, so Claude Code skips this command.", markdown)
-        self.assertIn("Stay-safe did not check whether your organization sets its own `fileSuggestion` command.", markdown)
+        self.assertIn("`.claude/settings.json` sets `disableAllHooks` to `true`.", markdown)
+        self.assertIn("**The `fileSuggestion` command can still run** if a higher-priority setting changes `disableAllHooks` to `false`.", markdown)
+        self.assertIn("Check `.claude/settings.local.json`, any `--settings` used to start Claude Code, and your organization's managed settings.", markdown)
         settings.write_text(json.dumps({"disableAllHooks": False}), encoding="utf-8")
         run = run_home(home, "--agent", "claude", "--format", "json", cwd=project)
         self.assertEqual(run.returncode, 0, run.stderr)
