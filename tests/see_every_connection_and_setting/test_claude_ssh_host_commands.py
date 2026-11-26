@@ -4,13 +4,13 @@ from tests.support import ConfigCase
 
 VALID = {"sshHostCommands": [{"id": "seed-id", "name": "seed-name", "command": "seed-dev create"}]}
 EXPECTED = [
-    (None, {"sshHostCommands": [["command withheld", "Claude Desktop reads this setting from user settings or a managed file or policy on this computer."], True]}),
+    (None, {"sshHostCommands": [["command withheld", "Claude Desktop reads `sshHostCommands` from your user settings or from a managed file or policy on your computer."], True]}),
     ("user", {"sshHostCommands": [["command withheld"], True]}),
-    ("project", {"sshHostCommands": [["Claude Desktop ignores this setting in project files."], False]}),
+    ("project", {"sshHostCommands": [["Claude Desktop ignores `sshHostCommands` in `.claude/settings.json`."], False]}),
 ]
 INVALID = [
-    ("sshHostCommands", [{'id': 'seed', 'name': 'seed', 'command': ''}], "An sshHostCommands entry needs text in its command field."),
-    ("sshHostCommands", [42], "Each sshHostCommands entry must be a JSON object."),
+    ("sshHostCommands", [{'id': 'seed', 'name': 'seed', 'command': ''}], "Connection 1 in sshHostCommands needs text in command. Enter the program and arguments that print the SSH host as a nonblank string."),
+    ("sshHostCommands", [42], "Connection 1 in sshHostCommands must be a JSON object. Give the connection an id, a name and a command."),
     ("sshHostCommands", {}, "sshHostCommands must be a list of connection entries."),
 ]
 
@@ -44,3 +44,16 @@ class ClaudeSshHostCommandsTests(ConfigCase):
                 self.assertEqual(gaps, [f"settings-1: {message}"])
                 self.assertEqual(self.programs(entries), {})
                 self.assertNotIn("seed", json.dumps([entries, gaps]))
+
+    def test_invalid_and_duplicate_connection_fields_are_reported_by_position(self):
+        connections = [{"id": identifier, "name": label, "command": "secret-marker"}
+                       for identifier, label in [("same", "first"), ("same", "second"),
+                                                 ("bad id", "third"), ("four", "too long" * 30),
+                                                 ("five", "line\nbreak")]]
+        entries, gaps = self.read({"sshHostCommands": connections})
+        self.assertEqual(self.programs(entries), {})
+        self.assertEqual(len(gaps), 5)
+        for position, problem in enumerate(["shares an id", "shares an id", "has an invalid id",
+                                            "has an invalid name", "has an invalid name"], 1):
+            self.assertTrue(any(f"Connection {position} in sshHostCommands {problem}" in gap for gap in gaps))
+        self.assertNotIn("secret-marker", json.dumps([entries, gaps]))

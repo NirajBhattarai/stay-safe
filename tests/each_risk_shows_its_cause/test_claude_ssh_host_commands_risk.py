@@ -4,10 +4,10 @@ from tests.support import ConfigCase, agent_home, run_home
 
 USER = {"permissions": {"defaultMode": "default"}, "sshHostCommands": [{"id": "seed-id", "name": "seed-name", "command": "seed-dev create"}]}
 PROJECT = {"sshHostCommands": [{"id": "seed-id", "name": "seed-name", "command": "seed-dev create"}]}
-RISKS = [["settings-1:sshHostCommands", 'When you create an SSH connection or another machine for it, Claude Desktop can run the configured command on your computer and connect to the host it prints. Your own connections are available only where your hooks are allowed.']]
+RISKS = [["settings-1:sshHostCommands", 'When you select a configured SSH connection to create a machine, Claude Desktop can run the connection’s `command` on your computer. Desktop connects to the host the command prints. Creating another machine for the same connection can run the command again.']]
 MARKDOWN = [
     "Remove `sshHostCommands` from `~/.claude/settings.json`",
-    "Claude Desktop ignores this setting in project files.",
+    "Claude Desktop ignores `sshHostCommands` in `.claude/settings.json`.",
     "read that script before you trust it.",
 ]
 
@@ -38,14 +38,14 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         self.assertEqual(result.returncode, 2)
         report = json.loads(result.stdout)
         risk, = report["risks"]
-        self.assertIn("Claude Desktop reads this setting from user settings or a managed file or policy on this computer.", risk["explanation"])
+        self.assertIn("Claude Desktop reads `sshHostCommands` from your user settings or from a managed file or policy on your computer.", risk["explanation"])
         self.assertEqual(set(report["inspection_gaps"]), {
-            "settings-1: An sshHostCommands entry needs text in its command field.",
-            "settings-1: An sshHostCommands entry needs text in its name field.",
+            "settings-1: Connection 2 in sshHostCommands is missing command. Add the program and arguments that print the SSH host.",
+            "settings-1: Connection 2 in sshHostCommands is missing name. Add the display name.",
         })
         markdown = inspect("markdown")
         self.assertEqual(markdown.returncode, 2)
-        self.assertIn("A connection needs text in its `command` field.", markdown.stdout)
+        self.assertIn("Connection 2 in `sshHostCommands` is missing `command`.", markdown.stdout)
         self.assertNotIn("seed", result.stdout + markdown.stdout)
         path.write_text(json.dumps({**USER, "sshHostCommands": []}))
         result = inspect("json")
@@ -58,7 +58,7 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         self.assertEqual(result.returncode, 2)
         report = json.loads(result.stdout)
         self.assertEqual(report["risks"], [])
-        self.assertIn("This file sets disableAllHooks to true.", report["inspection_gaps"][0])
+        self.assertIn("disableAllHooks is set to true.", report["inspection_gaps"][0])
         (home / ".claude/settings.json").write_text(json.dumps({**USER, "disableAllHooks": False}))
         result = run_home(home, "--agent", "claude", "--format", "json")
         self.assertEqual(result.returncode, 0)

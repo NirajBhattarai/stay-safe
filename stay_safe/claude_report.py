@@ -36,8 +36,8 @@ WHAT = {
         "Keep it if you trust the address. Stricter: remove the HTTP hook, or set `allowedHttpHookUrls` to the "
         "addresses you trust.",
 }
-LOCAL_COMMAND_USE = {"sshHostCommands": 'When you create an SSH connection or another machine for it, Claude Desktop can run the configured command on your computer and connect to the host it prints. Your own connections are available only where your hooks are allowed.',
-                     "processWrapper": 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` to launch background processes. The CLAUDE_CODE_PROCESS_WRAPPER environment variable takes precedence for that session.'}
+LOCAL_COMMAND_USE = {"sshHostCommands": 'When you select a configured SSH connection to create a machine, Claude Desktop can run the connection’s `command` on your computer. Desktop connects to the host the command prints. Creating another machine for the same connection can run the command again.',
+                     "processWrapper": 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` when it starts another Claude Code process, including a background session or a split-pane teammate. If you set `CLAUDE_CODE_PROCESS_WRAPPER`, Claude Code uses that launcher instead.'}
 HEADLINES = {
     ("commands_without_prompts", None):
         "This file selects bypassPermissions, which can skip permission prompts. "
@@ -108,20 +108,9 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
-    SSH_HOOKS_GAP: ("**This file sets `disableAllHooks` to `true`.** Claude Desktop allows your SSH connection "
-                    "commands only where your hooks are allowed.", "Check your hook settings and your organization's "
-                    "hook policy in Claude Desktop."),
     "sshHostCommands must be a list of connection entries.": (
         "**Check `sshHostCommands`.** Claude Desktop expects a list of connections.",
         "Put each connection in its own object with an `id`, a `name` and a `command`."),
-    "Each sshHostCommands entry must be a JSON object.": (
-        "**Check the entries in `sshHostCommands`.** Each connection needs its own JSON object.",
-        "Give each object an `id`, a `name` and a `command`."),
-    **{f"An sshHostCommands entry needs text in its {field} field.": (
-        f"**Check `sshHostCommands`.** A connection needs text in its `{field}` field.",
-        f"Set `{field}` to a quoted string containing {meaning}.")
-       for field, meaning in (("id", "the connection identifier"), ("name", "the display name"),
-                              ("command", "the program and arguments that print the SSH host"))},
     **{problem.format(name): (
         f"**Check `{name}` in this file.** {reason.format(name)}", repair.format(name))
        for name in WORKSPACE_COMMANDS for problem, reason, repair in (
@@ -397,6 +386,15 @@ def gap(text, files, entries, gaps):
     if not (separator and source.startswith("settings-")):
         source, message = None, text
     lead_step = GAPS.get(message)
+    if message == SSH_HOOKS_GAP:
+        location = files.get(source) or source
+        lead_step = (f"**`{location}` sets `disableAllHooks` to `true`.** That setting can prevent Claude Desktop "
+                     "from running your SSH connection commands.",
+                     "Check your hook settings and your organization's hook policy in Claude Desktop.")
+    elif re.match(r"Connection [0-9]+ in sshHostCommands ", message):
+        diagnosis, repair = message.split(". ", 1)
+        diagnosis = re.sub(r"\b(sshHostCommands|id|name|command)\b", r"`\1`", diagnosis)
+        lead_step = (f"**{diagnosis}.**", repair)
     if lead_step is None and message.startswith("Settings outside reader coverage were not evaluated: "):
         names = message.removeprefix("Settings outside reader coverage were not evaluated: ").removesuffix(".")
         lead_step = (f"**Not checked: other settings.** stay-safe doesn't yet read these settings: {names}.",

@@ -4,10 +4,10 @@ from tests.support import ConfigCase, agent_home, run_home
 
 USER = {"permissions": {"defaultMode": "default"}, "processWrapper": "/seed/corp-launcher --flag"}
 PROJECT = {"processWrapper": "/seed/corp-launcher --flag"}
-RISKS = [["settings-1:processWrapper", 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` to launch background processes. The CLAUDE_CODE_PROCESS_WRAPPER environment variable takes precedence for that session.']]
+RISKS = [["settings-1:processWrapper", 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` when it starts another Claude Code process, including a background session or a split-pane teammate. If you set `CLAUDE_CODE_PROCESS_WRAPPER`, Claude Code uses that launcher instead.']]
 MARKDOWN = [
     "Remove `processWrapper` from `~/.claude/settings.json`",
-    "Claude Code ignores this setting in project files.",
+    "Claude Code ignores `processWrapper` in `.claude/settings.json`.",
     "read that script before you trust it.",
 ]
 
@@ -38,7 +38,7 @@ class ClaudeProcessWrapperRiskTests(ConfigCase):
         selected = run_home(home, "--agent", "claude", "--format", "json", "--config", str(path), cwd=repo)
         self.assertEqual(selected.returncode, 0, selected.stderr)
         finding, = json.loads(selected.stdout)["risks"]
-        self.assertIn("Claude Code reads this setting from user or managed settings.", finding["explanation"])
+        self.assertIn("Claude Code uses `processWrapper` only in user or managed settings.", finding["explanation"])
         path.write_text(json.dumps({"processWrapper": []}))
         discovered = run_home(home, "--agent", "claude", "--format", "json", cwd=repo)
         self.assertEqual(discovered.returncode, 0, discovered.stderr)
