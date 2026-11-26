@@ -1328,11 +1328,38 @@ def plain(report, files=None):
     return "\n".join(lines) + "\n"
 
 
+def sarif_run(report):
+    rules, results = {}, []
+    for risk in report["risks"]:
+        rule = risk["rule"]
+        if rule not in rules:
+            descriptor = {"id": rule}
+            url = source_link(report["provenance"]["source_revision"], f"docs/rules.md#{rule}")
+            if url:
+                descriptor["helpUri"] = url
+            rules[rule] = descriptor
+        results.append({"ruleId": rule, "level": "warning", "message": {"text": risk["explanation"]},
+                        "locations": [{"logicalLocations": [{"fullyQualifiedName": risk["entry"]}]}]})
+    notifications = [{"level": "warning", "message": {"text": gap}} for gap in report["inspection_gaps"]]
+    return {
+        "tool": {"driver": {"name": "stay-safe", "rules": list(rules.values())}},
+        "automationDetails": {"id": report["harness"]},
+        "invocations": [{"executionSuccessful": not notifications, "toolExecutionNotifications": notifications}],
+        "results": results,
+    }
+
+
+def sarif(reports):
+    return json.dumps({"version": "2.1.0", "runs": [sarif_run(report) for report in reports]}, indent=2) + "\n"
+
+
 def public(report):
     return {key: value for key, value in report.items() if not key.startswith("_")}
 
 
 def render(report, format_name="markdown", files=None):
+    if format_name == "sarif":
+        return sarif([report])
     if format_name == "json":
         return json.dumps(public(report), ensure_ascii=True, indent=2) + "\n"
     if format_name == "plain":
@@ -1345,6 +1372,8 @@ def render(report, format_name="markdown", files=None):
 def render_all(runs, format_name="markdown"):
     if len(runs) == 1:
         return render(runs[0][0], format_name, runs[0][1])
+    if format_name == "sarif":
+        return sarif(report for report, _ in runs)
     if format_name == "json":
         return json.dumps({"reports": [public(report) for report, _ in runs]}, ensure_ascii=True, indent=2) + "\n"
     if format_name == "html":
