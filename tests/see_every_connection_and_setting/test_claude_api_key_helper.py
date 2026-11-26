@@ -9,9 +9,9 @@ EXPECTED = [
     ("project", {"apiKeyHelper": [["command withheld", "project settings"], True]}),
 ]
 INVALID = [
-    ("apiKeyHelper", None, "apiKeyHelper is not a nonempty command; it was not evaluated."),
-    ("apiKeyHelper", "  ", "apiKeyHelper is not a nonempty command; it was not evaluated."),
-    ("apiKeyHelper", ["seed"], "apiKeyHelper is not a nonempty command; it was not evaluated."),
+    ("apiKeyHelper", None, "apiKeyHelper has a non-text value. Claude Code expects a command written as text."),
+    ("apiKeyHelper", "  ", "apiKeyHelper is blank. There is no command to check."),
+    ("apiKeyHelper", ["seed"], "apiKeyHelper has a non-text value. Claude Code expects a command written as text."),
 ]
 
 

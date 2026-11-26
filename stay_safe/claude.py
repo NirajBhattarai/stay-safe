@@ -172,8 +172,12 @@ class SettingsReader(Reader):
         for name in CREDENTIAL_HELPERS:
             if name not in data:
                 continue
-            if not nonempty(data[name]):
-                self.gap(f"{name} is not a nonempty command; it was not evaluated.")
+            value = data[name]
+            if not isinstance(value, str):
+                self.gap(f"{name} has a non-text value. Claude Code expects a command written as text.")
+                continue
+            if not value.strip():
+                self.gap(f"{name} is blank. There is no command to check.")
                 continue
             observations = [COMMAND] + ([PROJECT] if self.scope == "project" else [])
             self.add([name], "program", observations, {"configured_program": True})

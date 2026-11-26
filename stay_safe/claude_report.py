@@ -131,9 +131,12 @@ GAPS = {
     "hooks contains a handler that is not a valid hook; it was not evaluated.": (
         "**Not checked: a hook.** A hook isn't an object with a known `type`, or its command is empty.",
         "Review the `hooks` block yourself."),
-    "apiKeyHelper is not a nonempty command; it was not evaluated.": (
-        "**Not checked: `apiKeyHelper`.** It isn't a nonempty command.",
-        "Set `apiKeyHelper` to a nonempty command string, or remove the setting."),
+    "apiKeyHelper is blank. There is no command to check.": (
+        "**Not checked: `apiKeyHelper`.** The value is blank. There is no command to check.",
+        "Set `apiKeyHelper` to the command you want Claude Code to run, or remove the setting."),
+    "apiKeyHelper has a non-text value. Claude Code expects a command written as text.": (
+        "**Not checked: `apiKeyHelper`.** The value is not text. Claude Code expects a command written as text.",
+        "Set `apiKeyHelper` to the command you want Claude Code to run, or remove the setting."),
     "hooks contains MCP tool hooks, which call a tool on an MCP server without asking you; that server was not "
     "evaluated.": (
         "**Not checked: MCP tool hooks.** They call a tool on an MCP server without asking you, and stay-safe doesn't "

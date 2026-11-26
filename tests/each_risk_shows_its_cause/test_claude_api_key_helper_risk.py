@@ -53,7 +53,14 @@ class ClaudeApiKeyHelperRiskTests(ConfigCase):
         self.assertEqual(inspect(), ([user], {user: ["command withheld"]}))
 
     def test_malformed_helper_explains_how_to_fix_it(self):
-        home = agent_home(self.root, claude=json.dumps({**USER, "apiKeyHelper": []}))
-        run = run_home(home, "--agent", "claude")
-        self.assertEqual(run.returncode, 2)
-        self.assertIn("Set `apiKeyHelper` to a nonempty command string, or remove the setting.", run.stdout)
+        home = agent_home(self.root, claude=json.dumps(USER))
+        path = home / ".claude" / "settings.json"
+        for value, reason in (("  ", "The value is blank. There is no command to check."),
+                              ([], "The value is not text. Claude Code expects a command written as text.")):
+            with self.subTest(value=value):
+                path.write_text(json.dumps({**USER, "apiKeyHelper": value}))
+                run = run_home(home, "--agent", "claude")
+                self.assertEqual(run.returncode, 2)
+                self.assertIn("**Not checked: `apiKeyHelper`.** " + reason, run.stdout)
+                self.assertIn("Set `apiKeyHelper` to the command you want Claude Code to run, or remove the setting.",
+                              run.stdout)
