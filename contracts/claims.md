@@ -49,7 +49,7 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - When I leave a helper blank or give it a value other than text, I see which setting needs attention and how to fix it. `test_claude_cloud_helpers.py::test_invalid_helper_value_names_the_setting`
 - When I set `fileSuggestion`, I see it in the catalog. The command stays private. `test_claude_file_suggestion.py::test_file_suggestion_is_listed_with_its_command_withheld`
 - When I give `fileSuggestion` an invalid command, I see which setting needs attention. `test_claude_file_suggestion.py::test_malformed_file_suggestion_names_the_setting`
-- When I set `processWrapper`, I see whether the file can supply the command. The command text stays private. `test_claude_process_wrapper.py::test_process_wrapper_is_listed_with_its_command_withheld`
+- When I set `processWrapper` in my user settings, I see the launcher listed with the command text withheld. When I set `processWrapper` in my project settings, I see that Claude Code ignores it. `test_claude_process_wrapper.py::test_process_wrapper_is_listed_with_its_command_withheld`
 - When I give `processWrapper` a blank command or a value other than text, I see why it needs attention. `test_claude_process_wrapper.py::test_malformed_process_wrapper_names_the_setting`
 - When I set `statusLine`, I see it in the catalog. The command stays private. `test_claude_status_line.py::test_status_line_is_listed_with_its_command_withheld`
 - When I give `statusLine` an invalid command, I see which setting needs attention. `test_claude_status_line.py::test_malformed_status_line_names_the_setting`

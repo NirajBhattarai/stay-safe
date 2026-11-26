@@ -36,7 +36,7 @@ WHAT = {
         "Keep it if you trust the address. Stricter: remove the HTTP hook, or set `allowedHttpHookUrls` to the "
         "addresses you trust.",
 }
-LOCAL_COMMAND_USE = {"processWrapper": 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` to launch background processes. The CLAUDE_CODE_PROCESS_WRAPPER environment variable takes precedence for that session.'}
+LOCAL_COMMAND_USE = {"processWrapper": 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` when it starts another Claude Code process, including a background session or a split-pane teammate. If you set `CLAUDE_CODE_PROCESS_WRAPPER`, Claude Code uses that launcher instead.'}
 HEADLINES = {
     ("commands_without_prompts", None):
         "This file selects bypassPermissions, which can skip permission prompts. "

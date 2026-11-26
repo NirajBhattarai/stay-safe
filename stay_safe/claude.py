@@ -48,7 +48,7 @@ COMMAND_SUPPRESSED = ("The settings checked set disableAllHooks to true. The {} 
                       "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
                       "any --settings used to start Claude Code, and your organization's managed settings. "
                       "Managed settings can also supply their own command.")
-LOCAL_COMMAND_SCOPE = {"processWrapper": "Claude Code reads this setting from user or managed settings."}
+LOCAL_COMMAND_SCOPE = {"processWrapper": "Claude Code uses `processWrapper` only in user or managed settings."}
 PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS, *LOCAL_COMMAND_SCOPE}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
@@ -211,7 +211,7 @@ class SettingsReader(Reader):
             if name not in data:
                 continue
             if name in LOCAL_COMMAND_SCOPE and self.scope == "project":
-                self.add([name], "program", ["Claude Code ignores this setting in project files."], {"configured_program": False})
+                self.add([name], "program", ["Claude Code ignores `processWrapper` in `.claude/settings.json`."], {"configured_program": False})
                 continue
             value = data[name]
             if not isinstance(value, str):
