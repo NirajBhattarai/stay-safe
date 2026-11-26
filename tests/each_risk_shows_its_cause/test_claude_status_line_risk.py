@@ -35,8 +35,11 @@ class ClaudeStatusLineRiskTests(ConfigCase):
         self.assertEqual(entries["statusLine"], ["command withheld", "turned off by disableAllHooks in settings-2"])
         self.assertEqual(report["risks"], [])
         self.assertEqual(report["inspection_gaps"], [
-            "disableAllHooks suppresses the statusLine command in the inspected settings. Managed settings may supply their own command."
+            "disableAllHooks is true, so Claude Code skips the statusLine command from these files. Stay-safe did not check whether your organization sets its own command."
         ])
+        markdown = run_home(home, "--agent", "claude", cwd=project).stdout
+        self.assertIn("`.claude/settings.json` sets `disableAllHooks` to `true`, so Claude Code skips this command.", markdown)
+        self.assertIn("Stay-safe did not check whether your organization sets its own `statusLine` command.", markdown)
         settings.write_text(json.dumps({"disableAllHooks": False}), encoding="utf-8")
         run = run_home(home, "--agent", "claude", "--format", "json", cwd=project)
         self.assertEqual(run.returncode, 0, run.stderr)
@@ -63,6 +66,10 @@ class ClaudeStatusLineRiskTests(ConfigCase):
         self.assertEqual(risks, {shared: HEADLINE})
         self.assertEqual(set(entries), {user, shared})
         self.assertIn("overridden by settings-2", entries[user])
+        markdown = run_home(home, "--agent", "claude", cwd=project).stdout
+        self.assertIn("The project file `.claude/settings.json` also sets `statusLine`. "
+                      "Its command takes precedence over the one in this file.", markdown)
+        self.assertNotIn("seed", markdown)
         risks, _ = inspect("--config", str(user_file), "--config", str(path))
         self.assertEqual(risks, {user: HEADLINE, shared: HEADLINE})
         path.write_text("{}")
@@ -71,4 +78,5 @@ class ClaudeStatusLineRiskTests(ConfigCase):
         path.write_text(json.dumps({"statusLine": {}}))
         run = run_home(home, "--agent", "claude", cwd=project)
         self.assertEqual(run.returncode, 2)
-        self.assertIn("Set `statusLine.type` to `command` and put the command you want to run in `statusLine.command`, or remove `statusLine`.", run.stdout)
+        self.assertIn('Set `statusLine.type` to `"command"`.', run.stdout)
+        self.assertIn("Then put the command you want to run in `statusLine.command`.", run.stdout)
