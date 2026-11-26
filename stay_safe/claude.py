@@ -15,10 +15,10 @@ PREFERENCES = {"$schema", "model", "theme", "language", "verbose", "outputStyle"
                "spinnerTipsEnabled", "autoCompactEnabled", "fastMode", "feedbackSurveyRate", "spellcheck",
                "syntaxHighlightingDisabled", "vimInsertModeRemaps", "keybindingFlavor", "maxProseWidth",
                "showThinkingSummaries", "autoScrollEnabled", "copyOnSelect", "emojiCompletionEnabled"}
-NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper", "awsAuthRefresh",
-         "awsCredentialExport", "deniedMcpServers", "disableAllHooks", "disableAutoMode", "disabledMcpjsonServers",
+NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper",
+         "deniedMcpServers", "disableAllHooks", "disableAutoMode", "disabledMcpjsonServers",
          "enableAllProjectMcpServers", "enabledMcpjsonServers", "enabledPlugins", "env", "extraKnownMarketplaces",
-         "gcpAuthRefresh", "hooks", "otelHeadersHelper", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
+         "hooks", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
          "skipDangerousModePermissionPrompt", "sshConfigs", "sshHostCommands", "statusLine", "worktree"}
 HOOK_FIELDS = {"command": ("command",), "http": ("url",), "mcp_tool": ("server", "tool"), "prompt": ("prompt",),
                "agent": ("prompt",)}
@@ -30,9 +30,18 @@ HOOK_EVENTS = {"SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion
                "TeammateIdle", "InstructionsLoaded", "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
                "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact", "PreModelSwitch", "PostModelSwitch",
                "Elicitation", "ElicitationResult", "SessionEnd"}
-STATUS_LINE = ("statusLine",)
-AFTER_TRUST = "project settings; runs after workspace trust"
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *STATUS_LINE}
+HELPER_USE = {
+    "apiKeyHelper": "to get the credential it sends with model requests",
+    "awsAuthRefresh": "when the AWS credential check fails",
+    "awsCredentialExport": "at session start and on each AWS credential reload",
+    "gcpAuthRefresh": "when Google Cloud credentials expire or cannot be loaded",
+    "otelHeadersHelper": "at startup and periodically to generate telemetry headers",
+}
+WORKSPACE_COMMANDS = {"statusLine": "draw the status line"}
+COMMAND_SHAPE = '{} needs type "command" and a command string containing more than whitespace.'
+COMMAND_SUPPRESSED = ("disableAllHooks suppresses the {} command in the inspected settings. "
+                      "Managed settings may supply their own command.")
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -170,15 +179,26 @@ class SettingsReader(Reader):
                 self.add(name, "hook", [], facts)
 
     def commands(self, data):
-        for name in STATUS_LINE:
+        for name in WORKSPACE_COMMANDS:
             if name not in data:
                 continue
             value = data[name]
             if not (isinstance(value, dict) and value.get("type") == "command" and nonempty(value.get("command"))):
-                self.gap(f"{name} is not a command object with a nonempty command; it was not evaluated.")
+                self.gap(COMMAND_SHAPE.format(name))
                 continue
-            facts = {"configured_program": True, "gated_command": True, "project": self.scope == "project"}
-            self.add([name], "program", [], facts)
+            self.add([name], "program", [], {"configured_program": True, "project": self.scope == "project"})
+        for name in HELPER_USE:
+            if name not in data:
+                continue
+            value = data[name]
+            if not isinstance(value, str):
+                self.gap(f"{name} has a non-text value. Claude Code expects a command written as text.")
+                continue
+            if not value.strip():
+                self.gap(f"{name} is blank. There is no command to check.")
+                continue
+            observations = [COMMAND] + ([PROJECT] if self.scope == "project" else [])
+            self.add([name], "program", observations, {"configured_program": True})
 
     def handlers(self, value):
         if not isinstance(value, dict):
@@ -281,6 +301,9 @@ def handler_note(record):
 
 
 def resolve(entries, discovered):
+    programs = [entry for entry in entries if entry["kind"] == "program"
+                and (entry["name"] in HELPER_USE or entry["name"] in WORKSPACE_COMMANDS)]
+    winners = {entry["name"]: entry["source"] for entry in programs} if discovered else {}
     flags = [entry for entry in entries if "disable_all_hooks" in entry["facts"]]
     lists = {entry["source"] for entry in entries if entry["facts"].get("http_allowlist")}
     for flag in flags:
@@ -291,17 +314,27 @@ def resolve(entries, discovered):
     gaps, disabled_any = [], False
     for entry in entries:
         facts = entry["facts"]
-        if "handlers" not in facts and "gated_command" not in facts:
+        name, source = entry["name"], entry["source"]
+        workspace_command = entry["kind"] == "program" and name in WORKSPACE_COMMANDS
+        if workspace_command:
+            entry["observations"] = [COMMAND] + ([PROJECT] if facts["project"] else [])
+            facts["configured_program"] = True
+        if name in winners and source != winners[name]:
+            entry["observations"].append(f"overridden by {winners[name]}")
+            facts["configured_program"] = False
             continue
-        scoped = flags if discovered else [flag for flag in flags if flag["source"] == entry["source"]]
+        if "handlers" not in facts and not workspace_command:
+            continue
+        scoped = flags if discovered else [flag for flag in flags if flag["source"] == source]
         winner = scoped[-1] if scoped else None
         disabled = winner is not None and winner["facts"]["disable_all_hooks"] is True
-        if "gated_command" in facts:
-            facts["configured_program"] = not disabled
-            off = [] if not disabled else [DISABLED if winner["source"] == entry["source"]
-                                           else f"turned off by disableAllHooks in {winner['source']}"]
-            entry["observations"] = [COMMAND] + off + ([AFTER_TRUST] if facts["project"] else [])
-            disabled_any = disabled_any or disabled
+        if workspace_command:
+            if disabled:
+                facts["configured_program"] = False
+                entry["observations"].append(DISABLED if source == winner["source"]
+                                             else f"turned off by disableAllHooks in {winner['source']}")
+                if discovered:
+                    gaps.append(COMMAND_SUPPRESSED.format(name))
             continue
         active = not disabled and any(runs(record) for record in facts["handlers"])
         if facts["kind"] in FACTS:
