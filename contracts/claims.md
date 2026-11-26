@@ -238,3 +238,4 @@ Issue: https://github.com/chalkbadger/stay-safe/issues/232
 Tests: [tests/read_codex_release_review/](../tests/read_codex_release_review/)
 
 - I follow the scan record to a reviewed release and see how the report treats each group beside its source. `test_review.py::test_scan_record_links_to_field_dispositions_and_pinned_sources`
+- I run the review's example and get its published explanation in the Markdown and JSON reports. `test_review.py::test_published_example_reports_match_the_cli`
