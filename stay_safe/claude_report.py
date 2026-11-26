@@ -1,7 +1,7 @@
 import re
 
-from .claude import (AFTER_TRUST, AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
-                     resolve, runs)
+from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_SHAPE, COMMAND_SUPPRESSED, HELPER_USE, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+                     WORKSPACE_COMMANDS, resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
 
@@ -46,7 +46,6 @@ HEADLINES = {
         "This wildcard covers every WebFetch domain from Claude Code v2.1.172. From v2.1.186 it also adds every "
         "host to the sandbox network allowlist.",
     ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
-    ("configured_program", None): "This file's `{name}` setting runs a command on your computer.",
     ("network_access", HTTP): "This file has an HTTP hook that sends hook data to a web address.",
 }
 TRUST = (" Claude Code runs {} from a project's settings in a `claude -p` run, or when you trusted a parent folder "
@@ -106,6 +105,14 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
+    **{COMMAND_SHAPE.format(name): (
+        f"**Not checked: `{name}`.** Claude Code expects an object with a command to run.",
+        f"Set `{name}.type` to `command` and put the command you want to run in `{name}.command`, or remove `{name}`.")
+       for name in WORKSPACE_COMMANDS},
+    **{COMMAND_SUPPRESSED.format(name): (
+        f"**Not checked: managed `{name}`.** `disableAllHooks` suppresses the command in the inspected settings. "
+        "Managed settings may supply their own command.",
+        f"Check managed settings for `{name}` and `disableAllHooks`.") for name in WORKSPACE_COMMANDS},
     UNREAD_ENABLE: (
         "**Not checked: whether hooks stay off.** `disableAllHooks` turns them off in the files read, but "
         "`.claude/settings.local.json`, managed settings and `--settings` can set it back to `false`.",
@@ -131,9 +138,13 @@ GAPS = {
     "hooks contains a handler that is not a valid hook; it was not evaluated.": (
         "**Not checked: a hook.** A hook isn't an object with a known `type`, or its command is empty.",
         "Review the `hooks` block yourself."),
-    "fileSuggestion is not a command object with a nonempty command; it was not evaluated.": (
-        "**Not checked: `fileSuggestion`.** It isn't an object with `type` set to `command` and a command.",
-        "Review `fileSuggestion` yourself."),
+    **{f"{name} {reason}": (
+        f"**Not checked: `{name}`.** {description}",
+        f"Set `{name}` to the command you want Claude Code to run, or remove the setting.")
+       for name in HELPER_USE for reason, description in (
+           ("is blank. There is no command to check.", "The value is blank. There is no command to check."),
+           ("has a non-text value. Claude Code expects a command written as text.",
+            "The value is not text. Claude Code expects a command written as text."))},
     "hooks contains MCP tool hooks, which call a tool on an MCP server without asking you; that server was not "
     "evaluated.": (
         "**Not checked: MCP tool hooks.** They call a tool on an MCP server without asking you, and stay-safe doesn't "
@@ -251,15 +262,22 @@ def hook_headline(rule, facts):
 
 def headline(risk):
     observations = risk["configured_evidence"]
-    lead = HEADLINES[risk["rule"], scope(risk)].format(name=risk["entry"].partition(":")[2])
+    if risk["rule"] == "configured_program":
+        name = risk["entry"].partition(":")[2]
+        if name in WORKSPACE_COMMANDS:
+            return (f"After you trust the workspace, Claude Code can run the command in `{name}` to "
+                    f"{WORKSPACE_COMMANDS[name]}. Trust inherited from a parent folder also counts.")
+        lead = f"Claude Code can run the command in `{name}` {HELPER_USE[name]}."
+        if PROJECT in observations:
+            lead += (" Claude Code can use this helper without a trust prompt in `claude -p` or when a parent "
+                     "folder's trust extends to this folder.")
+        return lead
+    lead = HEADLINES[risk["rule"], scope(risk)]
     overrides = [key for key in ("deny", "ask") if f"{key} rules present" in observations]
     if overrides:
         effect = {"deny": "block this action", "ask": "require approval"}
         effects = " or ".join(effect[key] for key in overrides)
         lead += f" This file also has {' and '.join(overrides)} rules that could {effects}. Their matches were not checked."
-    if AFTER_TRUST in observations:
-        lead += (" Claude Code runs it from a project's settings only after you trust the folder; a trusted parent "
-                 "folder also counts.")
     return lead
 
 
@@ -285,12 +303,10 @@ def sandbox_mode_change(source, entries, gaps):
 def hook_advice(rule, details, path):
     running = [record for record in details["handlers"] if runs(record)]
     places = [where(record) for record in running]
-    ask = (f"ask Claude Code: \"Show me {places[0]} in {path} and remove only that hook; show only what you "
-           "change.\"")
     if len(places) == 1:
-        change = f"*Change it:* in {path}, remove {places[0]}, or {ask}"
+        change = f"*Change it:* in {path}, remove {places[0]} using a text editor."
     else:
-        change = f"*Change it:* in {path}, remove only the hook you don't want: {series(places, ', or ')}. Or {ask}"
+        change = f"*Change it:* in {path}, remove only the hook you don't want: {series(places, ', or ')}. Use a text editor."
     owner = "this hook's" if len(running) == 1 else "each hook's"
     what = WHAT[rule, HTTP if rule == "network_access" else None]
     if rule == "network_access":
@@ -324,11 +340,11 @@ def finding(risk, path, number, details=None):
         what, change, check, why = hook_advice(rule, details, path)
     elif rule == "configured_program":
         name = risk["entry"].partition(":")[2]
-        change = (f"*Change it:* `{name}` in {path}, or ask Claude Code: \"Show me the `{name}` setting in {path} and "
-                  "remove it; show only what you change.\"")
-        check = (f"*Check:* In {path}, `{name}` holds the command it runs. If it runs a script file, check that file "
-                 "too. Find out who wrote it before you trust it.")
-        if AFTER_TRUST in risk["configured_evidence"]:
+        change = f"*Change it:* Remove `{name}` from {path} using a text editor."
+        field = f"{name}.command" if name in WORKSPACE_COMMANDS else name
+        check = (f"*Check:* Read the command in `{field}` in {path}. If it calls a script, read that script "
+                 "before you trust it.")
+        if PROJECT in risk["configured_evidence"]:
             check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
     elif rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
@@ -394,7 +410,7 @@ def markdown(report, files=None):
         source, _, name = risk["entry"].partition(":")
         path = f"`{files[source]}`" if source in files else f"`<{source}>`"
         lead, how, step = finding(risk, path, name.rsplit(".", 1)[-1], report.get("_hooks", {}).get(risk["entry"]))
-        titles.append(lead[2:].split("**", 1)[0] if lead.startswith("**") else lead)
+        titles.append(f"`{name}`" if name in HELPER_USE or name in WORKSPACE_COMMANDS else lead[2:].split("**", 1)[0])
         citations = ", ".join(f"[{i}]({report['incident_links'][i]})" if i in report["incident_links"] else i
                               for i in risk["incidents"])
         rule = f"`{risk['rule']}`"
