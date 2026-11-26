@@ -30,7 +30,8 @@ HOOK_EVENTS = {"SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion
                "TeammateIdle", "InstructionsLoaded", "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
                "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact", "PreModelSwitch", "PostModelSwitch",
                "Elicitation", "ElicitationResult", "SessionEnd"}
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls"}
+CREDENTIAL_HELPERS = ("apiKeyHelper",)
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *CREDENTIAL_HELPERS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -154,6 +155,7 @@ class SettingsReader(Reader):
                 self.add(["allowedHttpHookUrls"], "setting", ["set; patterns withheld"], {"http_allowlist": True})
             else:
                 self.gap("allowedHttpHookUrls is not a list of URL patterns; it was not evaluated.")
+        self.commands(data)
         if "hooks" not in data:
             return
         records = self.handlers(data["hooks"])
@@ -165,6 +167,20 @@ class SettingsReader(Reader):
                 if kind in FACTS:
                     facts[FACTS[kind]] = False
                 self.add(name, "hook", [], facts)
+
+    def commands(self, data):
+        for name in CREDENTIAL_HELPERS:
+            if name not in data:
+                continue
+            value = data[name]
+            if not isinstance(value, str):
+                self.gap(f"{name} has a non-text value. Claude Code expects a command written as text.")
+                continue
+            if not value.strip():
+                self.gap(f"{name} is blank. There is no command to check.")
+                continue
+            observations = [COMMAND] + ([PROJECT] if self.scope == "project" else [])
+            self.add([name], "program", observations, {"configured_program": True})
 
     def handlers(self, value):
         if not isinstance(value, dict):
@@ -267,6 +283,11 @@ def handler_note(record):
 
 
 def resolve(entries, discovered):
+    if discovered:
+        helpers = [entry for entry in entries if entry["name"] == "apiKeyHelper" and entry["kind"] == "program"]
+        for entry in helpers[:-1]:
+            entry["facts"]["configured_program"] = False
+            entry["observations"].append(f"overridden by {helpers[-1]['source']}")
     flags = [entry for entry in entries if "disable_all_hooks" in entry["facts"]]
     lists = {entry["source"] for entry in entries if entry["facts"].get("http_allowlist")}
     for flag in flags:

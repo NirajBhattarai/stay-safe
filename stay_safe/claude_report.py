@@ -1,6 +1,6 @@
 import re
 
-from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -46,7 +46,7 @@ HEADLINES = {
         "This wildcard covers every WebFetch domain from Claude Code v2.1.172. From v2.1.186 it also adds every "
         "host to the sandbox network allowlist.",
     ("network_access", None): "This file has a WebFetch allow rule for matching domains.",
-    ("configured_program", None): "This file's `{name}` setting runs a command on your computer.",
+    ("configured_program", None): "Claude Code can run the command in `{name}` to get the credential it sends with model requests.",
     ("network_access", HTTP): "This file has an HTTP hook that sends hook data to a web address.",
 }
 TRUST = (" Claude Code runs {} from a project's settings in a `claude -p` run, or when you trusted a parent folder "
@@ -131,6 +131,12 @@ GAPS = {
     "hooks contains a handler that is not a valid hook; it was not evaluated.": (
         "**Not checked: a hook.** A hook isn't an object with a known `type`, or its command is empty.",
         "Review the `hooks` block yourself."),
+    "apiKeyHelper is blank. There is no command to check.": (
+        "**Not checked: `apiKeyHelper`.** The value is blank. There is no command to check.",
+        "Set `apiKeyHelper` to the command you want Claude Code to run, or remove the setting."),
+    "apiKeyHelper has a non-text value. Claude Code expects a command written as text.": (
+        "**Not checked: `apiKeyHelper`.** The value is not text. Claude Code expects a command written as text.",
+        "Set `apiKeyHelper` to the command you want Claude Code to run, or remove the setting."),
     "hooks contains MCP tool hooks, which call a tool on an MCP server without asking you; that server was not "
     "evaluated.": (
         "**Not checked: MCP tool hooks.** They call a tool on an MCP server without asking you, and stay-safe doesn't "
@@ -254,6 +260,9 @@ def headline(risk):
         effect = {"deny": "block this action", "ask": "require approval"}
         effects = " or ".join(effect[key] for key in overrides)
         lead += f" This file also has {' and '.join(overrides)} rules that could {effects}. Their matches were not checked."
+    if risk["rule"] == "configured_program" and PROJECT in observations:
+        lead += (" Claude Code can use this helper without a trust prompt in `claude -p` or when a parent folder's trust "
+                 "extends to this folder.")
     return lead
 
 
@@ -316,6 +325,13 @@ def finding(risk, path, number, details=None):
     why = WHY.get((rule, scope(risk)), WHY[rule])
     if details is not None:
         what, change, check, why = hook_advice(rule, details, path)
+    elif rule == "configured_program":
+        name = risk["entry"].partition(":")[2]
+        change = f"*Change it:* Remove `{name}` from {path} using a text editor."
+        check = (f"*Check:* Read the command in `{name}` in {path}. If it calls a script, read that script "
+                 "before you trust it.")
+        if PROJECT in risk["configured_evidence"]:
+            check += " In a git repository, `git log -p -- .claude/` shows who changed the settings and scripts there."
     elif rule == "commands_without_prompts":
         change = (f"*Change it:* `permissions.defaultMode` in {path}, or ask Claude Code: \"Edit {path} to set "
                   f"`permissions.defaultMode` to `default`; show only what you change.\"")
