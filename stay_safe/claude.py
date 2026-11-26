@@ -15,10 +15,10 @@ PREFERENCES = {"$schema", "model", "theme", "language", "verbose", "outputStyle"
                "spinnerTipsEnabled", "autoCompactEnabled", "fastMode", "feedbackSurveyRate", "spellcheck",
                "syntaxHighlightingDisabled", "vimInsertModeRemaps", "keybindingFlavor", "maxProseWidth",
                "showThinkingSummaries", "autoScrollEnabled", "copyOnSelect", "emojiCompletionEnabled"}
-NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper", "awsAuthRefresh",
-         "awsCredentialExport", "deniedMcpServers", "disableAllHooks", "disableAutoMode", "disabledMcpjsonServers",
+NAMED = {"additionalDirectories", "agent", "allowedMcpServers", "apiKeyHelper",
+         "deniedMcpServers", "disableAllHooks", "disableAutoMode", "disabledMcpjsonServers",
          "enableAllProjectMcpServers", "enabledMcpjsonServers", "enabledPlugins", "env", "extraKnownMarketplaces",
-         "gcpAuthRefresh", "hooks", "otelHeadersHelper", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
+         "hooks", "pluginConfigs", "processWrapper", "skipAutoPermissionPrompt",
          "skipDangerousModePermissionPrompt", "sshConfigs", "sshHostCommands", "statusLine", "worktree"}
 HOOK_FIELDS = {"command": ("command",), "http": ("url",), "mcp_tool": ("server", "tool"), "prompt": ("prompt",),
                "agent": ("prompt",)}
@@ -30,10 +30,26 @@ HOOK_EVENTS = {"SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion
                "TeammateIdle", "InstructionsLoaded", "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
                "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact", "PreModelSwitch", "PostModelSwitch",
                "Elicitation", "ElicitationResult", "SessionEnd"}
-PROCESS_WRAPPER = ("processWrapper",)
-IGNORED = "ignored in project settings; applies only from user or managed settings"
-USER_OR_MANAGED = "applies only from user or managed settings"
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *PROCESS_WRAPPER}
+HELPER_USE = {
+    "apiKeyHelper": "to get the credential it sends with model requests",
+    "awsAuthRefresh": "when the AWS credential check fails",
+    "awsCredentialExport": "at session start and on each AWS credential reload",
+    "gcpAuthRefresh": "when Google Cloud credentials expire or cannot be loaded",
+    "otelHeadersHelper": "at startup and periodically to generate telemetry headers",
+}
+WORKSPACE_COMMANDS = {"statusLine": "draw the status line", "fileSuggestion": "suggest files when you type `@`"}
+COMMAND_OBJECT = "{} needs a JSON object with a type field and a command field."
+COMMAND_TYPE = '{}.type must be "command".'
+COMMAND_MISSING = "{}.command is missing."
+COMMAND_NON_TEXT = "{}.command must be text."
+COMMAND_BLANK = "{}.command is blank."
+COMMAND_DISABLE_SOURCE = "disableAllHooks is true in "
+COMMAND_SUPPRESSED = ("The settings checked set disableAllHooks to true. The {} command can still run if a "
+                      "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
+                      "any --settings used to start Claude Code, and your organization's managed settings. "
+                      "Managed settings can also supply their own command.")
+LOCAL_COMMAND_SCOPE = {"processWrapper": "Claude Code reads this setting from user or managed settings."}
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS, *LOCAL_COMMAND_SCOPE}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -171,17 +187,42 @@ class SettingsReader(Reader):
                 self.add(name, "hook", [], facts)
 
     def commands(self, data):
-        for name in PROCESS_WRAPPER:
+        for name in WORKSPACE_COMMANDS:
             if name not in data:
                 continue
             value = data[name]
-            if not (nonempty(value)):
-                self.gap(f"{name} is not a nonempty command; it was not evaluated.")
+            if not isinstance(value, dict):
+                problem = COMMAND_OBJECT
+            elif value.get("type") != "command":
+                problem = COMMAND_TYPE
+            elif "command" not in value:
+                problem = COMMAND_MISSING
+            elif not isinstance(value["command"], str):
+                problem = COMMAND_NON_TEXT
+            elif not value["command"].strip():
+                problem = COMMAND_BLANK
+            else:
+                problem = None
+            if problem:
+                self.gap(problem.format(name))
                 continue
-            if self.scope == "project":
-                self.add([name], "program", [IGNORED], {"configured_program": False})
+            self.add([name], "program", [], {"configured_program": True, "project": self.scope == "project"})
+        for name in (*HELPER_USE, *LOCAL_COMMAND_SCOPE):
+            if name not in data:
                 continue
-            observations = [COMMAND] + ([USER_OR_MANAGED] if self.scope is None else [])
+            if name in LOCAL_COMMAND_SCOPE and self.scope == "project":
+                self.add([name], "program", ["Claude Code ignores this setting in project files."], {"configured_program": False})
+                continue
+            value = data[name]
+            if not isinstance(value, str):
+                self.gap(f"{name} has a non-text value. Claude Code expects a command written as text.")
+                continue
+            if not value.strip():
+                self.gap(f"{name} is blank. There is no command to check.")
+                continue
+            observations = [COMMAND] + ([PROJECT] if self.scope == "project" else [])
+            if name in LOCAL_COMMAND_SCOPE and self.scope is None:
+                observations.append(LOCAL_COMMAND_SCOPE[name])
             self.add([name], "program", observations, {"configured_program": True})
 
     def handlers(self, value):
@@ -285,6 +326,9 @@ def handler_note(record):
 
 
 def resolve(entries, discovered):
+    programs = [entry for entry in entries if entry["kind"] == "program"
+                and (entry["name"] in HELPER_USE or entry["name"] in WORKSPACE_COMMANDS)]
+    winners = {entry["name"]: entry["source"] for entry in programs} if discovered else {}
     flags = [entry for entry in entries if "disable_all_hooks" in entry["facts"]]
     lists = {entry["source"] for entry in entries if entry["facts"].get("http_allowlist")}
     for flag in flags:
@@ -295,11 +339,28 @@ def resolve(entries, discovered):
     gaps, disabled_any = [], False
     for entry in entries:
         facts = entry["facts"]
-        if "handlers" not in facts:
+        name, source = entry["name"], entry["source"]
+        workspace_command = entry["kind"] == "program" and name in WORKSPACE_COMMANDS
+        if workspace_command:
+            entry["observations"] = [COMMAND] + ([PROJECT] if facts["project"] else [])
+            facts["configured_program"] = True
+        if name in winners and source != winners[name]:
+            entry["observations"].append(f"overridden by {winners[name]}")
+            facts["configured_program"] = False
             continue
-        scoped = flags if discovered else [flag for flag in flags if flag["source"] == entry["source"]]
+        if "handlers" not in facts and not workspace_command:
+            continue
+        scoped = flags if discovered else [flag for flag in flags if flag["source"] == source]
         winner = scoped[-1] if scoped else None
         disabled = winner is not None and winner["facts"]["disable_all_hooks"] is True
+        if workspace_command:
+            if disabled:
+                facts["configured_program"] = False
+                location = "this file" if source == winner["source"] else winner["source"]
+                entry["observations"].append(COMMAND_DISABLE_SOURCE + location)
+                if discovered:
+                    gaps.append(COMMAND_SUPPRESSED.format(name))
+            continue
         active = not disabled and any(runs(record) for record in facts["handlers"])
         if facts["kind"] in FACTS:
             facts[FACTS[facts["kind"]]] = active

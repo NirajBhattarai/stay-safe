@@ -4,13 +4,13 @@ from tests.support import ConfigCase
 
 VALID = {"processWrapper": "/seed/corp-launcher --flag"}
 EXPECTED = [
-    (None, {"processWrapper": [["command withheld", "applies only from user or managed settings"], True]}),
+    (None, {"processWrapper": [["command withheld", "Claude Code reads this setting from user or managed settings."], True]}),
     ("user", {"processWrapper": [["command withheld"], True]}),
-    ("project", {"processWrapper": [["ignored in project settings; applies only from user or managed settings"], False]}),
+    ("project", {"processWrapper": [["Claude Code ignores this setting in project files."], False]}),
 ]
 INVALID = [
-    ("processWrapper", "", "processWrapper is not a nonempty command; it was not evaluated."),
-    ("processWrapper", ["/seed/launcher"], "processWrapper is not a nonempty command; it was not evaluated."),
+    ("processWrapper", '', "processWrapper is blank. There is no command to check."),
+    ("processWrapper", [], "processWrapper has a non-text value. Claude Code expects a command written as text."),
 ]
 
 

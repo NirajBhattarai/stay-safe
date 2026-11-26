@@ -4,13 +4,11 @@ from tests.support import ConfigCase, agent_home, run_home
 
 USER = {"permissions": {"defaultMode": "default"}, "processWrapper": "/seed/corp-launcher --flag"}
 PROJECT = {"processWrapper": "/seed/corp-launcher --flag"}
-RISKS = [
-    ["settings-1:processWrapper", "This file's `processWrapper` setting runs a command on your computer."],
-]
+RISKS = [["settings-1:processWrapper", 'On macOS and Linux, Claude Code 2.1.210 or later can use `processWrapper` to launch background processes. The CLAUDE_CODE_PROCESS_WRAPPER environment variable takes precedence for that session.']]
 MARKDOWN = [
-    "*Change it:* `processWrapper` in `~/.claude/settings.json`",
-    "*Check:* In `~/.claude/settings.json`, `processWrapper` holds the command it runs. If it runs a script file, check that file too. Find out who wrote it before you trust it.\n",
-    "- `processWrapper`: ignored in project settings; applies only from user or managed settings",
+    "Remove `processWrapper` from `~/.claude/settings.json`",
+    "Claude Code ignores this setting in project files.",
+    "read that script before you trust it.",
 ]
 
 
@@ -29,3 +27,19 @@ class ClaudeProcessWrapperRiskTests(ConfigCase):
         for line in MARKDOWN:
             self.assertIn(line, markdown)
         self.assertNotIn("seed", (run.stdout + markdown).lower())
+
+    def test_selected_file_names_scope_and_project_values_cannot_enable_a_wrapper(self):
+        home = agent_home(self.root, claude=json.dumps({"permissions": {"defaultMode": "default"}}))
+        repo = self.root / "repo"
+        folder = repo / ".claude"
+        folder.mkdir(parents=True)
+        path = folder / "settings.json"
+        path.write_text(json.dumps(USER))
+        selected = run_home(home, "--agent", "claude", "--format", "json", "--config", str(path), cwd=repo)
+        self.assertEqual(selected.returncode, 0, selected.stderr)
+        finding, = json.loads(selected.stdout)["risks"]
+        self.assertIn("Claude Code reads this setting from user or managed settings.", finding["explanation"])
+        path.write_text(json.dumps({"processWrapper": []}))
+        discovered = run_home(home, "--agent", "claude", "--format", "json", cwd=repo)
+        self.assertEqual(discovered.returncode, 0, discovered.stderr)
+        self.assertEqual(json.loads(discovered.stdout)["risks"], [])
