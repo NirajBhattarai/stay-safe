@@ -1,7 +1,7 @@
 import re
 
 from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_BLANK, COMMAND_MISSING, COMMAND_NON_TEXT, COMMAND_OBJECT,
-                     COMMAND_DISABLE_SOURCE, COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, LOCAL_COMMAND_SCOPE, SSH_HOOKS_GAP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+                     COMMAND_DISABLE_SOURCE, COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, LOCAL_COMMAND_SCOPE, SSH_CONFIG_SCOPE, SSH_HOOKS_GAP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      WORKSPACE_COMMANDS, resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -108,6 +108,8 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
+    SSH_CONFIG_SCOPE: ("**Only SSH connection IDs were checked in `sshConfigs`.**",
+                       "Review the host and other fields in each `sshConfigs` entry separately."),
     "sshHostCommands must be a list of connection entries.": (
         "**Check `sshHostCommands`.** Claude Desktop expects a list of connections.",
         "Put each connection in its own object with an `id`, a `name` and a `command`."),
@@ -196,7 +198,7 @@ def inspect(paths, *, discovered=False, gaps=(), scopes=()):
     for risk in risks:
         entry = by_id[risk["entry"]]
         risk["configured_evidence"] = list(entry["observations"])
-        risk["explanation"] = hook_headline(risk["rule"], entry["facts"]) if entry["kind"] == "hook" else headline(risk)
+        risk["explanation"] = hook_headline(risk["rule"], entry["facts"]) if entry["kind"] == "hook" else headline(risk, entry["facts"])
         if risk["rule"] == "commands_without_prompts":
             risk["explanation"] += sandbox_mode_change(entry["source"], by_id, gaps)
         risk["rule_source"] = source_link(revision, "stay_safe/rules.py")
@@ -273,12 +275,26 @@ def hook_headline(rule, facts):
     return lead
 
 
-def headline(risk):
+def connection_positions(positions):
+    if len(positions) == 1:
+        return f"connection {positions[0]}"
+    return "connections " + ", ".join(str(position) for position in positions[:-1]) + f" and {positions[-1]}"
+
+
+def headline(risk, facts):
     observations = risk["configured_evidence"]
     if risk["rule"] == "configured_program":
         name = risk["entry"].partition(":")[2]
         if name in LOCAL_COMMAND_SCOPE:
             lead = LOCAL_COMMAND_USE[name]
+            if "ssh_invalid_positions" in facts:
+                positions = facts["ssh_configured_positions"]
+                valid = connection_positions(positions)
+                invalid = connection_positions(facts["ssh_invalid_positions"])
+                action = "specifies a command" if len(positions) == 1 else "specify commands"
+                appears = "appears" if len(positions) == 1 else "appear"
+                lead = (f"{valid.capitalize()} {action}. Fix {invalid}, then check whether {valid} {appears} "
+                        "in Claude Desktop’s environment selector.")
             if LOCAL_COMMAND_SCOPE[name] in observations:
                 lead += " " + LOCAL_COMMAND_SCOPE[name]
             return lead
@@ -393,7 +409,7 @@ def gap(text, files, entries, gaps):
                      "Check your hook settings and your organization's hook policy in Claude Desktop.")
     elif message.startswith("Connection ") and " in sshHostCommands " in message:
         diagnosis, repair = message.split(". ", 1)
-        diagnosis = re.sub(r"\b(sshHostCommands|id|name|command)\b", r"`\1`", diagnosis)
+        diagnosis = re.sub(r"\b(sshHostCommands|sshConfigs|id|name|command)\b", r"`\1`", diagnosis)
         lead_step = (f"**{diagnosis}.**", repair)
     if lead_step is None and message.startswith("Settings outside reader coverage were not evaluated: "):
         names = message.removeprefix("Settings outside reader coverage were not evaluated: ").removesuffix(".")

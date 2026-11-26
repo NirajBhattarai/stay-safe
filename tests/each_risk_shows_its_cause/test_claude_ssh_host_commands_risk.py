@@ -38,6 +38,9 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         self.assertEqual(result.returncode, 2)
         report = json.loads(result.stdout)
         risk, = report["risks"]
+        guidance = ("Connection 1 specifies a command. Fix connection 2, then check whether connection 1 "
+                    "appears in Claude Desktop’s environment selector.")
+        self.assertTrue(risk["explanation"].startswith(guidance))
         self.assertIn("Claude Desktop reads `sshHostCommands` from your user settings or from a managed file or policy on your computer.", risk["explanation"])
         self.assertEqual(set(report["inspection_gaps"]), {
             "settings-1: Connection 2 in sshHostCommands is missing command. Add the program and arguments that print the SSH host.",
@@ -45,6 +48,7 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         })
         markdown = inspect("markdown")
         self.assertEqual(markdown.returncode, 2)
+        self.assertIn(guidance, markdown.stdout)
         self.assertIn("Connection 2 in `sshHostCommands` is missing `command`.", markdown.stdout)
         self.assertNotIn("seed", result.stdout + markdown.stdout)
         path.write_text(json.dumps({**USER, "sshHostCommands": []}))
@@ -63,3 +67,20 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         result = run_home(home, "--agent", "claude", "--format", "json")
         self.assertEqual(result.returncode, 0)
         self.assertEqual([r["entry"] for r in json.loads(result.stdout)["risks"]], ["settings-1:sshHostCommands"])
+
+    def test_ssh_command_id_already_used_in_ssh_configs_names_the_connection(self):
+        host = {"id": "seed-id", "name": "seed-name", "sshHost": "seed-host"}
+        home = agent_home(self.root, claude=json.dumps({**USER, "sshConfigs": [host]}))
+        message = "Connection 1 in sshHostCommands uses an ID already present in sshConfigs. Give the connection a unique ID."
+        result = run_home(home, "--agent", "claude", "--format", "json")
+        report = json.loads(result.stdout)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(report["risks"], [])
+        self.assertIn("settings-1: " + message, report["inspection_gaps"])
+        markdown = run_home(home, "--agent", "claude")
+        self.assertIn("uses an ID already present in `sshConfigs`.", markdown.stdout)
+        self.assertNotIn("seed", result.stdout + markdown.stdout)
+        host["id"] = "other"
+        (home / ".claude/settings.json").write_text(json.dumps({**USER, "sshConfigs": [host]}))
+        report = json.loads(run_home(home, "--agent", "claude", "--format", "json").stdout)
+        self.assertEqual([r["entry"] for r in report["risks"]], ["settings-1:sshHostCommands"])
