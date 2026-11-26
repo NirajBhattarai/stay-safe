@@ -279,6 +279,11 @@ def handler_note(record):
 
 
 def resolve(entries, discovered):
+    if discovered:
+        helpers = [entry for entry in entries if entry["name"] == "apiKeyHelper" and entry["kind"] == "program"]
+        for entry in helpers[:-1]:
+            entry["facts"]["configured_program"] = False
+            entry["observations"].append(f"overridden by {helpers[-1]['source']}")
     flags = [entry for entry in entries if "disable_all_hooks" in entry["facts"]]
     lists = {entry["source"] for entry in entries if entry["facts"].get("http_allowlist")}
     for flag in flags:
