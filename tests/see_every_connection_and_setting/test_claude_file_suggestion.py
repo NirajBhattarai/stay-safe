@@ -9,9 +9,12 @@ EXPECTED = [
     ("project", {"fileSuggestion": [["command withheld", "project settings"], True]}),
 ]
 INVALID = [
-    ("fileSuggestion", {"command": "seed"}, "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
-    ("fileSuggestion", {"type": "command"}, "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
-    ("fileSuggestion", [], "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
+    ("fileSuggestion", [], "fileSuggestion needs a JSON object with a type field and a command field."),
+    ("fileSuggestion", {"command": "seed"}, 'fileSuggestion.type must be "command".'),
+    ("fileSuggestion", {"type": "static", "command": "seed"}, 'fileSuggestion.type must be "command".'),
+    ("fileSuggestion", {"type": "command"}, "fileSuggestion.command is missing."),
+    ("fileSuggestion", {"type": "command", "command": 7}, "fileSuggestion.command must be text."),
+    ("fileSuggestion", {"type": "command", "command": "  "}, "fileSuggestion.command is blank."),
 ]
 
 
