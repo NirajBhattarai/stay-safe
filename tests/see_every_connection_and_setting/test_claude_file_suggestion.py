@@ -6,12 +6,12 @@ VALID = {"fileSuggestion": {"type": "command", "command": "~/seed/file-index.sh"
 EXPECTED = [
     (None, {"fileSuggestion": [["command withheld"], True]}),
     ("user", {"fileSuggestion": [["command withheld"], True]}),
-    ("project", {"fileSuggestion": [["command withheld", "project settings; runs after workspace trust"], True]}),
+    ("project", {"fileSuggestion": [["command withheld", "project settings"], True]}),
 ]
 INVALID = [
-    ("fileSuggestion", {"command": "seed"}, "fileSuggestion is not a command object with a nonempty command; it was not evaluated."),
-    ("fileSuggestion", {"type": "command"}, "fileSuggestion is not a command object with a nonempty command; it was not evaluated."),
-    ("fileSuggestion", [], "fileSuggestion is not a command object with a nonempty command; it was not evaluated."),
+    ("fileSuggestion", {"command": "seed"}, "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
+    ("fileSuggestion", {"type": "command"}, "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
+    ("fileSuggestion", [], "fileSuggestion needs type \"command\" and a command string containing more than whitespace."),
 ]
 
 
