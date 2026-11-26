@@ -38,9 +38,13 @@ HELPER_USE = {
     "otelHeadersHelper": "at startup and periodically to generate telemetry headers",
 }
 WORKSPACE_COMMANDS = {"statusLine": "draw the status line", "fileSuggestion": "suggest files when you type `@`"}
-COMMAND_SHAPE = '{} needs type "command" and a command string containing more than whitespace.'
-COMMAND_SUPPRESSED = ("disableAllHooks suppresses the {} command in the inspected settings. "
-                      "Managed settings may supply their own command.")
+COMMAND_OBJECT = "{} needs a JSON object with a type field and a command field."
+COMMAND_TYPE = '{}.type must be "command".'
+COMMAND_MISSING = "{}.command is missing."
+COMMAND_NON_TEXT = "{}.command must be text."
+COMMAND_BLANK = "{}.command is blank."
+COMMAND_SUPPRESSED = ("disableAllHooks is true, so Claude Code skips the {} command from these files. "
+                      "Stay-safe did not check whether your organization sets its own command.")
 PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
@@ -183,8 +187,20 @@ class SettingsReader(Reader):
             if name not in data:
                 continue
             value = data[name]
-            if not (isinstance(value, dict) and value.get("type") == "command" and nonempty(value.get("command"))):
-                self.gap(COMMAND_SHAPE.format(name))
+            if not isinstance(value, dict):
+                problem = COMMAND_OBJECT
+            elif value.get("type") != "command":
+                problem = COMMAND_TYPE
+            elif "command" not in value:
+                problem = COMMAND_MISSING
+            elif not isinstance(value["command"], str):
+                problem = COMMAND_NON_TEXT
+            elif not value["command"].strip():
+                problem = COMMAND_BLANK
+            else:
+                problem = None
+            if problem:
+                self.gap(problem.format(name))
                 continue
             self.add([name], "program", [], {"configured_program": True, "project": self.scope == "project"})
         for name in HELPER_USE:

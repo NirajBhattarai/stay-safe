@@ -9,9 +9,12 @@ EXPECTED = [
     ("project", {"statusLine": [["command withheld", "project settings"], True]}),
 ]
 INVALID = [
-    ("statusLine", {"type": "static", "command": "seed"}, "statusLine needs type \"command\" and a command string containing more than whitespace."),
-    ("statusLine", {"type": "command", "command": " "}, "statusLine needs type \"command\" and a command string containing more than whitespace."),
-    ("statusLine", "seed-status", "statusLine needs type \"command\" and a command string containing more than whitespace."),
+    ("statusLine", [], "statusLine needs a JSON object with a type field and a command field."),
+    ("statusLine", {"command": "seed"}, 'statusLine.type must be "command".'),
+    ("statusLine", {"type": "static", "command": "seed"}, 'statusLine.type must be "command".'),
+    ("statusLine", {"type": "command"}, "statusLine.command is missing."),
+    ("statusLine", {"type": "command", "command": 7}, "statusLine.command must be text."),
+    ("statusLine", {"type": "command", "command": "  "}, "statusLine.command is blank."),
 ]
 
 

@@ -1,6 +1,7 @@
 import re
 
-from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_SHAPE, COMMAND_SUPPRESSED, HELPER_USE, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_BLANK, COMMAND_MISSING, COMMAND_NON_TEXT, COMMAND_OBJECT,
+                     COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      WORKSPACE_COMMANDS, resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -105,14 +106,22 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
-    **{COMMAND_SHAPE.format(name): (
-        f"**Not checked: `{name}`.** Claude Code expects an object with a command to run.",
-        f"Set `{name}.type` to `command` and put the command you want to run in `{name}.command`, or remove `{name}`.")
-       for name in WORKSPACE_COMMANDS},
+    **{problem.format(name): (
+        f"**Check `{name}` in this file.** {reason.format(name)}", repair.format(name))
+       for name in WORKSPACE_COMMANDS for problem, reason, repair in (
+           (COMMAND_OBJECT, "Claude Code expects two fields inside `{}`: `type` and `command`.",
+            'Set `{0}.type` to `"command"`. Then put the command you want to run in `{0}.command`.'),
+           (COMMAND_TYPE, 'Claude Code looks for `"type": "command"` inside `{}`.',
+            'Set `{0}.type` to `"command"`. Then put the command you want to run in `{0}.command`.'),
+           (COMMAND_MISSING, "The `command` field is missing.", "Add `{}.command` with the command you want to run."),
+           (COMMAND_NON_TEXT, "The `command` field must contain text.",
+            "Write the command you want to run as a quoted string in `{}.command`."),
+           (COMMAND_BLANK, "The `command` field is blank.", "Put the command you want to run in `{}.command`."))},
     **{COMMAND_SUPPRESSED.format(name): (
-        f"**Not checked: managed `{name}`.** `disableAllHooks` suppresses the command in the inspected settings. "
-        "Managed settings may supply their own command.",
-        f"Check managed settings for `{name}` and `disableAllHooks`.") for name in WORKSPACE_COMMANDS},
+        f"**Claude Code skips the `{name}` command in these files.** `disableAllHooks` is set to `true`. "
+        f"Stay-safe did not check whether your organization sets its own `{name}` command.",
+        f"To find out whether another command can run, check your organization's managed settings for `{name}` "
+        "and `disableAllHooks`.") for name in WORKSPACE_COMMANDS},
     UNREAD_ENABLE: (
         "**Not checked: whether hooks stay off.** `disableAllHooks` turns them off in the files read, but "
         "`.claude/settings.local.json`, managed settings and `--settings` can set it back to `false`.",
@@ -379,7 +388,19 @@ def gap(text, files, entries, gaps):
     return f"{lead}\n\n*What to do:* {step}" + (f"\n\n*File `{files.get(source, source)}`*" if source else "")
 
 
-def setup_line(entry):
+def setup_line(entry, files):
+    if entry["name"] in WORKSPACE_COMMANDS:
+        name = entry["name"]
+        for note in entry["observations"]:
+            if note.startswith("overridden by "):
+                source = note.removeprefix("overridden by ")
+                return (f"- `{name}`: The project file `{files.get(source, source)}` also sets `{name}`. "
+                        "Its command takes precedence over the one in this file.")
+            if note.startswith("turned off by disableAllHooks in "):
+                source = note.removeprefix("turned off by disableAllHooks in ")
+                location = "This file" if source == "this file" else f"`{files.get(source, source)}`"
+                return f"- `{name}`: {location} sets `disableAllHooks` to `true`, so Claude Code skips this command."
+        return f"- `{name}`: This file specifies a command. The command text is withheld."
     keys = entry["name"].split(".")
     words = [WORDS.get(o, f"starts with `{o[9:]}`" if o.startswith("program: ") else o.removeprefix("tool: "))
              for o in entry["observations"]]
@@ -449,7 +470,7 @@ def markdown(report, files=None):
     lines += [f"## {HARNESS} setup", ""]
     groups = {}
     for entry in report["catalog"]:
-        groups.setdefault(entry["source"], []).append(setup_line(entry))
+        groups.setdefault(entry["source"], []).append(setup_line(entry, files))
     for source, entries in groups.items():
         where = f"`{files[source]}` (`{source}`)" if source in files else f"`{source}`, the file you passed with `--config`"
         lines += [f"**Settings file {where}**", *entries, ""]
