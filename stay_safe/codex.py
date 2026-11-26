@@ -494,6 +494,12 @@ class Reader:
                 for key in ("credential_export", "auth_refresh"):
                     if key in aws:
                         self.gap(f"Model-provider setting aws.{key} was not checked for a credential command.")
+                gateway = self.table(provider.get("gateway_oauth", {}), "gateway_oauth")
+                if "credential_export" in gateway:
+                    self.gap("Model-provider setting gateway_oauth.credential_export was not checked for a credential command.")
+        otel = data.get("otel")
+        if isinstance(otel, dict) and "headers_helper" in otel:
+            self.gap("otel.headers_helper was not checked for a header command.")
         if "notify" in data:
             notify = data["notify"]
             if (isinstance(notify, list) and notify and all(isinstance(p, str) for p in notify)
