@@ -18,7 +18,7 @@ Guardian V3 is off by default. The new Guardian fields configure its evidence an
 
 ## Profile example
 
-Codex 0.172.0 stops when it finds `profile = "work"` in the effective config. To select that profile, move its settings into `work.config.toml`, remove the old selector and matching `[profiles.work]` table from the base file, and start Codex with `--profile work`. The profile file layers over the base user settings. Stay-safe reports the selector error once when it finds both forms in the file. [Selector rejection][selector] · [File loading][profile-layer] · [Reader follow-up #21][profile-issue]
+Codex 0.172.0 stops when it finds `profile = "work"` in the effective config. To select that profile, move its settings into `work.config.toml`, remove the old selector and matching `[profiles.work]` table from the base file, and start Codex with `--profile work`. The profile file can override the base user settings. From the folder containing it, run `python -m stay_safe --config work.config.toml` to check its settings separately. Stay-safe reports the selector error once when it finds both forms in the file. [Selector rejection][selector] · [File loading][profile-layer] · [Reader follow-up #21][profile-issue]
 
 Save this complete example as `profile.toml`. Run `python -m stay_safe --config profile.toml --format markdown` or use `--format json`. Both exit 2.
 
@@ -34,12 +34,12 @@ realtime_frames_local = true
 
 **Markdown**
 
-> **This file uses an old way to select a profile.** The Codex version stay-safe checked stops if `profile` is in the configuration it uses at startup. It ignores this setting in project configuration.
+> **This file uses an old way to select a profile.** Codex 0.172.0 stops if `profile` is in the configuration it uses at startup. It ignores this setting in project configuration. On versions that support inline profiles, settings in the selected table can override your top-level settings.
 
 **JSON** (`inspection_gaps`)
 
 ```json
-["config-1: The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."]
+["config-1: Codex 0.172.0 rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration. On versions that support inline profiles, settings in the selected table can override your top-level settings."]
 ```
 
 ## App tool example

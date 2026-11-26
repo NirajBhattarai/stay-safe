@@ -14,10 +14,14 @@ APPROVALS = ("auto", "prompt", "writes", "approve")
 AUTO_REVIEW_VALUES = ("auto_review", "guardian_subagent")
 APP_TOOL_REVIEWER_GAP = ("{label} requests AI review if this tool needs approval. "
                          "A policy can require human review. The effective reviewer was not checked.")
-LEGACY_PROFILE_SELECTOR = ("The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. "
-                          "It ignores this setting in project configuration.")
+PROFILE_LOADER_VERSION = "0.172.0"
+INLINE_PROFILE_OVERRIDE = ("On versions that support inline profiles, settings in the selected table can override "
+                           "your top-level settings.")
+LEGACY_PROFILE_SELECTOR = (f"Codex {PROFILE_LOADER_VERSION} rejects a top-level profile selector in the configuration "
+                           f"it uses at startup. It ignores this setting in project configuration. {INLINE_PROFILE_OVERRIDE}")
 LEGACY_PROFILE_TABLES = ("Legacy profile tables do not select a profile. If this is the base user config, "
-                         "starting Codex with a matching --profile name stops configuration loading.")
+                         f"starting Codex {PROFILE_LOADER_VERSION} with a matching --profile name stops configuration "
+                         f"loading. {INLINE_PROFILE_OVERRIDE}")
 INVALID_PROFILE_SELECTOR = "Codex expects a string for the top-level profile setting when it validates this configuration."
 EMPTY_PROFILES = "The profiles table is empty. No profile names are defined. Startup profile selection was not checked."
 INVALID_APPROVAL = "Codex cannot load this configuration file because {label} is not one of " + ", ".join(APPROVALS) + "."

@@ -160,7 +160,7 @@ The report's "What this report can't see" section summarizes these limits. In fu
 
 - Selected files are independent snapshots; other rules files are not read or merged.
 - Rules inspection lists saved-format approval candidates, one-line allow records whose syntax context and current effect are not checked; other lines, including prompt and forbidden rules that may override a candidate, make the check incomplete.
-- CLI flags, profile selection, trusted project layers, managed policies and runtime overrides are not inspected.
+- CLI flags, profile selection, trusted project layers, managed policies and runtime overrides are not inspected. A separately selected profile file can override the main config.
 - Connection reachability, authentication, active tools and effective permissions are not tested.
 - Source links point to the reported commit; whether that commit exists in the published GitHub repository is not checked.
 - The catalog contains configured entries, documented defaults and source-status observations; account, endpoint, environment, saved approval command (except a first word on stay-safe's program list) and other command and argument values are withheld.

@@ -51,11 +51,11 @@ class ProfileTests(ConfigCase):
         self.assertIn("Run stay-safe with `--config` and the path to that file", limits)
         machine = run_checkout(checkout, "--config", str(main), "--config", str(profile),
                                "--format", "json", cwd=self.root)
-        self.assertEqual((machine.returncode, machine.stderr), (0, ""))
+        self.assertEqual((machine.returncode, machine.stderr), (2, INCOMPLETE))
         report = json.loads(machine.stdout)
         self.assertIn("A separately selected profile file can override the main config.", " ".join(report["scope"]))
-        self.assertEqual([(risk["entry"], risk["rule"]) for risk in report["risks"]
-                          if risk["rule"] == "unrestricted_filesystem"], [("config-2:sandbox_mode", "unrestricted_filesystem")])
+        affected = [risk["entry"] for risk in report["risks"] if risk["rule"] == "unrestricted_filesystem"]
+        self.assertEqual(affected, ["config-2:sandbox_mode"])
 
     def test_each_snapshot_keeps_its_own_profile_message_and_settings(self):
         checkout = copy_checkout(self.root / "checkout")
