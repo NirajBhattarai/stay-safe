@@ -44,6 +44,10 @@ After a complete scan, retain its output and unresolved findings in the review P
 then update `last_scanned_tag` and its commit in the progress record. That records
 where scanning stopped; reviewed behavior remains in the meanings table.
 
+The [progress record](codex-scan-state.json) lists completed field reviews by release under
+`field_reviews`. The [0.172.0 field review](codex-0.172.0-fields.md) shows how to read the results. Add the
+next review under its own release tag so earlier evidence stays available.
+
 ## Add to the existing scheduled task
 
 ```text

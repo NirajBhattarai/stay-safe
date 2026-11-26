@@ -232,3 +232,12 @@ Tests: [tests/track_codex_releases/](../tests/track_codex_releases/)
 - I cite a whole file or a range that is later deleted and still see its changes. `test_drift.py::test_whole_file_and_deleted_citations_remain_visible`
 - I supply missing or invalid scan inputs and get an explicit failure. `test_drift.py::test_missing_refs_files_and_invalid_inputs_fail_instead_of_returning_clean_results`
 - I run the checker and get a complete scan or a failing exit status without advancing the saved progress. `test_drift.py::test_cli_reports_complete_scan_or_explicit_failure_without_advancing_state`
+
+## [read_codex_release_review] I can follow a release review to see which changes affect my report and which settings stay-safe leaves unchecked.
+Issue: https://github.com/chalkbadger/stay-safe/issues/232
+Tests: [tests/read_codex_release_review/](../tests/read_codex_release_review/)
+
+- I can open each release listed in the scan record and find its pinned Codex sources. `test_review.py::test_each_indexed_release_leads_to_its_review_and_pinned_sources`
+- I follow the scan record to a reviewed release and see how the report treats each group beside its source. `test_review.py::test_scan_record_links_to_field_dispositions_and_pinned_sources`
+- I run each published example and see its explanation in both Markdown and JSON. `test_review.py::test_published_example_reports_match_the_cli`
+- I inspect settings from the reviewed groups and get the documented gaps and exit status. `test_review.py::test_field_groups_give_the_documented_gaps_and_exit_status`

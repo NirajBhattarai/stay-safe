@@ -51,7 +51,8 @@ Unless a row or section names another release,
 Codex source links are pinned to OpenAI Codex `rust-v0.172.0`
 (`3d86e43b075adeba2193ec5c22ac92f55afd82e6`). On 2026-11-25 we rechecked the cited
 passages for the meanings below. The [release scan](https://github.com/chalkbadger/stay-safe/pull/131#issuecomment-7176657473)
-tracks new and changed configuration fields that still need review.
+lists new and changed configuration fields. The [0.172.0 field review](../docs/codex-0.172.0-fields.md)
+explains how the report handles each change since 0.171.0.
 The configuration reference was read on 2026-11-02 for retired values.
 The `auto` default is defined by [AppToolApproval][tool-default].
 
