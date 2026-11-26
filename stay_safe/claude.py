@@ -1,4 +1,3 @@
-from collections import Counter
 import json
 import os
 import re
@@ -242,7 +241,11 @@ class SettingsReader(Reader):
             self.gap("sshHostCommands must be a list of connection entries.")
             return
         configured = False
-        ids = Counter(entry["id"] for entry in value if isinstance(entry, dict) and nonempty(entry.get("id")))
+        counts = {}
+        for entry in value:
+            if isinstance(entry, dict) and nonempty(entry.get("id")):
+                identifier = entry["id"]
+                counts[identifier] = counts.get(identifier, 0) + 1
         for position, entry in enumerate(value, 1):
             subject = f"Connection {position} in sshHostCommands"
             if not isinstance(entry, dict):
@@ -259,7 +262,7 @@ class SettingsReader(Reader):
                 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", identifier):
                     problems.append("has an invalid id. Use up to 64 ASCII letters, digits, dots, underscores or "
                                     "hyphens, starting with a letter or digit.")
-                elif ids[identifier] > 1:
+                elif counts[identifier] > 1:
                     problems.append("shares an id with another connection. Give each connection a unique id.")
             label = entry.get("name")
             if nonempty(label) and (len(label) > 200 or label.splitlines() != [label]):

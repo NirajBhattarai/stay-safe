@@ -391,7 +391,7 @@ def gap(text, files, entries, gaps):
         lead_step = (f"**`{location}` sets `disableAllHooks` to `true`.** That setting can prevent Claude Desktop "
                      "from running your SSH connection commands.",
                      "Check your hook settings and your organization's hook policy in Claude Desktop.")
-    elif re.match(r"Connection [0-9]+ in sshHostCommands ", message):
+    elif message.startswith("Connection ") and " in sshHostCommands " in message:
         diagnosis, repair = message.split(". ", 1)
         diagnosis = re.sub(r"\b(sshHostCommands|id|name|command)\b", r"`\1`", diagnosis)
         lead_step = (f"**{diagnosis}.**", repair)
