@@ -14,6 +14,16 @@ APPROVALS = ("auto", "prompt", "writes", "approve")
 AUTO_REVIEW_VALUES = ("auto_review", "guardian_subagent")
 APP_TOOL_REVIEWER_GAP = ("{label} requests AI review if this tool needs approval. "
                          "A policy can require human review. The effective reviewer was not checked.")
+PROFILE_LOADER_VERSION = "0.172.0"
+INLINE_PROFILE_OVERRIDE = ("On versions that support inline profiles, settings in the selected table can override "
+                           "your top-level settings.")
+LEGACY_PROFILE_SELECTOR = (f"Codex {PROFILE_LOADER_VERSION} rejects a top-level profile selector in the configuration "
+                           f"it uses at startup. It ignores this setting in project configuration. {INLINE_PROFILE_OVERRIDE}")
+LEGACY_PROFILE_TABLES = ("Legacy profile tables do not select a profile. If this is the base user config, "
+                         f"starting Codex {PROFILE_LOADER_VERSION} with a matching --profile name stops configuration "
+                         f"loading. {INLINE_PROFILE_OVERRIDE}")
+INVALID_PROFILE_SELECTOR = "Codex expects a string for the top-level profile setting when it validates this configuration."
+EMPTY_PROFILES = "The profiles table is empty. No profile names are defined. Startup profile selection was not checked."
 INVALID_APPROVAL = "Codex cannot load this configuration file because {label} is not one of " + ", ".join(APPROVALS) + "."
 INVALID_BOOLEAN = "Codex cannot load this configuration file because {label} is not a boolean."
 INLINE_MCP_VALUES = "{label} contains inline values. Check the entries for credentials."
@@ -471,14 +481,23 @@ class Reader:
         if incomplete:
             self.gap("projects contains malformed or unsupported data; its declarations could not be fully assessed.")
 
+    def profiles(self, data):
+        if "profile" in data:
+            self.gap(LEGACY_PROFILE_SELECTOR if isinstance(data["profile"], str) else INVALID_PROFILE_SELECTOR)
+        elif "profiles" in data:
+            profiles = data["profiles"]
+            if profiles == {}:
+                self.gap(EMPTY_PROFILES)
+            for value in self.table(profiles, "profiles").values():
+                self.gap(LEGACY_PROFILE_TABLES if isinstance(value, dict) else "profiles contains an entry that is not a table.")
+
     def read(self, data):
         unchecked = {"plugins", "marketplaces", "desktop"}
         for section in unchecked & data.keys():
             self.gap(f"Unchecked section {section}; its settings were not evaluated.")
         if "projects" in data:
             self.projects(data["projects"])
-        if "profile" in data or "profiles" in data:
-            self.gap("Profiles are outside reader coverage; a selected profile can override the reported settings.")
+        self.profiles(data)
         self.approval(data)
         self.sandbox(data)
         approval = next((e for e in self.entries if e["name"] == "approval_policy"), None)

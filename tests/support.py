@@ -11,6 +11,13 @@ from unittest.mock import patch
 
 FEEDBACK = "Report a problem or suggest an idea: https://github.com/chalkbadger/stay-safe/issues/new/choose\n"
 
+INLINE_OVERRIDE = ("On versions that support inline profiles, settings in the selected table can override "
+                   "your top-level settings.")
+SELECTOR_GAP = ("Codex 0.172.0 rejects a top-level profile selector in the configuration it uses at startup. "
+                f"It ignores this setting in project configuration. {INLINE_OVERRIDE}")
+TABLES_GAP = ("Legacy profile tables do not select a profile. If this is the base user config, "
+              f"starting Codex 0.172.0 with a matching --profile name stops configuration loading. {INLINE_OVERRIDE}")
+
 ROOT = Path(__file__).resolve().parents[1]
 _TEST_HOME = tempfile.TemporaryDirectory()
 os.environ["HOME"] = _TEST_HOME.name

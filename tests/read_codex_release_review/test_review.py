@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 import tomllib
 
+from tests.support import TABLES_GAP
 from tests.support import ConfigCase, copy_checkout, run_checkout, section
 
 
@@ -48,7 +49,7 @@ class ReviewTests(ConfigCase):
             (["features.guardianv3.message_board_in_memory"], feature_gap, "resume"),
             (["features.connector_tool_result_passthrough"], feature_gap, "capture"),
             (["features.realtime_frames_local"], feature_gap, "enrollment"),
-            (["profiles.*."], "same `profiles` gap for a table alone", "profile-layer"),
+            (["profiles.*."], "conditional warning for a table alone", "profile-layer"),
             (["tui.keymap", "tui.keymap.agents", "tui.keymap.agents.next_group", "tui.keymap.agents.next_group[]",
               "tui.keymap.agents.previous_group", "tui.keymap.agents.previous_group[]"],
              "outside its permissions report and gives no gap", "navigation"),
@@ -71,7 +72,7 @@ class ReviewTests(ConfigCase):
             with self.subTest(example=heading):
                 example = section(text, heading)
                 config = re.search(r"```toml\n(.*?)```", example, re.DOTALL)
-                markdown = re.search(r"^> (\*\*Not checked:.*)$", example, re.MULTILINE)
+                markdown = re.search(r"^> (\*\*.+?\.\*\* .*)$", example, re.MULTILINE)
                 machine = re.search(r"```json\n(.*?)```", example, re.DOTALL)
                 self.assertIsNotNone(config)
                 self.assertIsNotNone(markdown)
@@ -91,11 +92,11 @@ class ReviewTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         base = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
         feature_gap = "config-1: features contains fields outside reader coverage; their values were withheld."
-        profile_gap = "config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."
+        profile_gap = "config-1: " + TABLES_GAP
         plugin_gap = "config-1: Unchecked section plugins; its settings were not evaluated."
         cases = [
             ('plugins."example@local".apps.calendar.tools.read.approvals_reviewer="auto_review"',
-             "`plugins`", plugin_gap),
+             "Not checked: `plugins`", plugin_gap),
             ('tui.keymap.agents.next_group=["ctrl-j"]', None, None),
             ('tui.keymap.agents.previous_group=["ctrl-k"]', None, None),
         ]
@@ -104,8 +105,8 @@ class ReviewTests(ConfigCase):
                       'guardianv3.reviewer.retrieval_instructions="example"', 'guardianv3.max_instruction_tokens=32',
                       'guardianv3.message_board_in_memory=true', 'connector_tool_result_passthrough=true',
                       'realtime_frames_local=true'):
-            cases.append(("features." + field, "some `features` settings", feature_gap))
-            cases.append(("profiles.work.features." + field, "your profiles", profile_gap))
+            cases.append(("features." + field, "Not checked: some `features` settings", feature_gap))
+            cases.append(("profiles.work.features." + field, "This file defines a profile but doesn’t select it", profile_gap))
         for setting, label, gap in cases:
             with self.subTest(setting=setting):
                 path = str(self.config(base + setting + "\n"))
@@ -114,5 +115,5 @@ class ReviewTests(ConfigCase):
                 status = 2 if gap else 0
                 self.assertEqual((human.returncode, machine.returncode), (status, status))
                 self.assertEqual(json.loads(machine.stdout)["inspection_gaps"], [gap] if gap else [])
-                headings = re.findall(r"^\*\*Not checked: (.*?)\.\*\*", section(human.stdout, "Not checked"), re.MULTILINE)
+                headings = re.findall(r"^\*\*(.*?)\.\*\*", section(human.stdout, "Not checked"), re.MULTILINE)
                 self.assertEqual(headings, [label] if label else [])

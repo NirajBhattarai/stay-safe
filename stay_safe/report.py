@@ -3,8 +3,9 @@ import json
 from pathlib import Path
 import re
 
-from .codex import (APP_TOOL_REVIEWER_GAP, APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
-                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
+from .codex import (APP_TOOL_REVIEWER_GAP, APPROVALS, EMPTY_PROFILES, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INLINE_PROFILE_OVERRIDE,
+                    INVALID_APPROVAL, INVALID_BOOLEAN, INVALID_MCP_MAP, INVALID_PROFILE_SELECTOR, LEGACY_PROFILE_SELECTOR,
+                    LEGACY_PROFILE_TABLES, PROFILE_LOADER_VERSION, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
                     WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import SANDBOX_OFF_EXPLANATION, evaluate
@@ -30,7 +31,8 @@ SCOPE = [
     "Rules inspection lists saved-format approval candidates, one-line allow records whose syntax context "
     "and current effect are not checked; other lines, including prompt and forbidden rules that may "
     "override a candidate, make the check incomplete.",
-    "CLI flags, profile selection, trusted project layers, managed policies and runtime overrides are not inspected.",
+    "CLI flags, profile selection, trusted project layers, managed policies and runtime overrides are not inspected. "
+    "A separately selected profile file can override the main config.",
     "Connection reachability, authentication, active tools and effective permissions are not tested.",
     "Source links point to the reported commit; whether that commit exists in the published GitHub repository is not checked.",
     "The catalog contains configured entries, documented defaults and source-status observations; account, endpoint, environment, saved approval command (except a first word on stay-safe's program list) and other command and argument values are withheld.",
@@ -481,9 +483,21 @@ GAPS = {
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "**Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile "
-        "Codex uses can override the settings in this report.",
+    LEGACY_PROFILE_SELECTOR:
+        f"**This file uses an old way to select a profile.** Codex {PROFILE_LOADER_VERSION} stops if "
+        "`profile` is in the configuration it uses at startup. It ignores this setting in project configuration. "
+        f"{INLINE_PROFILE_OVERRIDE}",
+    LEGACY_PROFILE_TABLES:
+        "**This file defines a profile but doesn’t select it.** If this is your main `config.toml` and you "
+        f"start Codex {PROFILE_LOADER_VERSION} with `--profile` and a name defined here, the matching table stops "
+        "Codex from loading. Starting with a name this file doesn’t define does not trigger that conflict. "
+        f"{INLINE_PROFILE_OVERRIDE}",
+    INVALID_PROFILE_SELECTOR:
+        "**The `profile` setting has the wrong type.** Codex expects a profile name written as a string "
+        "when it validates this file.",
+    EMPTY_PROFILES:
+        "**Not checked: profile selection.** The `profiles` table is empty. It defines no names that could "
+        "conflict with a startup profile.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "**Not checked: whether commands get your environment variables.** Your "
         f"`shell_environment_policy.inherit` value isn't one stay-safe supports. {WITHHELD}",
@@ -683,8 +697,19 @@ STEPS = {
         "Review your permission profiles yourself; findings about this file's sandbox may not apply.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "Keep only one of `default_permissions` and `sandbox_mode`, then run stay-safe again.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "Review your profiles yourself, especially their approval and sandbox settings.",
+    LEGACY_PROFILE_SELECTOR:
+        "Remove the `profile` setting. To use a user profile named `work`, move the settings inside "
+        "`[profiles.work]` in your main config into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
+        "with `--profile work`.",
+    LEGACY_PROFILE_TABLES:
+        "If you want to use one of these profiles, move its settings into a separate file in your Codex folder "
+        "and remove the matching table from the main config. For example, use `work.config.toml` with "
+        "`--profile work`.",
+    INVALID_PROFILE_SELECTOR:
+        "Remove the `profile` setting. To choose a profile, use a separate profile file and select it with "
+        "`--profile`.",
+    EMPTY_PROFILES:
+        "If you start Codex with `--profile`, review the separate profile file you select.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "Set `inherit` to `\"all\"`, `\"core\"` or `\"none\"`.",
     "shell_environment_policy.ignore_default_excludes has an invalid boolean; its behavior is unknown.":
@@ -1169,9 +1194,10 @@ def markdown(report, files=None):
                       f"- [What each Codex setting means, with official evidence]({meanings}) (`harnesses/codex.md`)"]
     revision = report["provenance"]["source_revision"]
     lines += ["", "## What this report can't see", "",
-              "- Settings chosen in the app or with command-line flags, and which profile Codex uses: these can "
-              "override the files listed under Your setup, and stay-safe can't see them. Check them where you start "
-              "Codex, and the `profile` setting in your config file.",
+              "- Settings you choose in the app or with command-line flags can override your config. "
+              "Check how you start Codex. If you select a separate profile file with `--profile`, "
+              "that file can override your main config. Run stay-safe with `--config` and the path "
+              "to that file to inspect it separately.",
               "- Whether connections work, or what Codex actually allows when it runs: stay-safe only reads files; it "
               "doesn't start Codex or contact any service. Watch what Codex asks before it acts.",
               "- Private values such as commands, addresses and tokens are left out, but names like `github` are "
