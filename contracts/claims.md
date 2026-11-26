@@ -237,5 +237,7 @@ Tests: [tests/track_codex_releases/](../tests/track_codex_releases/)
 Issue: https://github.com/chalkbadger/stay-safe/issues/232
 Tests: [tests/read_codex_release_review/](../tests/read_codex_release_review/)
 
+- I can open each release listed in the scan record and find its pinned Codex sources. `test_review.py::test_each_indexed_release_leads_to_its_review_and_pinned_sources`
 - I follow the scan record to a reviewed release and see how the report treats each group beside its source. `test_review.py::test_scan_record_links_to_field_dispositions_and_pinned_sources`
-- I run the review's example and get its published explanation in the Markdown and JSON reports. `test_review.py::test_published_example_reports_match_the_cli`
+- I run each published example and see its explanation in both Markdown and JSON. `test_review.py::test_published_example_reports_match_the_cli`
+- I inspect settings from the reviewed groups and get the documented gaps and exit status. `test_review.py::test_field_groups_give_the_documented_gaps_and_exit_status`

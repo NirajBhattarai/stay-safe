@@ -1,20 +1,35 @@
 import json
 from pathlib import Path
 import re
+import tomllib
 
-from tests.support import ConfigCase, copy_checkout, run_checkout
+from tests.support import ConfigCase, copy_checkout, run_checkout, section
 
 
 DOCS = Path(__file__).resolve().parents[2] / "docs"
 
 
 class ReviewTests(ConfigCase):
-    def review(self):
-        record = json.loads((DOCS / "codex-scan-state.json").read_text())
-        return (DOCS / record["field_reviews"]["rust-v0.172.0"]).read_text()
+    def field_reviews(self):
+        return json.loads((DOCS / "codex-scan-state.json").read_text())["field_reviews"]
+
+    def test_each_indexed_release_leads_to_its_review_and_pinned_sources(self):
+        reviews = self.field_reviews()
+        self.assertTrue(reviews)
+        for tag, filename in reviews.items():
+            with self.subTest(release=tag):
+                text = (DOCS / filename).read_text()
+                self.assertIn(tag.removeprefix("rust-v"), text.splitlines()[0])
+                sources = re.findall(r"https://github\.com/openai/codex/blob/([^/\s]+)/", text)
+                self.assertTrue(sources)
+                for revision in sources:
+                    self.assertRegex(revision, r"^[0-9a-f]{40}$")
+
+    def review_0_172(self):
+        return (DOCS / self.field_reviews()["rust-v0.172.0"]).read_text()
 
     def test_scan_record_links_to_field_dispositions_and_pinned_sources(self):
-        text = self.review()
+        text = self.review_0_172()
         sources = dict(re.findall(r"^\[([\w-]+)\]: (\S+)$", text, re.MULTILINE))
         rows = {}
         for line in text.splitlines():
@@ -50,14 +65,54 @@ class ReviewTests(ConfigCase):
         self.assertIn("The schema repeats all nine inside legacy profile tables.", rows["profiles.*."])
 
     def test_published_example_reports_match_the_cli(self):
-        example = self.review().split("## App tool example\n", 1)[1]
-        config = re.search(r"```toml\n(.*?)```", example, re.DOTALL)
-        markdown = re.search(r"^> (\*\*Not checked:.*)$", example, re.MULTILINE)
-        machine = re.search(r"```json\n(.*?)```", example, re.DOTALL)
-        path = str(self.config(config[1]))
+        text = self.review_0_172()
         checkout = copy_checkout(self.root / "checkout")
-        human_run = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
-        json_run = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
-        self.assertEqual((human_run.returncode, json_run.returncode), (2, 2))
-        self.assertIn(markdown[1], human_run.stdout.splitlines())
-        self.assertEqual(json.loads(machine[1]), json.loads(json_run.stdout)["inspection_gaps"])
+        for heading in ("Profile example", "App tool example"):
+            with self.subTest(example=heading):
+                example = section(text, heading)
+                config = re.search(r"```toml\n(.*?)```", example, re.DOTALL)
+                markdown = re.search(r"^> (\*\*Not checked:.*)$", example, re.MULTILINE)
+                machine = re.search(r"```json\n(.*?)```", example, re.DOTALL)
+                self.assertIsNotNone(config)
+                self.assertIsNotNone(markdown)
+                self.assertIsNotNone(machine)
+                if heading == "Profile example":
+                    settings = tomllib.loads(config[1])
+                    self.assertEqual(settings.get("profile"), "work")
+                    self.assertTrue(settings["profiles"]["work"]["features"]["realtime_frames_local"])
+                path = str(self.config(config[1]))
+                human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
+                machine_run = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
+                self.assertEqual((human.returncode, machine_run.returncode), (2, 2))
+                self.assertIn(markdown[1], section(human.stdout, "Not checked").splitlines())
+                self.assertEqual(json.loads(machine[1]), json.loads(machine_run.stdout)["inspection_gaps"])
+
+    def test_field_groups_give_the_documented_gaps_and_exit_status(self):
+        checkout = copy_checkout(self.root / "checkout")
+        base = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
+        feature_gap = "config-1: features contains fields outside reader coverage; their values were withheld."
+        profile_gap = "config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."
+        plugin_gap = "config-1: Unchecked section plugins; its settings were not evaluated."
+        cases = [
+            ('plugins."example@local".apps.calendar.tools.read.approvals_reviewer="auto_review"',
+             "`plugins`", plugin_gap),
+            ('tui.keymap.agents.next_group=["ctrl-j"]', None, None),
+            ('tui.keymap.agents.previous_group=["ctrl-k"]', None, None),
+        ]
+        for field in ('guardianv3.housekeeper={}', 'guardianv3.housekeeper.routing_instructions="example"',
+                      'guardianv3.housekeeper.batch_timeout_ms=100', 'guardianv3.reviewer={}',
+                      'guardianv3.reviewer.retrieval_instructions="example"', 'guardianv3.max_instruction_tokens=32',
+                      'guardianv3.message_board_in_memory=true', 'connector_tool_result_passthrough=true',
+                      'realtime_frames_local=true'):
+            cases.append(("features." + field, "some `features` settings", feature_gap))
+            cases.append(("profiles.work.features." + field, "your profiles", profile_gap))
+        for setting, label, gap in cases:
+            with self.subTest(setting=setting):
+                path = str(self.config(base + setting + "\n"))
+                human = run_checkout(checkout, "--config", path, "--format", "markdown", cwd=self.root)
+                machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
+                status = 2 if gap else 0
+                self.assertEqual((human.returncode, machine.returncode), (status, status))
+                self.assertEqual(json.loads(machine.stdout)["inspection_gaps"], [gap] if gap else [])
+                headings = re.findall(r"^\*\*Not checked: (.*?)\.\*\*", section(human.stdout, "Not checked"), re.MULTILINE)
+                self.assertEqual(headings, [label] if label else [])

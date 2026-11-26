@@ -20,15 +20,27 @@ Guardian V3 is off by default. The new Guardian fields configure its evidence an
 
 Codex 0.172.0 stops when it finds `profile = "work"` in the effective config. To select that profile, move its settings into `work.config.toml`, remove the old selector and matching `[profiles.work]` table from the base file, and start Codex with `--profile work`. The profile file layers over the base user settings. Stay-safe’s existing profiles message does not identify the load error. [Selector rejection][selector] · [File loading][profile-layer] · [Reader follow-up #21][profile-issue]
 
-With the three base settings from the [App tool example](#app-tool-example), add these lines.
+Save this complete example as `profile.toml`. Run `python -m stay_safe --config profile.toml --format markdown` or use `--format json`. Both exit 2.
 
 ```toml
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+shell_environment_policy.inherit = "none"
 profile = "work"
+
 [profiles.work.features]
 realtime_frames_local = true
 ```
 
-Stay-safe exits 2 in both formats. Markdown says “Not checked: your profiles.” JSON records `Profiles are outside reader coverage; a selected profile can override the reported settings.` Both describe stay-safe’s inspection. Codex’s loader rejects this file at the reviewed release.
+**Markdown**
+
+> **Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile Codex uses can override the settings in this report.
+
+**JSON** (`inspection_gaps`)
+
+```json
+["config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."]
+```
 
 ## App tool example
 
