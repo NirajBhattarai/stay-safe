@@ -3,5 +3,8 @@
   "last_scanned_commit": "3d86e43b075adeba2193ec5c22ac92f55afd82e6",
   "reviewed_behavior": "See the row-specific evidence and checked versions in harnesses/codex.md.",
   "scan_record": "https://github.com/chalkbadger/stay-safe/pull/131#issuecomment-7176657473",
-  "pending_review": "Classify changed source and schema fields in the scan record before extending reviewed behavior ranges."
+  "pending_review": "The linked review classifies the final 0.171.0 to 0.172.0 schema comparison. Earlier comparisons retain their scan findings.",
+  "field_reviews": {
+    "rust-v0.172.0": "codex-0.172.0-fields.md"
+  }
 }
