@@ -10,7 +10,7 @@ from tests.see_every_connection_and_setting.test_plain_gaps import gap_text
 BASE = 'approval_policy="on-request"\nsandbox_mode="read-only"\n'
 PROFILE = BASE + 'profile="selected"\nfuture_setting=true\n'
 UNKNOWN = BASE + '[future_policy]\nvalue="hidden"\n'
-PROFILE_GAP = 'The checked Codex version stops loading the configuration when it reads the top-level profile setting.'
+PROFILE_GAP = 'The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration.'
 UNKNOWN_GAP = 'Configuration contains fields outside reader coverage; their values were withheld.'
 
 class MultiFileGapTests(ConfigCase):

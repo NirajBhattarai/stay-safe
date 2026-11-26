@@ -483,15 +483,15 @@ GAPS = {
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
     LEGACY_PROFILE_SELECTOR:
-        "**This file uses an old way to select a profile.** The Codex version stay-safe checked stops when it "
-        "reads this setting.",
+        "**This file uses an old way to select a profile.** The Codex version stay-safe checked stops if "
+        "`profile` is in the configuration it uses at startup. It ignores this setting in project configuration.",
     LEGACY_PROFILE_TABLES:
         "**This file defines a profile but doesn’t select it.** If this is your main `config.toml` and you "
         "start Codex with `--profile` and a name defined here, the matching table stops Codex from loading. "
         "Starting with a name this file doesn’t define does not trigger that conflict.",
     INVALID_PROFILE_SELECTOR:
-        "**Codex cannot load this configuration.** The top-level `profile` setting must be a string, and the "
-        "checked Codex version rejects the old selector.",
+        "**The `profile` setting has the wrong type.** Codex expects a profile name written as a string "
+        "when it validates this file.",
     EMPTY_PROFILES:
         "**Not checked: profile selection.** The `profiles` table is empty. It defines no names that could "
         "conflict with a startup profile.",
@@ -695,8 +695,8 @@ STEPS = {
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "Keep only one of `default_permissions` and `sandbox_mode`, then run stay-safe again.",
     LEGACY_PROFILE_SELECTOR:
-        "Remove the `profile` setting. For example, if your profile is named `work`, move its settings from "
-        "`[profiles.work]` into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
+        "Remove the `profile` setting. To use a user profile named `work`, move the settings inside "
+        "`[profiles.work]` in your main config into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
         "with `--profile work`.",
     LEGACY_PROFILE_TABLES:
         "If you want to use one of these profiles, move its settings into a separate file in your Codex folder "

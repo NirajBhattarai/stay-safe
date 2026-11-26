@@ -331,4 +331,4 @@ class UnchangedTests(ConfigCase):
                                   ("commands_without_prompts", "config-1:approval_policy"),
                                   ("configured_program", "config-1:notify")])
                 self.assertEqual(report["inspection_gaps"], [] if status == 0 else [
-                    "config-1: The checked Codex version stops loading the configuration when it reads the top-level profile setting."])
+                    "config-1: The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."])

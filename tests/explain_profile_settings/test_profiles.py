@@ -4,7 +4,8 @@ from tests.support import ConfigCase, INCOMPLETE, copy_checkout, run_checkout, s
 
 
 BASE = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
-SELECTOR = "The checked Codex version stops loading the configuration when it reads the top-level profile setting."
+SELECTOR = ("The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. "
+            "It ignores this setting in project configuration.")
 TABLES = ("Legacy profile tables do not select a profile. If this is the base user config, "
           "starting Codex with a matching --profile name stops configuration loading.")
 
@@ -26,15 +27,15 @@ class ProfileTests(ConfigCase):
                 self.assertEqual(message.count("*What to do:*"), 1)
                 if expected == SELECTOR:
                     self.assertIn("**This file uses an old way to select a profile.**", message)
-                    self.assertIn("stops when it reads this setting", message)
+                    self.assertIn("stops if `profile` is in the configuration it uses at startup", message)
                     self.assertIn("Remove the `profile` setting.", message)
                     self.assertIn("`work.config.toml`", message)
                     self.assertIn("Remove the old table and start Codex with `--profile work`.", message)
                 else:
                     self.assertIn("**This file defines a profile but doesn’t select it.**", message)
-                    self.assertIn("If this is your main `config.toml`", message)
-                    self.assertIn("matching", message)
-                    self.assertIn("`--profile", message)
+                    self.assertIn("If this is your main `config.toml` and you start Codex with `--profile` "
+                                  "and a name defined here, the matching table stops Codex from loading.", message)
+                    self.assertIn("Starting with a name this file doesn’t define does not trigger that conflict.", message)
                 for run in (human, machine):
                     self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE))
                     self.assertNotIn("private-name", run.stdout)
@@ -56,3 +57,21 @@ class ProfileTests(ConfigCase):
         self.assertIn("*File `config-2`*", messages[1])
         for run in (human, machine):
             self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE))
+
+    def test_project_file_explains_why_its_selector_can_be_ignored(self):
+        checkout = copy_checkout(self.root / "checkout")
+        project = self.root / "project"
+        folder = project / ".codex"
+        folder.mkdir(parents=True)
+        path = folder / "config.toml"
+        for selector, expected in (('"undisclosed"', "project configuration"), ('false', "validates")):
+            with self.subTest(selector=selector):
+                path.write_text(BASE + "profile=" + selector, encoding="utf-8")
+                for fmt in ("markdown", "json"):
+                    run = run_checkout(checkout, "--workspace", str(project), "--config", str(path),
+                                       "--format", fmt, cwd=self.root)
+                    message = (section(run.stdout, "Not checked") if fmt == "markdown"
+                               else json.loads(run.stdout)["inspection_gaps"][0])
+                    self.assertIn(expected, message)
+                    self.assertNotIn("undisclosed", run.stdout)
+                    self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE))

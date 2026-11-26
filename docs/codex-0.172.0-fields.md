@@ -34,12 +34,12 @@ realtime_frames_local = true
 
 **Markdown**
 
-> **This file uses an old way to select a profile.** The Codex version stay-safe checked stops when it reads this setting.
+> **This file uses an old way to select a profile.** The Codex version stay-safe checked stops if `profile` is in the configuration it uses at startup. It ignores this setting in project configuration.
 
 **JSON** (`inspection_gaps`)
 
 ```json
-["config-1: The checked Codex version stops loading the configuration when it reads the top-level profile setting."]
+["config-1: The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."]
 ```
 
 ## App tool example

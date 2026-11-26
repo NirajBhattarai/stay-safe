@@ -115,7 +115,7 @@ class SavedPageTests(ConfigCase):
                       "incidents.md#i13-repository-settings-run-commands-on-collaborators-machines", expected["links"])
         github = EXPECTED[("configured_program", "config-1:mcp_servers.github")]
         self.assertIn(re.match(r"\*\*(.+?)\*\*", github)[1].replace("`", ""), expected["strong"])
-        profiles = PLAIN["The checked Codex version stops loading the configuration when it reads the top-level profile setting."]
+        profiles = PLAIN["The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."]
         self.assertIn(re.match(r"\*\*(.+?)\*\*", profiles)[1], expected["strong"])
         self.assertIn("How it has gone wrong:", expected["em"])
         self.assertIn("https://github.com/chalkbadger/stay-safe/issues/new/choose", expected["links"])
