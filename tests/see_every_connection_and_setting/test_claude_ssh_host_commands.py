@@ -4,14 +4,14 @@ from tests.support import ConfigCase
 
 VALID = {"sshHostCommands": [{"id": "seed-id", "name": "seed-name", "command": "seed-dev create"}]}
 EXPECTED = [
-    (None, {"sshHostCommands": [["command withheld", "applies only from user or managed settings"], True]}),
+    (None, {"sshHostCommands": [["command withheld", "Claude Desktop reads this setting from user settings or a managed file or policy on this computer."], True]}),
     ("user", {"sshHostCommands": [["command withheld"], True]}),
-    ("project", {"sshHostCommands": [["ignored in project settings; applies only from user or managed settings"], False]}),
+    ("project", {"sshHostCommands": [["Claude Desktop ignores this setting in project files."], False]}),
 ]
 INVALID = [
-    ("sshHostCommands", [{"command": "seed"}], "sshHostCommands is not a list of entries with an id, a name and a command; it was not evaluated."),
-    ("sshHostCommands", [{"id": "a", "name": "b", "command": ""}], "sshHostCommands is not a list of entries with an id, a name and a command; it was not evaluated."),
-    ("sshHostCommands", {"id": "seed"}, "sshHostCommands is not a list of entries with an id, a name and a command; it was not evaluated."),
+    ("sshHostCommands", [{'id': 'seed', 'name': 'seed', 'command': ''}], "An sshHostCommands entry needs text in its command field."),
+    ("sshHostCommands", [42], "Each sshHostCommands entry must be a JSON object."),
+    ("sshHostCommands", {}, "sshHostCommands must be a list of connection entries."),
 ]
 
 
