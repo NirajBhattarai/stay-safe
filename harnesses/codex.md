@@ -68,6 +68,8 @@ The `auto` default is defined by [AppToolApproval][tool-default].
 | `sandbox_mode` | `read-only` | The configured legacy sandbox is read-only. Catalog: `read-only`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_mode` | `workspace-write` | The configured legacy sandbox permits workspace writes. Catalog: `workspace-write`. Rules: none. Gap: no. | [sandbox] | documented |
 | `sandbox_mode` | `danger-full-access` | The configured legacy policy [removes sandbox restrictions][unrestricted-policy]. `workspace-write` [protects the project’s top-level `.codex` directory by default][project-metadata-protection], even before it exists. `danger-full-access` removes that sandbox protection. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: no. | [full-access-selection] | documented in source |
+| `profile` | `top-level string` | Codex 0.172.0 rejects the old selector at load time. Stay-safe explains how to move the profile settings to a separate file. A selector alongside profile definitions produces one profile message. Catalog: none. Rules: none. Gap: yes. | [old-config-selector] | documented in source |
+| `profiles.*` | `named tables without a selector` | In Codex 0.172.0 a matching `--profile` name conflicts with a table in the base user config. An [unrelated table can coexist with the selected file][unrelated-config-profile]. Stay-safe reports the condition without reading the startup flag or applying profile values. Catalog: none. Rules: none. Gap: yes. | [config-profile-loader] | documented in source |
 | `default_permissions` | `selected with sandbox_mode` | Named-profile selection is unhandled and conflicts with the legacy selector; legacy risk facts are suppressed. Catalog: `danger-full-access`, `permission-profile selection is uninspected`. Rules: none. Gap: yes. | [schema] | open |
 | `permissions` | `definitions without selection` | Unselected profile definitions remain unhandled without erasing the explicit legacy sandbox setting. Catalog: `danger-full-access`. Rules: `unrestricted_filesystem`. Gap: yes. | [schema] | open |
 | `sandbox_workspace_write.network_access` | `true` | This workspace-write option controls outbound network access. Catalog: `true`, `workspace-write option`. Rules: `network_access`. Gap: no. | [sandbox] | documented |
@@ -258,6 +260,9 @@ observations, not source readings. The environment Check lists variable names wi
 [saved-precedence]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/policy.rs#L584-L595
 [saved-decisions]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/execpolicy/src/decision.rs
 
+[old-config-selector]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/src/config/mod.rs#L3664-L3671
+[config-profile-loader]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/mod.rs#L295-L343
+[unrelated-config-profile]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/config/src/loader/tests.rs#L1030-L1064
 [schema]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/core/config.schema.json
 [approval]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs
 [approval-alias]: https://github.com/openai/codex/blob/3d86e43b075adeba2193ec5c22ac92f55afd82e6/codex-rs/protocol/src/protocol.rs#L1204-L1215

@@ -240,7 +240,7 @@ class OverviewTests(ConfigCase):
         markdown = render(report, "markdown")
         self.assertIn(NO_FINDINGS, section(markdown, "Findings"))
         self.assertIn("1 thing not checked", "\n".join(overview(markdown)))
-        self.assertIn("Not checked: your profiles", section(markdown, "Not checked"))
+        self.assertIn("This file uses an old way to select a profile.", section(markdown, "Not checked"))
         self.assertEqual(listed(markdown), [])
         self.assertNotIn("#finding", markdown)
         plain = render(report, "plain")
@@ -331,4 +331,4 @@ class UnchangedTests(ConfigCase):
                                   ("commands_without_prompts", "config-1:approval_policy"),
                                   ("configured_program", "config-1:notify")])
                 self.assertEqual(report["inspection_gaps"], [] if status == 0 else [
-                    "config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."])
+                    "config-1: The checked Codex version stops loading the configuration when it reads the top-level profile setting."])

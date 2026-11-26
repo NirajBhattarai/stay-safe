@@ -3,8 +3,9 @@ import json
 from pathlib import Path
 import re
 
-from .codex import (APP_TOOL_REVIEWER_GAP, APPROVALS, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
-                    INVALID_BOOLEAN, INVALID_MCP_MAP, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
+from .codex import (APP_TOOL_REVIEWER_GAP, APPROVALS, EMPTY_PROFILES, EXCLUDED_ACCOUNT, INLINE_MCP_VALUES, INVALID_APPROVAL,
+                    INVALID_BOOLEAN, INVALID_MCP_MAP, INVALID_PROFILE_SELECTOR, LEGACY_PROFILE_SELECTOR,
+                    LEGACY_PROFILE_TABLES, ROOT_HOME_UNKNOWN, ROOTS_NO_WORKSPACE, ROOTS_SCOPE,
                     WORKSPACE_HOME, WORKSPACE_HOME_UNKNOWN, WORKSPACE_UNKNOWN, read_file)
 from .codex_rules import other_files, read_file as read_rules
 from .rules import SANDBOX_OFF_EXPLANATION, evaluate
@@ -481,9 +482,19 @@ GAPS = {
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "**Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile "
-        "Codex uses can override the settings in this report.",
+    LEGACY_PROFILE_SELECTOR:
+        "**This file uses an old way to select a profile.** The Codex version stay-safe checked stops when it "
+        "reads this setting.",
+    LEGACY_PROFILE_TABLES:
+        "**This file defines a profile but doesn’t select it.** If this is your main `config.toml` and you "
+        "start Codex with `--profile` and a name defined here, the matching table stops Codex from loading. "
+        "Starting with a name this file doesn’t define does not trigger that conflict.",
+    INVALID_PROFILE_SELECTOR:
+        "**Codex cannot load this configuration.** The top-level `profile` setting must be a string, and the "
+        "checked Codex version rejects the old selector.",
+    EMPTY_PROFILES:
+        "**Not checked: profile selection.** The `profiles` table is empty. It defines no names that could "
+        "conflict with a startup profile.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "**Not checked: whether commands get your environment variables.** Your "
         f"`shell_environment_policy.inherit` value isn't one stay-safe supports. {WITHHELD}",
@@ -683,8 +694,19 @@ STEPS = {
         "Review your permission profiles yourself; findings about this file's sandbox may not apply.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "Keep only one of `default_permissions` and `sandbox_mode`, then run stay-safe again.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "Review your profiles yourself, especially their approval and sandbox settings.",
+    LEGACY_PROFILE_SELECTOR:
+        "Remove the `profile` setting. For example, if your profile is named `work`, move its settings from "
+        "`[profiles.work]` into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
+        "with `--profile work`.",
+    LEGACY_PROFILE_TABLES:
+        "If you want to use one of these profiles, move its settings into a separate file in your Codex folder "
+        "and remove the matching table from the main config. For example, use `work.config.toml` with "
+        "`--profile work`.",
+    INVALID_PROFILE_SELECTOR:
+        "Remove the `profile` setting. To choose a profile, use a separate profile file and select it with "
+        "`--profile`.",
+    EMPTY_PROFILES:
+        "If you start Codex with `--profile`, review the separate profile file you select.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "Set `inherit` to `\"all\"`, `\"core\"` or `\"none\"`.",
     "shell_environment_policy.ignore_default_excludes has an invalid boolean; its behavior is unknown.":

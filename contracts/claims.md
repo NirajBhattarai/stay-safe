@@ -45,6 +45,13 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - I run stay-safe in a project folder and see its `.claude/settings.json` read once beside my user settings. `test_claude_programs.py::test_discovery_reads_the_project_file_in_the_current_folder_once`
 - I run in a project whose `.claude` folder can't be checked and see it named as a gap. `test_claude_programs.py::test_unreadable_project_folder_is_a_named_gap`
 
+## [explain_profile_settings] I can tell when a profile setting in my file would stop Codex from loading it and when that depends on how I start Codex.
+Issue: https://github.com/chalkbadger/stay-safe/issues/21
+Tests: [tests/explain_profile_settings/](../tests/explain_profile_settings/)
+
+- I see why the old selector stops loading or when a named table conflicts with startup selection. `test_profiles.py::test_selector_and_named_tables_report_different_loading_conditions`
+- I inspect two files and see each profile message and finding attached to its own file. `test_profiles.py::test_each_snapshot_keeps_its_own_profile_message_and_settings`
+
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.
 Issue: https://github.com/chalkbadger/stay-safe/issues/97
 Tests: [tests/understand_inspection_limits/](../tests/understand_inspection_limits/)

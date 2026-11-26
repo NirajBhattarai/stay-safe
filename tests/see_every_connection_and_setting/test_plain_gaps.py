@@ -63,9 +63,19 @@ PLAIN = {
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "**Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile "
-        "Codex uses can override the settings in this report.",
+    "The checked Codex version stops loading the configuration when it reads the top-level profile setting.":
+        "**This file uses an old way to select a profile.** The Codex version stay-safe checked stops when it "
+        "reads this setting.",
+    "Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading.":
+        "**This file defines a profile but doesn’t select it.** If this is your main `config.toml` and you "
+        "start Codex with `--profile` and a name defined here, the matching table stops Codex from loading. "
+        "Starting with a name this file doesn’t define does not trigger that conflict.",
+    "The checked Codex version cannot load this configuration because profile must be a string.":
+        "**Codex cannot load this configuration.** The top-level `profile` setting must be a string, and the "
+        "checked Codex version rejects the old selector.",
+    "The profiles table is empty. No profile names are defined. Startup profile selection was not checked.":
+        "**Not checked: profile selection.** The `profiles` table is empty. It defines no names that could "
+        "conflict with a startup profile.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "**Not checked: whether commands get your environment variables.** Your "
         f"`shell_environment_policy.inherit` value isn't one stay-safe supports. {WITHHELD}",
@@ -247,8 +257,19 @@ STEPS = {
         "Review your permission profiles yourself; findings about this file's sandbox may not apply.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "Keep only one of `default_permissions` and `sandbox_mode`, then run stay-safe again.",
-    "Profiles are outside reader coverage; a selected profile can override the reported settings.":
-        "Review your profiles yourself, especially their approval and sandbox settings.",
+    "The checked Codex version stops loading the configuration when it reads the top-level profile setting.":
+        "Remove the `profile` setting. For example, if your profile is named `work`, move its settings from "
+        "`[profiles.work]` into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
+        "with `--profile work`.",
+    "Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading.":
+        "If you want to use one of these profiles, move its settings into a separate file in your Codex folder "
+        "and remove the matching table from the main config. For example, use `work.config.toml` with "
+        "`--profile work`.",
+    "The checked Codex version cannot load this configuration because profile must be a string.":
+        "Remove the `profile` setting. To choose a profile, use a separate profile file and select it with "
+        "`--profile`.",
+    "The profiles table is empty. No profile names are defined. Startup profile selection was not checked.":
+        "If you start Codex with `--profile`, review the separate profile file you select.",
     "shell_environment_policy.inherit is unsupported or invalid; its value was withheld.":
         "Set `inherit` to `\"all\"`, `\"core\"` or `\"none\"`.",
     "shell_environment_policy.ignore_default_excludes has an invalid boolean; its behavior is unknown.":

@@ -115,18 +115,24 @@ class CatalogTests(ConfigCase):
                          [("config-1:approval_policy", ["never"]), ("config-2:approval_policy", ["on-request"])])
         self.assertIn('config-1:mcp_servers."a.b"', [e["id"] for e in report["catalog"]])
 
-    def test_profiles_warn_that_reported_settings_can_be_overridden(self):
-        for profile in (
-            'profile="private-profile"',
-            '[profiles.private-profile.shell_environment_policy]\ninherit="none"',
-            'profile="private-profile"\n[profiles.private-profile.shell_environment_policy]\ninherit="none"',
-            'profile=false',
-            'profiles={}',
+    def test_profiles_keep_other_settings_visible_and_their_values_private(self):
+        selector = "The checked Codex version stops loading the configuration when it reads the top-level profile setting."
+        tables = ("Legacy profile tables do not select a profile. If this is the base user config, "
+                  "starting Codex with a matching --profile name stops configuration loading.")
+        named = '[profiles.private-profile.shell_environment_policy]\ninherit="none"'
+        for profile, expected in (
+            ('profile="private-profile"', selector),
+            (named, tables),
+            ('profile="private-profile"\n' + named, selector),
+            ('profile=false', "The checked Codex version cannot load this configuration because profile must be a string."),
+            ('profiles={}', "The profiles table is empty. No profile names are defined. Startup profile selection was not checked."),
+            ('profiles=false', 'profiles must be a table.'),
+            ('profiles.private-profile=false', 'profiles contains an entry that is not a table.'),
         ):
             with self.subTest(profile=profile):
                 report = inspect([self.config('approval_policy="on-request"\nsandbox_mode="read-only"\n' + profile)])
                 self.assertEqual(report['inspection_gaps'], [
-                    'config-1: Profiles are outside reader coverage; a selected profile can override the reported settings.',
+                    'config-1: ' + expected,
                 ])
                 self.assertEqual(report['file_inspection'], 'incomplete')
                 self.assertEqual([(r['rule'], r['entry']) for r in report['risks']],

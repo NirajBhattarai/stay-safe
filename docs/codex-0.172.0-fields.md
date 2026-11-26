@@ -11,14 +11,14 @@ The [release scan][inventory] found 24 added and two changed configuration paths
 | `features.guardianv3.message_board_in_memory` | Guardian can keep a fresh thread’s evidence in memory. On resume that board cannot supply earlier evidence, so its attached reviewer is unavailable. This changes what evidence the reviewer can use. Stay-safe gives the general `features` gap. [Board storage][board] · [Resume][resume] |
 | `features.connector_tool_result_passthrough` | When enabled, Codex can include an eligible App tool’s result in a model request. This depends on the call, sign-in and request destination. Stay-safe gives the general `features` gap. The file cannot establish that Codex sent a result. [Feature check][capture] · [Eligible call][eligible] · [Destination][destination] · [Request][request] |
 | `features.realtime_frames_local` | The flag enables local realtime history for threads with a state database and paginated history. A thread with an existing canonical realtime session may still qualify with the flag off. Stay-safe gives the general `features` gap. It does not inspect stored conversations. [Flag to store][store] · [Enrollment][enrollment] · [Persistence][persistence] |
-| The nine feature paths above under `profiles.*.` | The schema repeats all nine inside legacy profile tables. Codex 0.172.0 uses a separate file for an active profile. An unrelated legacy table can coexist with it. Stay-safe gives the same `profiles` gap for a table alone and for a file with the old selector. [Profile loading][profile-layer] · [Unrelated table][unrelated] · [Profile example](#profile-example) |
+| The nine feature paths above under `profiles.*.` | The schema repeats all nine inside legacy profile tables. Codex 0.172.0 uses a separate file for an active profile. An unrelated legacy table can coexist with it. Stay-safe gives a conditional warning for a table alone and a load-error message for a file with the old selector. [Profile loading][profile-layer] · [Unrelated table][unrelated] · [Profile example](#profile-example) |
 | `tui.keymap`, `tui.keymap.agents`, `tui.keymap.agents.next_group`, `tui.keymap.agents.next_group[]`, `tui.keymap.agents.previous_group`, `tui.keymap.agents.previous_group[]` | The two changed parent objects include the new bindings. The added arrays and their items set shortcuts for moving to the next or previous task group. Stay-safe treats terminal preferences as outside its permissions report and gives no gap. [Binding definitions][bindings] · [Navigation][navigation] |
 
 Guardian V3 is off by default. The new Guardian fields configure its evidence and how its reviewer uses that evidence. Setting one of those fields does not select AI review for an App tool. [Default][guardian-default] · [Extension activation][activation] · [App reviewer selection][reviewer]
 
 ## Profile example
 
-Codex 0.172.0 stops when it finds `profile = "work"` in the effective config. To select that profile, move its settings into `work.config.toml`, remove the old selector and matching `[profiles.work]` table from the base file, and start Codex with `--profile work`. The profile file layers over the base user settings. Stay-safe’s existing profiles message does not identify the load error. [Selector rejection][selector] · [File loading][profile-layer] · [Reader follow-up #21][profile-issue]
+Codex 0.172.0 stops when it finds `profile = "work"` in the effective config. To select that profile, move its settings into `work.config.toml`, remove the old selector and matching `[profiles.work]` table from the base file, and start Codex with `--profile work`. The profile file layers over the base user settings. Stay-safe reports the selector error once when it finds both forms in the file. [Selector rejection][selector] · [File loading][profile-layer] · [Reader follow-up #21][profile-issue]
 
 Save this complete example as `profile.toml`. Run `python -m stay_safe --config profile.toml --format markdown` or use `--format json`. Both exit 2.
 
@@ -34,12 +34,12 @@ realtime_frames_local = true
 
 **Markdown**
 
-> **Not checked: your profiles.** Your config file has profiles, which stay-safe doesn't read. A profile Codex uses can override the settings in this report.
+> **This file uses an old way to select a profile.** The Codex version stay-safe checked stops when it reads this setting.
 
 **JSON** (`inspection_gaps`)
 
 ```json
-["config-1: Profiles are outside reader coverage; a selected profile can override the reported settings."]
+["config-1: The checked Codex version stops loading the configuration when it reads the top-level profile setting."]
 ```
 
 ## App tool example
