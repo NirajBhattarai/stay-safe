@@ -47,6 +47,8 @@ Tests: [tests/see_every_connection_and_setting/](../tests/see_every_connection_a
 - When I leave `apiKeyHelper` blank or give it a value other than text, I see why stay-safe flagged it. `test_claude_api_key_helper.py::test_malformed_api_key_helper_names_the_setting`
 - When I set an AWS, GCP or telemetry helper command, I see the setting in the catalog. The command stays private. `test_claude_cloud_helpers.py::test_each_helper_is_listed_with_its_command_withheld`
 - When I leave a helper blank or give it a value other than text, I see which setting needs attention and how to fix it. `test_claude_cloud_helpers.py::test_invalid_helper_value_names_the_setting`
+- When I set `statusLine`, I see it in the catalog. The command stays private. `test_claude_status_line.py::test_status_line_is_listed_with_its_command_withheld`
+- When I give `statusLine` an invalid command, I see which setting needs attention. `test_claude_status_line.py::test_malformed_status_line_names_the_setting`
 - I run in a project whose `.claude` folder can't be checked and see it named as a gap. `test_claude_programs.py::test_unreadable_project_folder_is_a_named_gap`
 
 ## [explain_profile_settings] I can tell when a profile setting in my file would stop Codex from loading it and when that depends on how I start Codex.
@@ -137,6 +139,9 @@ Tests: [tests/each_risk_shows_its_cause/](../tests/each_risk_shows_its_cause/)
 - When my `apiKeyHelper` value is blank or has the wrong type, I see how to fix or remove the setting. `test_claude_api_key_helper_risk.py::test_malformed_helper_explains_how_to_fix_it`
 - When my project configures a helper, I see which file sets it and when Claude Code can run it. The command stays private. `test_claude_cloud_helpers_risk.py::test_each_project_helper_names_its_file_and_withholds_the_command`
 - When both discovered files set the same helper, I see the user setting marked as overridden and a finding for the project setting. Files selected with `--config` keep separate findings. `test_claude_cloud_helpers_risk.py::test_project_helper_overrides_user_helper_only_during_discovery`
+- When both discovered files set `statusLine`, I see both settings and one finding for the project file. When I remove the project setting, I see the user finding. Either finding explains workspace trust. When I select both files with `--config`, I see a finding for each. `test_claude_status_line_risk.py::test_precedence_fallback_trust_and_independent_files`
+- When my project sets `disableAllHooks` to `true`, I see which file set it and where a higher-priority setting could still allow my `statusLine` command to run. When I change the project setting to `false`, I see the finding again. `test_claude_status_line_risk.py::test_a_project_disable_all_hooks_turns_off_a_user_status_line`
+- When my project sets `statusLine`, I see where to review or remove its command. `test_claude_status_line_risk.py::test_status_line_finding_names_its_file_and_withholds_the_command`
 
 ## [findings_say_what_to_do] Each finding explains what is wrong and what I can do.
 Issue: https://github.com/chalkbadger/stay-safe/issues/12

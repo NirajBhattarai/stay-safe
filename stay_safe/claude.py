@@ -37,7 +37,18 @@ HELPER_USE = {
     "gcpAuthRefresh": "when Google Cloud credentials expire or cannot be loaded",
     "otelHeadersHelper": "at startup and periodically to generate telemetry headers",
 }
-PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE}
+WORKSPACE_COMMANDS = {"statusLine": "draw the status line"}
+COMMAND_OBJECT = "{} needs a JSON object with a type field and a command field."
+COMMAND_TYPE = '{}.type must be "command".'
+COMMAND_MISSING = "{}.command is missing."
+COMMAND_NON_TEXT = "{}.command must be text."
+COMMAND_BLANK = "{}.command is blank."
+COMMAND_DISABLE_SOURCE = "disableAllHooks is true in "
+COMMAND_SUPPRESSED = ("The settings checked set disableAllHooks to true. The {} command can still run if a "
+                      "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
+                      "any --settings used to start Claude Code, and your organization's managed settings. "
+                      "Managed settings can also supply their own command.")
+PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS}
 COMMAND = "command withheld"
 DISABLED = "turned off by disableAllHooks in this file"
 UNREAD_ENABLE = ("disableAllHooks turns off the hooks found, but .claude/settings.local.json, managed settings and "
@@ -175,6 +186,26 @@ class SettingsReader(Reader):
                 self.add(name, "hook", [], facts)
 
     def commands(self, data):
+        for name in WORKSPACE_COMMANDS:
+            if name not in data:
+                continue
+            value = data[name]
+            if not isinstance(value, dict):
+                problem = COMMAND_OBJECT
+            elif value.get("type") != "command":
+                problem = COMMAND_TYPE
+            elif "command" not in value:
+                problem = COMMAND_MISSING
+            elif not isinstance(value["command"], str):
+                problem = COMMAND_NON_TEXT
+            elif not value["command"].strip():
+                problem = COMMAND_BLANK
+            else:
+                problem = None
+            if problem:
+                self.gap(problem.format(name))
+                continue
+            self.add([name], "program", [], {"configured_program": True, "project": self.scope == "project"})
         for name in HELPER_USE:
             if name not in data:
                 continue
@@ -289,14 +320,9 @@ def handler_note(record):
 
 
 def resolve(entries, discovered):
-    if discovered:
-        programs = [entry for entry in entries if entry["kind"] == "program" and entry["name"] in HELPER_USE]
-        winners = {entry["name"]: entry["source"] for entry in programs}
-        for entry in programs:
-            winner = winners[entry["name"]]
-            if entry["source"] != winner:
-                entry["observations"].append(f"overridden by {winner}")
-                entry["facts"]["configured_program"] = False
+    programs = [entry for entry in entries if entry["kind"] == "program"
+                and (entry["name"] in HELPER_USE or entry["name"] in WORKSPACE_COMMANDS)]
+    winners = {entry["name"]: entry["source"] for entry in programs} if discovered else {}
     flags = [entry for entry in entries if "disable_all_hooks" in entry["facts"]]
     lists = {entry["source"] for entry in entries if entry["facts"].get("http_allowlist")}
     for flag in flags:
@@ -307,11 +333,28 @@ def resolve(entries, discovered):
     gaps, disabled_any = [], False
     for entry in entries:
         facts = entry["facts"]
-        if "handlers" not in facts:
+        name, source = entry["name"], entry["source"]
+        workspace_command = entry["kind"] == "program" and name in WORKSPACE_COMMANDS
+        if workspace_command:
+            entry["observations"] = [COMMAND] + ([PROJECT] if facts["project"] else [])
+            facts["configured_program"] = True
+        if name in winners and source != winners[name]:
+            entry["observations"].append(f"overridden by {winners[name]}")
+            facts["configured_program"] = False
             continue
-        scoped = flags if discovered else [flag for flag in flags if flag["source"] == entry["source"]]
+        if "handlers" not in facts and not workspace_command:
+            continue
+        scoped = flags if discovered else [flag for flag in flags if flag["source"] == source]
         winner = scoped[-1] if scoped else None
         disabled = winner is not None and winner["facts"]["disable_all_hooks"] is True
+        if workspace_command:
+            if disabled:
+                facts["configured_program"] = False
+                location = "this file" if source == winner["source"] else winner["source"]
+                entry["observations"].append(COMMAND_DISABLE_SOURCE + location)
+                if discovered:
+                    gaps.append(COMMAND_SUPPRESSED.format(name))
+            continue
         active = not disabled and any(runs(record) for record in facts["handlers"])
         if facts["kind"] in FACTS:
             facts[FACTS[facts["kind"]]] = active
