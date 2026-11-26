@@ -37,7 +37,7 @@ HELPER_USE = {
     "gcpAuthRefresh": "when Google Cloud credentials expire or cannot be loaded",
     "otelHeadersHelper": "at startup and periodically to generate telemetry headers",
 }
-WORKSPACE_COMMANDS = {"statusLine": "draw the status line"}
+WORKSPACE_COMMANDS = {"statusLine": "draw the status line", "fileSuggestion": "suggest files when you type `@`"}
 COMMAND_OBJECT = "{} needs a JSON object with a type field and a command field."
 COMMAND_TYPE = '{}.type must be "command".'
 COMMAND_MISSING = "{}.command is missing."
