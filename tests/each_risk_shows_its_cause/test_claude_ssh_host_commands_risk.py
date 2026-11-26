@@ -51,3 +51,15 @@ class ClaudeSshHostCommandsRiskTests(ConfigCase):
         result = inspect("json")
         self.assertEqual(result.returncode, 0)
         self.assertEqual(json.loads(result.stdout)["risks"], [])
+
+    def test_user_hook_switch_changes_the_ssh_command_finding(self):
+        home = agent_home(self.root, claude=json.dumps({**USER, "disableAllHooks": True}))
+        result = run_home(home, "--agent", "claude", "--format", "json")
+        self.assertEqual(result.returncode, 2)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["risks"], [])
+        self.assertIn("This file sets disableAllHooks to true.", report["inspection_gaps"][0])
+        (home / ".claude/settings.json").write_text(json.dumps({**USER, "disableAllHooks": False}))
+        result = run_home(home, "--agent", "claude", "--format", "json")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual([r["entry"] for r in json.loads(result.stdout)["risks"]], ["settings-1:sshHostCommands"])

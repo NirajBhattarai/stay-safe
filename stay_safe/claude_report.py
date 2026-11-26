@@ -1,7 +1,7 @@
 import re
 
 from .claude import (AUTO_APPROVAL_UNSET, AUTO_MODE_GAP, COMMAND_BLANK, COMMAND_MISSING, COMMAND_NON_TEXT, COMMAND_OBJECT,
-                     COMMAND_DISABLE_SOURCE, COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, LOCAL_COMMAND_SCOPE, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
+                     COMMAND_DISABLE_SOURCE, COMMAND_SUPPRESSED, COMMAND_TYPE, HELPER_USE, HTTP, LOCAL_COMMAND_SCOPE, SSH_HOOKS_GAP, PROJECT, UNKNOWN_EVENT, UNREAD_ENABLE, decides, read_file,
                      WORKSPACE_COMMANDS, resolve, runs)
 from .provenance import GAP, REPOSITORY, fingerprints, identify, source_link
 from .rules import evaluate
@@ -108,6 +108,9 @@ GAPS = {
     "Settings file is missing, unreadable, a symlink, or not a JSON object; raw errors were withheld.": (
         "**Not checked: the settings file.** stay-safe couldn't read it as a JSON object. It doesn't follow symlinks.",
         "Check that the file exists, is readable and holds a JSON object, or pass its target with `--config`."),
+    SSH_HOOKS_GAP: ("**This file sets `disableAllHooks` to `true`.** Claude Desktop allows your SSH connection "
+                    "commands only where your hooks are allowed.", "Check your hook settings and your organization's "
+                    "hook policy in Claude Desktop."),
     "sshHostCommands must be a list of connection entries.": (
         "**Check `sshHostCommands`.** Claude Desktop expects a list of connections.",
         "Put each connection in its own object with an `id`, a `name` and a `command`."),
@@ -371,6 +374,7 @@ def finding(risk, path, number, details=None):
         check = (f"*Check:* Read the command in `{field}` in {path}. If it calls a script, read that script "
                  "before you trust it.")
         if name == "sshHostCommands":
+            why = "Changing an entry’s command or the script it calls changes what Desktop can run on your computer."
             check = (f"*Check:* Read the `command` field in each connection under `sshHostCommands` in {path}. "
                      "If it calls a script, read that script before you trust it.")
         if PROJECT in risk["configured_evidence"]:

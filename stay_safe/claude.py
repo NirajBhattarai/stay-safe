@@ -48,6 +48,8 @@ COMMAND_SUPPRESSED = ("The settings checked set disableAllHooks to true. The {} 
                       "higher-priority setting changes disableAllHooks to false. Check .claude/settings.local.json, "
                       "any --settings used to start Claude Code, and your organization's managed settings. "
                       "Managed settings can also supply their own command.")
+SSH_HOOKS_GAP = ("This file sets disableAllHooks to true. Your SSH connection commands are available only where "
+                 "your hooks are allowed. Check the hook settings that apply in Claude Desktop.")
 LOCAL_COMMAND_SCOPE = {"sshHostCommands": "Claude Desktop reads this setting from user settings or a managed file or policy on this computer.",
                        "processWrapper": "Claude Code reads this setting from user or managed settings."}
 PROGRAM_SETTINGS = {"hooks", "disableAllHooks", "allowedHttpHookUrls", *HELPER_USE, *WORKSPACE_COMMANDS, *LOCAL_COMMAND_SCOPE}
@@ -209,7 +211,7 @@ class SettingsReader(Reader):
                 continue
             self.add([name], "program", [], {"configured_program": True, "project": self.scope == "project"})
         if "sshHostCommands" in data:
-            self.ssh_host_commands(data["sshHostCommands"])
+            self.ssh_host_commands(data["sshHostCommands"], data.get("disableAllHooks") is True)
         for name in (*HELPER_USE, "processWrapper"):
             if name not in data:
                 continue
@@ -228,7 +230,7 @@ class SettingsReader(Reader):
                 observations.append(LOCAL_COMMAND_SCOPE[name])
             self.add([name], "program", observations, {"configured_program": True})
 
-    def ssh_host_commands(self, value):
+    def ssh_host_commands(self, value, hooks_disabled):
         name = "sshHostCommands"
         if self.scope == "project":
             self.add([name], "program", ["Claude Desktop ignores this setting in project files."], {"configured_program": False})
@@ -251,9 +253,12 @@ class SettingsReader(Reader):
             self.gap(problem)
         if configured:
             observations = [COMMAND]
+            if hooks_disabled:
+                observations.append("disableAllHooks is true in this file")
+                self.gap(SSH_HOOKS_GAP)
             if self.scope is None:
                 observations.append(LOCAL_COMMAND_SCOPE[name])
-            self.add([name], "program", observations, {"configured_program": True})
+            self.add([name], "program", observations, {"configured_program": not hooks_disabled})
 
     def handlers(self, value):
         if not isinstance(value, dict):
