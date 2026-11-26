@@ -9,6 +9,8 @@ EXPECTED = [
     ("project", {"sshHostCommands": [["Claude Desktop ignores `sshHostCommands` in `.claude/settings.json`."], False]}),
 ]
 INVALID = [
+    ("sshHostCommands", [{"id": "unit", "name": "Unit"}],
+     "Connection 1 in sshHostCommands is missing command. Add the program and arguments that print the SSH host."),
     ("sshHostCommands", [{'id': 'seed', 'name': 'seed', 'command': ''}], "Connection 1 in sshHostCommands needs text in command. Enter the program and arguments that print the SSH host as a nonblank string."),
     ("sshHostCommands", [42], "Connection 1 in sshHostCommands must be a JSON object. Give the connection an id, a name and a command."),
     ("sshHostCommands", {}, "sshHostCommands must be a list of connection entries."),
