@@ -1,13 +1,10 @@
 import json
 
+from tests.support import INLINE_OVERRIDE, SELECTOR_GAP, TABLES_GAP
 from tests.support import ConfigCase, INCOMPLETE, copy_checkout, run_checkout, section
 
 
 BASE = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
-SELECTOR = ("The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. "
-            "It ignores this setting in project configuration.")
-TABLES = ("Legacy profile tables do not select a profile. If this is the base user config, "
-          "starting Codex with a matching --profile name stops configuration loading.")
 
 
 class ProfileTests(ConfigCase):
@@ -15,8 +12,8 @@ class ProfileTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         named = '[profiles.private-name]\nsandbox_mode="danger-full-access"\n'
         selector = 'profile="private-name"\n'
-        for extra, expected in ((selector, SELECTOR), (selector + named, SELECTOR), (named, TABLES),
-                                (named + '[profiles.other-private]\n', TABLES), ('profile=""\n', SELECTOR)):
+        for extra, expected in ((selector, SELECTOR_GAP), (selector + named, SELECTOR_GAP), (named, TABLES_GAP),
+                                (named + '[profiles.other-private]\n', TABLES_GAP), ('profile=""\n', SELECTOR_GAP)):
             with self.subTest(extra=extra):
                 path = str(self.config(BASE + extra))
                 machine = run_checkout(checkout, "--config", path, "--format", "json", cwd=self.root)
@@ -25,21 +22,40 @@ class ProfileTests(ConfigCase):
                 self.assertEqual(json.loads(machine.stdout)["risks"], [])
                 message = section(human.stdout, "Not checked")
                 self.assertEqual(message.count("*What to do:*"), 1)
-                if expected == SELECTOR:
+                self.assertIn(INLINE_OVERRIDE, message)
+                if expected == SELECTOR_GAP:
                     self.assertIn("**This file uses an old way to select a profile.**", message)
-                    self.assertIn("stops if `profile` is in the configuration it uses at startup", message)
+                    self.assertIn("Codex 0.172.0 stops if `profile` is in the configuration it uses at startup", message)
                     self.assertIn("Remove the `profile` setting.", message)
                     self.assertIn("`work.config.toml`", message)
                     self.assertIn("Remove the old table and start Codex with `--profile work`.", message)
                 else:
                     self.assertIn("**This file defines a profile but doesn’t select it.**", message)
-                    self.assertIn("If this is your main `config.toml` and you start Codex with `--profile` "
+                    self.assertIn("If this is your main `config.toml` and you start Codex 0.172.0 with `--profile` "
                                   "and a name defined here, the matching table stops Codex from loading.", message)
                     self.assertIn("Starting with a name this file doesn’t define does not trigger that conflict.", message)
                 for run in (human, machine):
                     self.assertEqual((run.returncode, run.stderr), (2, INCOMPLETE))
                     self.assertNotIn("private-name", run.stdout)
                     self.assertNotIn("other-private", run.stdout)
+
+    def test_migrated_profile_can_be_inspected_separately_from_the_main_config(self):
+        checkout = copy_checkout(self.root / "checkout")
+        main = self.config(BASE)
+        profile = self.config('sandbox_mode="danger-full-access"\n', "work.config.toml")
+        human = run_checkout(checkout, "--config", str(main), cwd=self.root)
+        self.assertEqual(human.returncode, 0)
+        limits = section(human.stdout, "What this report can't see")
+        self.assertIn("select a separate profile file with `--profile`", limits)
+        self.assertIn("that file can override your main config", limits)
+        self.assertIn("Run stay-safe with `--config` and the path to that file", limits)
+        machine = run_checkout(checkout, "--config", str(main), "--config", str(profile),
+                               "--format", "json", cwd=self.root)
+        self.assertEqual((machine.returncode, machine.stderr), (0, ""))
+        report = json.loads(machine.stdout)
+        self.assertIn("A separately selected profile file can override the main config.", " ".join(report["scope"]))
+        self.assertEqual([(risk["entry"], risk["rule"]) for risk in report["risks"]
+                          if risk["rule"] == "unrestricted_filesystem"], [("config-2:sandbox_mode", "unrestricted_filesystem")])
 
     def test_each_snapshot_keeps_its_own_profile_message_and_settings(self):
         checkout = copy_checkout(self.root / "checkout")
@@ -48,7 +64,7 @@ class ProfileTests(ConfigCase):
         cli = ("--config", str(one), "--config", str(two))
         machine = run_checkout(checkout, *cli, "--format", "json", cwd=self.root)
         report = json.loads(machine.stdout)
-        self.assertCountEqual(report["inspection_gaps"], ["config-1: " + SELECTOR, "config-2: " + TABLES])
+        self.assertCountEqual(report["inspection_gaps"], ["config-1: " + SELECTOR_GAP, "config-2: " + TABLES_GAP])
         self.assertEqual([(r["entry"], r["rule"]) for r in report["risks"]], [("config-1:notify", "configured_program")])
         human = run_checkout(checkout, *cli, cwd=self.root)
         messages = section(human.stdout, "Not checked").split("*File `config-1`*")

@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 import tomllib
 
+from tests.support import TABLES_GAP
 from tests.support import ConfigCase, copy_checkout, run_checkout, section
 
 
@@ -91,7 +92,7 @@ class ReviewTests(ConfigCase):
         checkout = copy_checkout(self.root / "checkout")
         base = 'approval_policy="on-request"\nsandbox_mode="read-only"\nshell_environment_policy.inherit="none"\n'
         feature_gap = "config-1: features contains fields outside reader coverage; their values were withheld."
-        profile_gap = "config-1: Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading."
+        profile_gap = "config-1: " + TABLES_GAP
         plugin_gap = "config-1: Unchecked section plugins; its settings were not evaluated."
         cases = [
             ('plugins."example@local".apps.calendar.tools.read.approvals_reviewer="auto_review"',

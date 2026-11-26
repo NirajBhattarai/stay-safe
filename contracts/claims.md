@@ -51,6 +51,7 @@ Tests: [tests/explain_profile_settings/](../tests/explain_profile_settings/)
 
 - I see why the old selector stops loading or when a named table conflicts with startup selection. `test_profiles.py::test_selector_and_named_tables_report_different_loading_conditions`
 - I inspect a project file with the old selector and see how Codex treats project configuration. `test_profiles.py::test_project_file_explains_why_its_selector_can_be_ignored`
+- I can check a separate profile file for settings that could override my main config. `test_profiles.py::test_migrated_profile_can_be_inspected_separately_from_the_main_config`
 - I inspect two files and see each profile message and finding attached to its own file. `test_profiles.py::test_each_snapshot_keeps_its_own_profile_message_and_settings`
 
 ## [understand_inspection_limits] I can tell what the report establishes and what needs further checking.

@@ -2,6 +2,7 @@ from pathlib import Path
 import unittest
 
 from stay_safe.report import inspect, markdown
+from tests.support import SELECTOR_GAP, TABLES_GAP
 from tests.support import CHATGPT_APPS, ConfigCase, section
 
 
@@ -116,14 +117,11 @@ class CatalogTests(ConfigCase):
         self.assertIn('config-1:mcp_servers."a.b"', [e["id"] for e in report["catalog"]])
 
     def test_profiles_keep_other_settings_visible_and_their_values_private(self):
-        selector = "The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."
-        tables = ("Legacy profile tables do not select a profile. If this is the base user config, "
-                  "starting Codex with a matching --profile name stops configuration loading.")
         named = '[profiles.private-profile.shell_environment_policy]\ninherit="none"'
         for profile, expected in (
-            ('profile="private-profile"', selector),
-            (named, tables),
-            ('profile="private-profile"\n' + named, selector),
+            ('profile="private-profile"', SELECTOR_GAP),
+            (named, TABLES_GAP),
+            ('profile="private-profile"\n' + named, SELECTOR_GAP),
             ('profile=false', "Codex expects a string for the top-level profile setting when it validates this configuration."),
             ('profiles={}', "The profiles table is empty. No profile names are defined. Startup profile selection was not checked."),
             ('profiles=false', 'profiles must be a table.'),

@@ -3,6 +3,7 @@ import subprocess
 import sys
 
 from stay_safe.report import inspect, markdown
+from tests.support import INLINE_OVERRIDE, SELECTOR_GAP, TABLES_GAP
 from tests.support import ConfigCase, ROOT, items, section, gap_items
 
 WITHHELD = "The value is left out of this report."
@@ -63,13 +64,14 @@ PLAIN = {
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "**Not checked: which sandbox Codex uses.** Your config file sets both `default_permissions` and "
         "`sandbox_mode`, so stay-safe can't tell which one Codex uses.",
-    "The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration.":
-        "**This file uses an old way to select a profile.** The Codex version stay-safe checked stops if "
-        "`profile` is in the configuration it uses at startup. It ignores this setting in project configuration.",
-    "Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading.":
+    SELECTOR_GAP:
+        "**This file uses an old way to select a profile.** Codex 0.172.0 stops if "
+        "`profile` is in the configuration it uses at startup. It ignores this setting in project configuration. "
+        f"{INLINE_OVERRIDE}",
+    TABLES_GAP:
         "**This file defines a profile but doesn’t select it.** If this is your main `config.toml` and you "
-        "start Codex with `--profile` and a name defined here, the matching table stops Codex from loading. "
-        "Starting with a name this file doesn’t define does not trigger that conflict.",
+        "start Codex 0.172.0 with `--profile` and a name defined here, the matching table stops Codex from loading. "
+        f"Starting with a name this file doesn’t define does not trigger that conflict. {INLINE_OVERRIDE}",
     "Codex expects a string for the top-level profile setting when it validates this configuration.":
         "**The `profile` setting has the wrong type.** Codex expects a profile name written as a string "
         "when it validates this file.",
@@ -257,11 +259,11 @@ STEPS = {
         "Review your permission profiles yourself; findings about this file's sandbox may not apply.",
     "default_permissions and sandbox_mode conflict; effective sandbox selection is unknown.":
         "Keep only one of `default_permissions` and `sandbox_mode`, then run stay-safe again.",
-    "The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration.":
+    SELECTOR_GAP:
         "Remove the `profile` setting. To use a user profile named `work`, move the settings inside "
         "`[profiles.work]` in your main config into `work.config.toml` in your Codex folder. Remove the old table and start Codex "
         "with `--profile work`.",
-    "Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading.":
+    TABLES_GAP:
         "If you want to use one of these profiles, move its settings into a separate file in your Codex folder "
         "and remove the matching table from the main config. For example, use `work.config.toml` with "
         "`--profile work`.",

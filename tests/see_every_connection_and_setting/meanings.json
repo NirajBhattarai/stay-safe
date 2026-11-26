@@ -74,7 +74,7 @@
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\nprofile=\"work\"\n[profiles.work]\n",
     "entry": "profile",
     "gaps": [
-      "The checked Codex version rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration."
+      "Codex 0.172.0 rejects a top-level profile selector in the configuration it uses at startup. It ignores this setting in project configuration. On versions that support inline profiles, settings in the selected table can override your top-level settings."
     ]
   },
   {
@@ -83,7 +83,7 @@
     "config": "approval_policy=\"on-request\"\nsandbox_mode=\"read-only\"\n[profiles.work]\n",
     "entry": "profiles.work",
     "gaps": [
-      "Legacy profile tables do not select a profile. If this is the base user config, starting Codex with a matching --profile name stops configuration loading."
+      "Legacy profile tables do not select a profile. If this is the base user config, starting Codex 0.172.0 with a matching --profile name stops configuration loading. On versions that support inline profiles, settings in the selected table can override your top-level settings."
     ]
   },
   {
